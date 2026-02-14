@@ -214,7 +214,13 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
                }
 
                return (
-                 <div key={`fold-${idx}`} className={`group relative h-8 ${isPrincess ? 'bg-pink-50/50' : 'bg-blue-50/50'} border-y ${isPrincess ? 'border-pink-100' : 'border-blue-100'} flex items-center justify-center cursor-pointer hover:bg-opacity-100 transition-colors`} onClick={() => toggleFold(section.startLineIndex)}>
+                 <button
+                   type="button"
+                   key={`fold-${idx}`}
+                   className={`w-full group relative h-8 ${isPrincess ? 'bg-pink-50/50' : 'bg-blue-50/50'} border-y ${isPrincess ? 'border-pink-100' : 'border-blue-100'} flex items-center justify-center cursor-pointer hover:bg-opacity-100 transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400`}
+                   onClick={() => toggleFold(section.startLineIndex)}
+                   aria-label={`Expand ${section.lineCount} lines of context`}
+                 >
                     <div className={`absolute left-0 w-1 h-full ${isPrincess ? 'bg-pink-300' : 'bg-blue-300'} opacity-0 group-hover:opacity-100 transition-opacity`} />
                     <div className="flex items-center space-x-2 text-xs opacity-60 group-hover:opacity-100 transition-opacity select-none">
                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -227,7 +233,7 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
                           <polyline points="7 6 12 11 17 6"></polyline>
                        </svg>
                     </div>
-                 </div>
+                 </button>
                );
              }
 

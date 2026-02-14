@@ -29,6 +29,7 @@ const App: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionHover, setActionHover] = useState<'REMOVE' | 'RESTORE' | null>(null);
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   // Layout State
   const [sidebarWidth, setSidebarWidth] = useState(320);
@@ -118,6 +119,13 @@ const App: React.FC = () => {
   }, [gitState.files, searchQuery]);
 
   const allFilteredSelected = filteredFiles.length > 0 && filteredFiles.every(f => gitState.selectedFileIds.has(f.id));
+  const someFilteredSelected = filteredFiles.length > 0 && filteredFiles.some(f => gitState.selectedFileIds.has(f.id)) && !allFilteredSelected;
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someFilteredSelected;
+    }
+  }, [someFilteredSelected]);
 
   const handleFetch = async () => {
      setIsProcessing(true);
@@ -310,6 +318,8 @@ const App: React.FC = () => {
                  <button 
                     onClick={() => setSearchQuery('')}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 rounded-full p-0.5 hover:bg-gray-100 transition-colors"
+                    aria-label="Clear filter"
+                    title="Clear filter"
                  >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -319,29 +329,23 @@ const App: React.FC = () => {
                )}
              </div>
 
-             <div className="flex items-center select-none">
+             <label className="flex items-center select-none cursor-pointer group">
                 <div className="mr-2 flex items-center justify-center">
-                   {allFilteredSelected ? (
-                      <input 
-                        type="checkbox" 
-                        checked={true}
-                        onChange={toggleSelectAll}
-                        className={`h-3.5 w-3.5 border-gray-300 rounded focus:ring-blue-500 cursor-pointer ${isPrincess ? 'accent-pink-500' : 'accent-blue-600'}`}
-                      />
-                   ) : (
-                      <div 
-                         onClick={toggleSelectAll} 
-                         className="h-3.5 w-3.5 rounded-[3px] border border-gray-400/60 bg-white/40 hover:border-blue-400 cursor-pointer"
-                      />
-                   )}
+                   <input
+                     type="checkbox"
+                     ref={selectAllRef}
+                     checked={allFilteredSelected}
+                     onChange={toggleSelectAll}
+                     className={`h-3.5 w-3.5 border-gray-300 rounded focus:ring-blue-500 cursor-pointer ${isPrincess ? 'accent-pink-500' : 'accent-blue-600'}`}
+                   />
                 </div>
                 
-                <div onClick={toggleSelectAll} className="cursor-pointer flex items-baseline truncate">
-                   <span className="text-xs font-semibold text-gray-700 mr-1.5">
+                <div className="flex items-baseline truncate">
+                   <span className="text-xs font-semibold text-gray-700 mr-1.5 group-hover:text-gray-900 transition-colors">
                       {filteredFiles.length} diff files
                    </span>
                 </div>
-             </div>
+             </label>
           </div>
           
           <FileList 
