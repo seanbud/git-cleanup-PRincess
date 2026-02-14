@@ -29,10 +29,13 @@ export interface GitFile {
 
 export enum CharacterState {
   IDLE = 'IDLE',
-  HOVER = 'HOVER',
   SELECTED = 'SELECTED',
   ACTION_GOOD = 'ACTION_GOOD',
-  ACTION_BAD = 'ACTION_BAD'
+  ACTION_BAD = 'ACTION_BAD',
+  CELEBRATING = 'CELEBRATING',
+  SWEEPING = 'SWEEPING',
+  WORRIED = 'WORRIED',
+  WAVING = 'WAVING'
 }
 
 export interface GitState {

@@ -1,10 +1,8 @@
-import * as electron from 'electron';
+import { app, BrowserWindow, shell, ipcMain, safeStorage, dialog } from 'electron';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { execSync } from 'child_process';
 import fs from 'fs';
-
-const { app, BrowserWindow, shell, ipcMain, safeStorage, dialog } = electron;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 

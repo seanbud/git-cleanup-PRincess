@@ -107,13 +107,22 @@ const App: React.FC = () => {
     refreshGitState();
     loadRecentRepos();
 
+    // Initial greeting
+    setCharacterState(CharacterState.WAVING);
+    setTimeout(() => {
+      setCharacterState(CharacterState.IDLE);
+    }, 3000);
+
     // Auto-refresh every 10 seconds
     const interval = setInterval(refreshGitState, 10000);
     return () => clearInterval(interval);
   }, [refreshGitState, loadRecentRepos]);
 
   useEffect(() => {
-    if (isProcessing) return;
+    if (isProcessing) {
+      setCharacterState(CharacterState.SWEEPING);
+      return;
+    }
     if (actionHover === 'REMOVE') setCharacterState(CharacterState.ACTION_BAD);
     else if (actionHover === 'RESTORE') setCharacterState(CharacterState.ACTION_GOOD);
     else setCharacterState(gitState.selectedFileIds.size > 0 ? CharacterState.SELECTED : CharacterState.IDLE);
@@ -219,19 +228,32 @@ const App: React.FC = () => {
 
     const selectedFiles = gitState.files.filter(f => gitState.selectedFileIds.has(f.id));
 
-    for (const file of selectedFiles) {
-      if (actionType === 'RESTORE') {
-        await GitService.restoreFile(file.path);
-      } else {
-        await GitService.removeFile(file.path);
+    try {
+      for (const file of selectedFiles) {
+        if (actionType === 'RESTORE') {
+          await GitService.restoreFile(file.path);
+        } else {
+          await GitService.removeFile(file.path);
+        }
       }
-    }
 
-    await refreshGitState();
-    setGitState(prev => ({ ...prev, selectedFileIds: new Set() }));
-    setIsProcessing(false);
-    setCharacterState(CharacterState.IDLE);
-    setSelectedDiff('');
+      await refreshGitState();
+      setGitState(prev => ({ ...prev, selectedFileIds: new Set() }));
+      setIsProcessing(false);
+
+      // Celebration state for 2 seconds
+      setCharacterState(CharacterState.CELEBRATING);
+      setTimeout(() => {
+        setCharacterState(CharacterState.IDLE);
+      }, 2000);
+
+      setSelectedDiff('');
+    } catch (err) {
+      console.error(err);
+      setCharacterState(CharacterState.WORRIED);
+      setTimeout(() => setCharacterState(CharacterState.IDLE), 3000);
+      setIsProcessing(false);
+    }
   };
 
   const handleChangeBranch = async (branchName: string) => {
