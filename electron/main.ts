@@ -15,7 +15,18 @@ const TOKEN_PATH = path.join(app.getPath('userData'), 'github-token.bin');
 const RECENT_REPOS_PATH = path.join(app.getPath('userData'), 'recent-repos.json');
 
 // Track the current working directory for git commands
+// Auto-detect git root if launched from within a repo
 let currentCwd = process.cwd();
+try {
+    const gitRoot = execSync('git rev-parse --show-toplevel', {
+        encoding: 'utf-8',
+        cwd: process.cwd(),
+        stdio: ['pipe', 'pipe', 'pipe']
+    }).trim();
+    if (gitRoot) currentCwd = gitRoot;
+} catch {
+    // Not a git repo — will be set when user opens one
+}
 
 function storeToken(token: string) {
     const encrypted = safeStorage.encryptString(token);
@@ -140,16 +151,25 @@ app.whenReady().then(() => {
     // ─── Git CLI IPC ──────────────────────────────────────────────
     ipcMain.handle('git:cmd', async (_, cmd) => {
         try {
-            const output = execSync(cmd, { encoding: 'utf-8', cwd: currentCwd, timeout: 15000 });
+            const output = execSync(cmd, {
+                encoding: 'utf-8',
+                cwd: currentCwd,
+                timeout: 15000,
+                stdio: ['pipe', 'pipe', 'pipe'] // Suppress stderr from leaking to console
+            });
             return { stdout: output, success: true };
         } catch (error: any) {
-            return { stderr: error.message, stdout: error.stdout || '', success: false };
+            return { stderr: error.stderr || error.message, stdout: error.stdout || '', success: false };
         }
     });
 
     ipcMain.handle('git:config-get', async (_, key) => {
         try {
-            return execSync(`git config --get ${key}`, { encoding: 'utf-8', cwd: currentCwd }).trim();
+            return execSync(`git config --get ${key}`, {
+                encoding: 'utf-8',
+                cwd: currentCwd,
+                stdio: ['pipe', 'pipe', 'pipe']
+            }).trim();
         } catch {
             return '';
         }
@@ -168,7 +188,11 @@ app.whenReady().then(() => {
 
         // Verify it's a git repo
         try {
-            execSync('git rev-parse --is-inside-work-tree', { cwd: selectedDir, encoding: 'utf-8' });
+            execSync('git rev-parse --is-inside-work-tree', {
+                cwd: selectedDir,
+                encoding: 'utf-8',
+                stdio: ['pipe', 'pipe', 'pipe']
+            });
         } catch {
             return { error: 'Not a Git repository' };
         }
@@ -188,7 +212,11 @@ app.whenReady().then(() => {
 
     ipcMain.handle('repos:switch', (_, repoPath: string) => {
         try {
-            execSync('git rev-parse --is-inside-work-tree', { cwd: repoPath, encoding: 'utf-8' });
+            execSync('git rev-parse --is-inside-work-tree', {
+                cwd: repoPath,
+                encoding: 'utf-8',
+                stdio: ['pipe', 'pipe', 'pipe']
+            });
             currentCwd = repoPath;
             addRecentRepo(repoPath);
             return { success: true };
