@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
     base: './', // Important for Electron to load relative assets
     server: {
       port: 3000,
-      host: '0.0.0.0',
+      host: '127.0.0.1',
     },
     plugins: [
       react(),
@@ -26,10 +26,6 @@ export default defineConfig(({ mode }) => {
         renderer: {},
       }),
     ],
-    define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

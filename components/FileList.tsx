@@ -2,6 +2,98 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { GitFile, CharacterState, ChangeType, ThemeMode } from '../types';
 import { getStatusIcon } from '../constants';
 
+const renderPath = (path: string) => {
+  const parts = path.split('/');
+  const fileName = parts.pop() || path;
+  const isLong = path.length > 45;
+
+  if (!isLong) {
+    return <div className="truncate font-mono text-xs md:text-sm leading-tight">{path}</div>;
+  }
+
+  const root = parts.shift();
+
+  return (
+    <div className="flex items-center min-w-0 font-mono text-xs md:text-sm leading-tight" title={path}>
+      {root && <span className="opacity-50 shrink-0 mr-0.5">{root}/.../</span>}
+      <span className="truncate">{fileName}</span>
+    </div>
+  );
+};
+
+interface FileListItemProps {
+  file: GitFile;
+  isSelected: boolean;
+  isPrincess: boolean;
+  hoverBg: string;
+  onSelect: (e: React.MouseEvent, file: GitFile) => void;
+  onSelectionChange: (ids: Set<string>) => void;
+  onContextMenu: (e: React.MouseEvent, type: 'FILE', payload?: GitFile) => void;
+}
+
+const FileListItem: React.FC<FileListItemProps> = React.memo(({
+  file,
+  isSelected,
+  isPrincess,
+  hoverBg,
+  onSelect,
+  onSelectionChange,
+  onContextMenu
+}) => {
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    onSelect(e, file);
+  }, [onSelect, file]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isSelected) {
+      onSelectionChange(new Set([file.id]));
+    }
+    onContextMenu(e, 'FILE', file);
+  }, [isSelected, file, onSelectionChange, onContextMenu]);
+
+  return (
+    <div
+      onClick={handleClick}
+      onContextMenu={handleContextMenu}
+      className={`
+        flex items-center px-3 py-2 text-sm border-b border-gray-100/50 cursor-pointer select-none transition-colors group relative
+        ${isSelected ? (isPrincess ? 'bg-pink-500 text-white' : 'bg-blue-600 text-white') : `${hoverBg} text-gray-700`}
+      `}
+    >
+      {/* Selection Highlight Bar */}
+      {isSelected && <div className={`absolute left-0 top-0 bottom-0 w-1 ${isPrincess ? 'bg-pink-300' : 'bg-blue-400'}`} />}
+
+      {/* Checkbox */}
+      <div className="mr-3 flex items-center justify-center">
+        {isSelected ? (
+          <input
+            type="checkbox"
+            checked={true}
+            readOnly
+            className="pointer-events-none accent-white h-3.5 w-3.5 opacity-80"
+          />
+        ) : (
+          <div className="w-3.5 h-3.5 rounded-[3px] border border-gray-400/60 bg-white/40 group-hover:bg-white transition-colors" />
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0 mr-2">
+        {renderPath(file.path)}
+        {file.commitMessage && (
+          <div className={`text-[10px] truncate mt-0.5 ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
+            {file.commitMessage}
+          </div>
+        )}
+      </div>
+
+      <div className={`${isSelected ? 'text-white' : ''}`}>
+        {getStatusIcon(file.status)}
+      </div>
+    </div>
+  );
+});
+
 interface FileListProps {
   files: GitFile[];
   selectedIds: Set<string>;
@@ -29,11 +121,31 @@ const FileList: React.FC<FileListProps> = ({
   const hoverBg = isPrincess ? 'hover:bg-pink-50' : 'hover:bg-blue-50';
 
   // Helper to order files logically for display
-  const orderedFiles = useMemo(() => {
-    const uncommitted = files.filter(f => f.changeType === ChangeType.UNCOMMITTED);
-    const stashed = files.filter(f => f.changeType === ChangeType.STASHED);
-    const unpushed = files.filter(f => f.changeType === ChangeType.UNPUSHED);
-    return [...uncommitted, ...stashed, ...unpushed];
+  const { orderedFiles, uncommitted, stashed, unpushed } = useMemo(() => {
+    const uncommitted: GitFile[] = [];
+    const stashed: GitFile[] = [];
+    const unpushed: GitFile[] = [];
+
+    files.forEach((f) => {
+      switch (f.changeType) {
+        case ChangeType.UNCOMMITTED:
+          uncommitted.push(f);
+          break;
+        case ChangeType.STASHED:
+          stashed.push(f);
+          break;
+        case ChangeType.UNPUSHED:
+          unpushed.push(f);
+          break;
+      }
+    });
+
+    return {
+      orderedFiles: [...uncommitted, ...stashed, ...unpushed],
+      uncommitted,
+      stashed,
+      unpushed,
+    };
   }, [files]);
 
   const handleSelect = useCallback((e: React.MouseEvent, file: GitFile) => {
@@ -69,25 +181,6 @@ const FileList: React.FC<FileListProps> = ({
 
     onSelectionChange(newSelected);
   }, [orderedFiles, selectedIds, lastSelectedId, onSelectionChange]);
-
-  const renderPath = (path: string) => {
-    const parts = path.split('/');
-    const fileName = parts.pop() || path;
-    const isLong = path.length > 45;
-
-    if (!isLong) {
-      return <div className="truncate font-mono text-xs md:text-sm leading-tight">{path}</div>;
-    }
-
-    const root = parts.shift();
-
-    return (
-      <div className="flex items-center min-w-0 font-mono text-xs md:text-sm leading-tight" title={path}>
-        {root && <span className="opacity-50 shrink-0 mr-0.5">{root}/.../</span>}
-        <span className="truncate">{fileName}</span>
-      </div>
-    );
-  };
 
   const renderGroup = (title: string, groupFiles: GitFile[]) => {
     if (groupFiles.length === 0) return null;
@@ -151,10 +244,6 @@ const FileList: React.FC<FileListProps> = ({
       </div>
     );
   };
-
-  const stashed = orderedFiles.filter(f => f.changeType === ChangeType.STASHED);
-  const uncommitted = orderedFiles.filter(f => f.changeType === ChangeType.UNCOMMITTED);
-  const unpushed = orderedFiles.filter(f => f.changeType === ChangeType.UNPUSHED);
 
   return (
     <div

@@ -14,7 +14,41 @@ type DiffLine = {
 
 type DiffSection = 
   | { type: 'lines'; lines: DiffLine[] }
-  | { type: 'folded'; lineCount: number; startLineIndex: number };
+  | { type: 'folded'; lineCount: number; startLineIndex: number; lines: DiffLine[] };
+
+interface DiffLineItemProps {
+  line: DiffLine;
+  isPrincess: boolean;
+}
+
+const DiffLineItem: React.FC<DiffLineItemProps> = ({ line, isPrincess }) => {
+  let lineBgClass = '';
+  let textClass = 'text-gray-600';
+
+  if (line.type === 'added') {
+    lineBgClass = isPrincess ? 'bg-pink-100/40' : 'bg-green-100/30';
+    textClass = isPrincess ? 'text-pink-900' : 'text-green-900';
+  } else if (line.type === 'removed') {
+    lineBgClass = isPrincess ? 'bg-purple-100/40' : 'bg-red-100/30';
+    textClass = isPrincess ? 'text-purple-900' : 'text-red-900';
+  } else if (line.type === 'header') {
+    lineBgClass = isPrincess ? 'bg-pink-50 text-pink-400' : 'bg-blue-50 text-blue-400';
+    textClass = 'font-bold opacity-80';
+  }
+
+  return (
+    <div className={`${lineBgClass} flex hover:opacity-100 transition-opacity`}>
+      {/* Line Number */}
+      <div className="w-10 shrink-0 select-none text-right pr-3 py-[1px] text-[10px] text-gray-300 border-r border-gray-100 bg-white/30 font-mono">
+        {line.originalIndex + 1}
+      </div>
+      {/* Code Content */}
+      <div className={`px-3 py-[1px] whitespace-pre-wrap break-all ${textClass} font-mono leading-relaxed w-full`}>
+        {line.text}
+      </div>
+    </div>
+  );
+};
 
 const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
   const isPrincess = mode === ThemeMode.PRINCESS;
@@ -76,7 +110,8 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
               const foldedCount = currentBuffer.length - keepStart - keepEnd;
               // Use the index of the first folded line as the key
               const foldKey = currentBuffer[keepStart].originalIndex; 
-              result.push({ type: 'folded', lineCount: foldedCount, startLineIndex: foldKey });
+              const foldedLines = currentBuffer.slice(keepStart, currentBuffer.length - keepEnd);
+              result.push({ type: 'folded', lineCount: foldedCount, startLineIndex: foldKey, lines: foldedLines });
 
               // Push the end context
               result.push({ type: 'lines', lines: currentBuffer.slice(currentBuffer.length - keepEnd) });
@@ -103,7 +138,8 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
           const keepStart = 4;
           result.push({ type: 'lines', lines: currentBuffer.slice(0, keepStart) });
           const foldKey = currentBuffer[keepStart].originalIndex;
-          result.push({ type: 'folded', lineCount: currentBuffer.length - keepStart, startLineIndex: foldKey });
+          const foldedLines = currentBuffer.slice(keepStart);
+          result.push({ type: 'folded', lineCount: currentBuffer.length - keepStart, startLineIndex: foldKey, lines: foldedLines });
        } else {
           result.push({ type: 'lines', lines: currentBuffer });
        }
@@ -160,15 +196,20 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
                
                if (isExpanded) {
                   return (
-                     <div key={`fold-${idx}`} className="bg-gray-100/50 py-2 px-4 border-y border-gray-200 text-center text-gray-400 italic text-xs">
-                        Expanded context placeholder...
-                        <button 
-                          onClick={() => toggleFold(section.startLineIndex)} 
-                          className="ml-2 text-blue-500 hover:underline"
-                        >
-                           Collapse
-                        </button>
-                     </div>
+                    <div key={`fold-${idx}`}>
+                       <div className="bg-gray-100/50 py-1 px-4 border-y border-gray-200 text-center text-gray-400 text-xs flex justify-center items-center">
+                          <button
+                            onClick={() => toggleFold(section.startLineIndex)}
+                            className="text-blue-500 hover:underline flex items-center gap-1"
+                          >
+                             Collapse {section.lineCount} lines
+                          </button>
+                       </div>
+                       {section.lines.map((line, lineIdx) => {
+                          const uniqueKey = `${idx}-${lineIdx}-${line.originalIndex}`;
+                          return <DiffLineItem key={uniqueKey} line={line} isPrincess={isPrincess} />;
+                       })}
+                    </div>
                   );
                }
 
@@ -192,32 +233,7 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
 
              return section.lines.map((line, lineIdx) => {
                 const uniqueKey = `${idx}-${lineIdx}-${line.originalIndex}`;
-                let lineBgClass = '';
-                let textClass = 'text-gray-600';
-                
-                if (line.type === 'added') {
-                  lineBgClass = isPrincess ? 'bg-pink-100/40' : 'bg-green-100/30';
-                  textClass = isPrincess ? 'text-pink-900' : 'text-green-900';
-                } else if (line.type === 'removed') {
-                  lineBgClass = isPrincess ? 'bg-purple-100/40' : 'bg-red-100/30';
-                  textClass = isPrincess ? 'text-purple-900' : 'text-red-900';
-                } else if (line.type === 'header') {
-                  lineBgClass = isPrincess ? 'bg-pink-50 text-pink-400' : 'bg-blue-50 text-blue-400';
-                  textClass = 'font-bold opacity-80';
-                }
-
-                return (
-                  <div key={uniqueKey} className={`${lineBgClass} flex hover:opacity-100 transition-opacity`}>
-                    {/* Line Number */}
-                    <div className="w-10 shrink-0 select-none text-right pr-3 py-[1px] text-[10px] text-gray-300 border-r border-gray-100 bg-white/30 font-mono">
-                      {line.originalIndex + 1}
-                    </div>
-                    {/* Code Content */}
-                    <div className={`px-3 py-[1px] whitespace-pre-wrap break-all ${textClass} font-mono leading-relaxed w-full`}>
-                      {line.text}
-                    </div>
-                  </div>
-                );
+                return <DiffLineItem key={uniqueKey} line={line} isPrincess={isPrincess} />;
              });
            })}
         </div>

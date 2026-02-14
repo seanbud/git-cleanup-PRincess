@@ -141,7 +141,6 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
             <span className="truncate">{state.currentBranch}</span>
           </div>
 
-          {/* Dropdown */}
           {activeDropdown === 'BRANCH' && (
             <div className="absolute top-full left-0 z-50">
               {renderDropdownList(branches, (name) => onChangeBranch?.(name), state.currentBranch)}
