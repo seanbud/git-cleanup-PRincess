@@ -21,7 +21,6 @@ Git Cleanup PRincess is a lightweight desktop utility designed to handle the "me
 - Interactive character sprites that react to your cleanup actions.
 - Safe deletion system that moves files to the system Recycle Bin instead of permanent erasure.
 - High-fidelity diff viewer for surgical change review.
-- Visual commit graph to maintain context of your kingdom's history.
 - Real-time Git status tracking with line-level statistics.
 - Seamless GitHub authentication and repository management.
 
