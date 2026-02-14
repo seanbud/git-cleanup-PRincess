@@ -17,6 +17,37 @@ interface RepoHeaderProps {
 
 type DropdownType = 'REPO' | 'BRANCH' | null;
 
+interface DropdownListProps {
+  items: string[];
+  onSelect: (item: string) => void;
+  selectedItem: string;
+  onClose: () => void;
+}
+
+const DropdownList: React.FC<DropdownListProps> = ({ items, onSelect, selectedItem, onClose }) => (
+  <div className="absolute top-full mt-2 left-0 w-[280px] bg-white rounded-lg shadow-xl border border-gray-200 ring-1 ring-black/5 z-[100] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-1 duration-100">
+    <div className="max-h-[300px] overflow-y-auto py-1">
+      {items.map((item) => {
+        const isSelected = item === selectedItem;
+        return (
+          <div
+            key={item}
+            className={`px-4 py-2.5 text-xs font-medium cursor-pointer flex items-center justify-between ${isSelected ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50 text-gray-600'}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(item);
+              onClose();
+            }}
+          >
+            <span className="truncate">{item}</span>
+            {isSelected && <Icons.Check />}
+          </div>
+        );
+      })}
+    </div>
+  </div>
+);
+
 const RepoHeader: React.FC<RepoHeaderProps> = ({ 
   mode, 
   state, 
@@ -52,30 +83,6 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
     setActiveDropdown(activeDropdown === type ? null : type);
   };
 
-  const renderDropdownList = (items: string[], onSelect: (item: string) => void, selectedItem: string) => (
-    <div className="absolute top-full mt-2 left-0 w-[280px] bg-white rounded-lg shadow-xl border border-gray-200 ring-1 ring-black/5 z-[100] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-1 duration-100">
-      <div className="max-h-[300px] overflow-y-auto py-1">
-        {items.map((item) => {
-          const isSelected = item === selectedItem;
-          return (
-            <div 
-              key={item}
-              className={`px-4 py-2.5 text-xs font-medium cursor-pointer flex items-center justify-between ${isSelected ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50 text-gray-600'}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(item);
-                setActiveDropdown(null);
-              }}
-            >
-              <span className="truncate">{item}</span>
-              {isSelected && <Icons.Check />}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-
   return (
     <div 
       className={`h-[72px] flex items-center shrink-0 ${bgClass} border-b ${borderClass} px-6 transition-colors duration-300 gap-6`} 
@@ -96,7 +103,14 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
           <span className="max-w-[140px] truncate">{state.repoName}</span>
           <span className="opacity-50 text-[10px]">▼</span>
         </button>
-        {activeDropdown === 'REPO' && renderDropdownList(MOCK_REPOS, (name) => onChangeRepo?.(name), state.repoName)}
+        {activeDropdown === 'REPO' && (
+          <DropdownList
+            items={MOCK_REPOS}
+            onSelect={(name) => onChangeRepo?.(name)}
+            selectedItem={state.repoName}
+            onClose={() => setActiveDropdown(null)}
+          />
+        )}
       </div>
 
       {/* 2. Branch & Upstream (Center/Main) */}
@@ -117,7 +131,12 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
             {/* Dropdown */}
             {activeDropdown === 'BRANCH' && (
                 <div className="absolute top-full left-0 z-50">
-                    {renderDropdownList(MOCK_BRANCHES, (name) => onChangeBranch?.(name), state.currentBranch)}
+                    <DropdownList
+                      items={MOCK_BRANCHES}
+                      onSelect={(name) => onChangeBranch?.(name)}
+                      selectedItem={state.currentBranch}
+                      onClose={() => setActiveDropdown(null)}
+                    />
                 </div>
             )}
         </div>
