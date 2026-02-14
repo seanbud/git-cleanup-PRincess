@@ -12,8 +12,10 @@ import ActionPanel from './components/ActionPanel';
 import ContextMenu, { ContextMenuItem } from './components/ContextMenu';
 import DustSpore from './components/DustSpore';
 import { Icons } from './constants';
+import LoginScreen from './components/LoginScreen';
 
 const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>(ThemeMode.PRINCESS);
   const [characterState, setCharacterState] = useState<CharacterState>(CharacterState.IDLE);
   const [gitState, setGitState] = useState<GitState>({
@@ -246,6 +248,10 @@ const App: React.FC = () => {
   const isPrincess = themeMode === ThemeMode.PRINCESS;
   const appBgClass = isPrincess ? 'bg-[#fff5f9]' : 'bg-[#f4faff]';
   const sidebarHeaderBg = isPrincess ? 'bg-[#fff0f6]' : 'bg-[#e0efff]/50';
+
+  if (!isAuthenticated) {
+    return <LoginScreen mode={themeMode} onLogin={() => setIsAuthenticated(true)} />;
+  }
 
   return (
     <div className={`flex flex-col h-screen w-screen overflow-hidden text-sm ${appBgClass} font-sans transition-colors duration-300`}>
