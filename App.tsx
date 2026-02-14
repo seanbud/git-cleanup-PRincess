@@ -90,22 +90,29 @@ const App: React.FC = () => {
 
     const terms = rawQuery.split(/\s+/).filter(Boolean);
 
+    // Pre-compile regex patterns for performance
+    const processedTerms = terms.map(term => {
+      // Handle Glob patterns (e.g. *.md, src/*)
+      if (term.includes('*')) {
+        const escapeRegex = (str: string) => str.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+        // Convert glob * to .* and ensure start/end anchoring
+        const pattern = term.split('*').map(escapeRegex).join('.*');
+        return new RegExp(`^${pattern}$`, 'i');
+      }
+      return term.toLowerCase();
+    });
+
     return gitState.files.filter(f => {
       const filePath = f.path;
       
       // File must match ALL terms
-      return terms.every(term => {
-        // Handle Glob patterns (e.g. *.md, src/*)
-        if (term.includes('*')) {
-          const escapeRegex = (str: string) => str.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-          // Convert glob * to .* and ensure start/end anchoring
-          const pattern = term.split('*').map(escapeRegex).join('.*');
-          const regex = new RegExp(`^${pattern}$`, 'i');
-          return regex.test(filePath);
+      return processedTerms.every(term => {
+        if (term instanceof RegExp) {
+          return term.test(filePath);
         }
         
         // Standard fuzzy search (case insensitive)
-        return filePath.toLowerCase().includes(term.toLowerCase());
+        return filePath.toLowerCase().includes(term);
       });
     });
   }, [gitState.files, searchQuery]);
