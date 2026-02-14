@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
     base: './', // Important for Electron to load relative assets
     server: {
       port: 3000,
-      host: '0.0.0.0',
+      host: '127.0.0.1',
     },
     plugins: [
       react(),
