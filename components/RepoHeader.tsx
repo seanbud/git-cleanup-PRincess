@@ -17,10 +17,10 @@ interface RepoHeaderProps {
 
 type DropdownType = 'REPO' | 'BRANCH' | null;
 
-const RepoHeader: React.FC<RepoHeaderProps> = ({ 
-  mode, 
-  state, 
-  onContextMenu, 
+const RepoHeader: React.FC<RepoHeaderProps> = ({
+  mode,
+  state,
+  onContextMenu,
   onChangeRepo,
   onChangeBranch,
   fileCount
@@ -28,7 +28,7 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
   const isPrincess = mode === ThemeMode.PRINCESS;
   const [activeDropdown, setActiveDropdown] = useState<DropdownType>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  
+
   // Theme Variables
   const bgClass = isPrincess ? 'bg-[#fff0f6]' : 'bg-[#f0f9ff]';
   const borderClass = isPrincess ? 'border-pink-200' : 'border-blue-200';
@@ -53,12 +53,12 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
   };
 
   const renderDropdownList = (items: string[], onSelect: (item: string) => void, selectedItem: string) => (
-    <div className="absolute top-full mt-2 left-0 w-[280px] bg-white rounded-lg shadow-xl border border-gray-200 ring-1 ring-black/5 z-[100] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-1 duration-100">
+    <div className="absolute top-full mt-2 left-0 w-[280px] bg-white rounded-lg shadow-xl border border-gray-200 ring-1 ring-black/5 z-50 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-1 duration-100">
       <div className="max-h-[300px] overflow-y-auto py-1">
         {items.map((item) => {
           const isSelected = item === selectedItem;
           return (
-            <div 
+            <div
               key={item}
               className={`px-4 py-2.5 text-xs font-medium cursor-pointer flex items-center justify-between ${isSelected ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50 text-gray-600'}`}
               onClick={(e) => {
@@ -77,18 +77,18 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
   );
 
   return (
-    <div 
-      className={`h-[72px] flex items-center shrink-0 ${bgClass} border-b ${borderClass} px-6 transition-colors duration-300 gap-6`} 
+    <div
+      className={`h-[72px] flex items-center shrink-0 ${bgClass} border-b ${borderClass} px-6 transition-colors duration-300 gap-6 z-40 relative`}
       // Default to REPO context menu for empty space, but specific elements override it
       onContextMenu={(e) => onContextMenu(e, 'REPO')}
       ref={dropdownRef}
     >
       {/* 1. Repository Selection (Left) */}
-      <div 
+      <div
         className="relative shrink-0 z-50"
         onContextMenu={(e) => { e.stopPropagation(); onContextMenu(e, 'REPO'); }}
       >
-        <button 
+        <button
           onClick={(e) => handleDropdownClick(e, 'REPO')}
           className={`flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border shadow-sm active:scale-95 ${repoButtonBg}`}
         >
@@ -101,25 +101,25 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
 
       {/* 2. Branch & Upstream (Center/Main) */}
       <div className="flex-1 flex items-center min-w-0 z-40">
-        <div 
+        <div
           className="relative group flex items-center"
           onContextMenu={(e) => { e.stopPropagation(); onContextMenu(e, 'BRANCH'); }}
         >
-            {/* Branch Name Dropdown Trigger */}
-            <div 
-              onClick={(e) => handleDropdownClick(e, 'BRANCH')}
-              className={`text-lg md:text-xl font-bold cursor-pointer hover:underline decoration-2 decoration-dotted underline-offset-4 flex items-center ${branchText}`}
-            >
-              <Icons.GitBranch className="w-5 h-5 mr-2 opacity-80" />
-              <span className="truncate">{state.currentBranch}</span>
+          {/* Branch Name Dropdown Trigger */}
+          <div
+            onClick={(e) => handleDropdownClick(e, 'BRANCH')}
+            className={`text-lg md:text-xl font-bold cursor-pointer hover:underline decoration-2 decoration-dotted underline-offset-4 flex items-center ${branchText}`}
+          >
+            <Icons.GitBranch className="w-5 h-5 mr-2 opacity-80" />
+            <span className="truncate">{state.currentBranch}</span>
+          </div>
+
+          {/* Dropdown */}
+          {activeDropdown === 'BRANCH' && (
+            <div className="absolute top-full left-0 z-50">
+              {renderDropdownList(MOCK_BRANCHES, (name) => onChangeBranch?.(name), state.currentBranch)}
             </div>
-            
-            {/* Dropdown */}
-            {activeDropdown === 'BRANCH' && (
-                <div className="absolute top-full left-0 z-50">
-                    {renderDropdownList(MOCK_BRANCHES, (name) => onChangeBranch?.(name), state.currentBranch)}
-                </div>
-            )}
+          )}
         </div>
 
         {/* Separator */}
@@ -127,7 +127,7 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
 
         {/* Upstream Pill (Simplified) */}
         <div className="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-sm font-mono flex items-center">
-           {state.upstreamBranch}
+          {state.upstreamBranch}
         </div>
       </div>
     </div>

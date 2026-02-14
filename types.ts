@@ -29,10 +29,10 @@ export interface GitFile {
 
 export enum CharacterState {
   IDLE = 'IDLE',
-  HOVER = 'HOVER',     
-  SELECTED = 'SELECTED', 
-  ACTION_GOOD = 'ACTION_GOOD', 
-  ACTION_BAD = 'ACTION_BAD'   
+  HOVER = 'HOVER',
+  SELECTED = 'SELECTED',
+  ACTION_GOOD = 'ACTION_GOOD',
+  ACTION_BAD = 'ACTION_BAD'
 }
 
 export interface GitState {
@@ -42,4 +42,17 @@ export interface GitState {
   files: GitFile[];
   selectedFileIds: Set<string>;
   lastFetched: string;
+}
+
+export interface GitHubUser {
+  login: string;
+  name: string;
+  avatar_url: string;
+  email?: string;
+}
+
+export interface GitConfig {
+  name: string;
+  email: string;
+  defaultBranch: string;
 }

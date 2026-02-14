@@ -1,8 +1,10 @@
 import * as electron from 'electron';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { execSync } from 'child_process';
+import fs from 'fs';
 
-const { app, BrowserWindow, shell } = electron;
+const { app, BrowserWindow, shell, ipcMain, safeStorage } = electron;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -17,8 +19,21 @@ const __dirname = path.dirname(__filename);
 // │ │ └── index.html
 //
 
-let win: BrowserWindow | null;
+let win: electron.BrowserWindow | null;
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
+
+const TOKEN_PATH = path.join(app.getPath('userData'), 'github-token.bin');
+
+function storeToken(token: string) {
+    const encrypted = safeStorage.encryptString(token);
+    fs.writeFileSync(TOKEN_PATH, encrypted);
+}
+
+function getToken(): string | null {
+    if (!fs.existsSync(TOKEN_PATH)) return null;
+    const encrypted = fs.readFileSync(TOKEN_PATH);
+    return safeStorage.decryptString(encrypted);
+}
 
 function createWindow() {
     process.env.DIST_ELECTRON = path.join(__dirname, '../dist-electron');
@@ -67,4 +82,69 @@ app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+    createWindow();
+
+    // GitHub Auth IPC
+    ipcMain.handle('github:start-auth', async (_, clientId) => {
+        const response = await fetch('https://github.com/login/device/code', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ client_id: clientId, scope: 'repo,user' })
+        });
+        return response.json();
+    });
+
+    ipcMain.handle('github:poll-token', async (_, clientId, deviceCode) => {
+        const response = await fetch('https://github.com/login/oauth/access_token', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                client_id: clientId,
+                device_code: deviceCode,
+                grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
+            })
+        });
+        const data: any = await response.json();
+        if (data.access_token) {
+            storeToken(data.access_token);
+            return data.access_token;
+        }
+        return null;
+    });
+
+    ipcMain.handle('github:get-user', async (_, token) => {
+        const t = token || getToken();
+        if (!t) return null;
+        const response = await fetch('https://api.github.com/user', {
+            headers: { 'Authorization': `Bearer ${t}`, 'Accept': 'application/json' }
+        });
+        return response.json();
+    });
+
+    ipcMain.handle('github:is-authenticated', () => {
+        return getToken() !== null;
+    });
+
+    ipcMain.handle('github:sign-out', () => {
+        if (fs.existsSync(TOKEN_PATH)) fs.unlinkSync(TOKEN_PATH);
+    });
+
+    // Git CLI IPC
+    ipcMain.handle('git:cmd', async (_, cmd) => {
+        try {
+            const output = execSync(cmd, { encoding: 'utf-8', cwd: process.cwd() });
+            return { stdout: output, success: true };
+        } catch (error: any) {
+            return { stderr: error.message, success: false };
+        }
+    });
+
+    ipcMain.handle('git:config-get', async (_, key) => {
+        try {
+            return execSync(`git config --get ${key}`, { encoding: 'utf-8' }).trim();
+        } catch {
+            return '';
+        }
+    });
+});
