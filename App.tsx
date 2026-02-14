@@ -17,7 +17,6 @@ import SignInModal from './components/SignInModal';
 import { audioService } from './services/audioService';
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>(ThemeMode.PRINCESS);
   const [characterState, setCharacterState] = useState<CharacterState>(CharacterState.IDLE);
   const [gitState, setGitState] = useState<GitState>({
@@ -91,6 +90,36 @@ const App: React.FC = () => {
       setRecentRepos(repos || []);
     } catch { }
   }, []);
+
+  const loadRecentRepos = useCallback(async () => {
+    try {
+      // @ts-ignore
+      const repos = await window.electronAPI.getRecentRepos();
+      setRecentRepos(repos || []);
+    } catch { }
+  }, []);
+
+  useEffect(() => {
+    const initAuth = async () => {
+      // @ts-ignore
+      const isAuthenticated = await window.electronAPI.githubIsAuthenticated();
+      if (isAuthenticated) {
+        // @ts-ignore
+        const user = await window.electronAPI.githubGetUser();
+        setGithubUser(user);
+      } else {
+        setIsSignInOpen(true);
+      }
+    };
+
+    initAuth();
+    refreshGitState();
+    loadRecentRepos();
+
+    // Auto-refresh every 10 seconds
+    const interval = setInterval(refreshGitState, 10000);
+    return () => clearInterval(interval);
+  }, [refreshGitState, loadRecentRepos]);
 
   useEffect(() => {
     const initAuth = async () => {

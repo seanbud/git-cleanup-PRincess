@@ -182,6 +182,25 @@ const FileList: React.FC<FileListProps> = ({
     onSelectionChange(newSelected);
   }, [orderedFiles, selectedIds, lastSelectedId, onSelectionChange]);
 
+  const renderPath = (path: string) => {
+    const parts = path.split('/');
+    const fileName = parts.pop() || path;
+    const isLong = path.length > 45;
+
+    if (!isLong) {
+      return <div className="truncate font-mono text-xs md:text-sm leading-tight">{path}</div>;
+    }
+
+    const root = parts.shift();
+
+    return (
+      <div className="flex items-center min-w-0 font-mono text-xs md:text-sm leading-tight" title={path}>
+         {root && <span className="opacity-50 shrink-0 mr-0.5">{root}/.../</span>}
+         <span className="truncate">{fileName}</span>
+      </div>
+    );
+  };
+
   const renderGroup = (title: string, groupFiles: GitFile[]) => {
     if (groupFiles.length === 0) return null;
     return (
