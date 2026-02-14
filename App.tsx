@@ -322,8 +322,14 @@ const App: React.FC = () => {
         label: 'Copy Absolute Path',
         action: async () => {
            // @ts-ignore
-           const absPath = await window.electronAPI.resolvePath(payload.path);
-           navigator.clipboard.writeText(absPath);
+           if (window.electronAPI) {
+              // @ts-ignore
+              const absPath = await window.electronAPI.resolvePath(payload.path);
+              navigator.clipboard.writeText(absPath);
+           } else {
+              // Fallback for web mode
+              navigator.clipboard.writeText(`/mock/absolute/path/${payload.path}`);
+           }
         }
       });
     } else if (type === 'REPO') {
