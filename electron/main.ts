@@ -4,25 +4,18 @@ import path from 'node:path';
 import { execSync } from 'child_process';
 import fs from 'fs';
 
-const { app, BrowserWindow, shell, ipcMain, safeStorage } = electron;
+const { app, BrowserWindow, shell, ipcMain, safeStorage, dialog } = electron;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// The built directory structure
-//
-// ├─┬ dist-electron
-// │ ├─┬ main
-// │ │ └── index.js
-// │ ├─┬ preload
-// │ │ └── index.js
-// │ ├─┬ renderer
-// │ │ └── index.html
-//
 
 let win: electron.BrowserWindow | null;
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
 
 const TOKEN_PATH = path.join(app.getPath('userData'), 'github-token.bin');
+const RECENT_REPOS_PATH = path.join(app.getPath('userData'), 'recent-repos.json');
+
+// Track the current working directory for git commands
+let currentCwd = process.cwd();
 
 function storeToken(token: string) {
     const encrypted = safeStorage.encryptString(token);
@@ -33,6 +26,22 @@ function getToken(): string | null {
     if (!fs.existsSync(TOKEN_PATH)) return null;
     const encrypted = fs.readFileSync(TOKEN_PATH);
     return safeStorage.decryptString(encrypted);
+}
+
+function getRecentRepos(): string[] {
+    try {
+        if (fs.existsSync(RECENT_REPOS_PATH)) {
+            return JSON.parse(fs.readFileSync(RECENT_REPOS_PATH, 'utf-8'));
+        }
+    } catch { }
+    return [];
+}
+
+function addRecentRepo(repoPath: string) {
+    const repos = getRecentRepos().filter(r => r !== repoPath);
+    repos.unshift(repoPath); // Most recent first
+    if (repos.length > 10) repos.length = 10;
+    fs.writeFileSync(RECENT_REPOS_PATH, JSON.stringify(repos));
 }
 
 function createWindow() {
@@ -53,7 +62,6 @@ function createWindow() {
         autoHideMenuBar: true,
     });
 
-    // Test active push message to Electron-Renderer
     win.webContents.on('did-finish-load', () => {
         win?.webContents.send('main-process-message', (new Date).toLocaleString());
     });
@@ -64,7 +72,6 @@ function createWindow() {
         win.loadFile(path.join(process.env.DIST, 'index.html'));
     }
 
-    // Make all links open with the browser, not with the application
     win.webContents.setWindowOpenHandler(({ url }) => {
         if (url.startsWith('https:')) {
             shell.openExternal(url);
@@ -85,7 +92,7 @@ app.on('activate', () => {
 app.whenReady().then(() => {
     createWindow();
 
-    // GitHub Auth IPC
+    // ─── GitHub Auth IPC ──────────────────────────────────────────
     ipcMain.handle('github:start-auth', async (_, clientId) => {
         const response = await fetch('https://github.com/login/device/code', {
             method: 'POST',
@@ -130,21 +137,75 @@ app.whenReady().then(() => {
         if (fs.existsSync(TOKEN_PATH)) fs.unlinkSync(TOKEN_PATH);
     });
 
-    // Git CLI IPC
+    // ─── Git CLI IPC ──────────────────────────────────────────────
     ipcMain.handle('git:cmd', async (_, cmd) => {
         try {
-            const output = execSync(cmd, { encoding: 'utf-8', cwd: process.cwd() });
+            const output = execSync(cmd, { encoding: 'utf-8', cwd: currentCwd, timeout: 15000 });
             return { stdout: output, success: true };
         } catch (error: any) {
-            return { stderr: error.message, success: false };
+            return { stderr: error.message, stdout: error.stdout || '', success: false };
         }
     });
 
     ipcMain.handle('git:config-get', async (_, key) => {
         try {
-            return execSync(`git config --get ${key}`, { encoding: 'utf-8' }).trim();
+            return execSync(`git config --get ${key}`, { encoding: 'utf-8', cwd: currentCwd }).trim();
         } catch {
             return '';
         }
+    });
+
+    // ─── Repository Management IPC ────────────────────────────────
+    ipcMain.handle('dialog:open-directory', async () => {
+        if (!win) return null;
+        const result = await dialog.showOpenDialog(win, {
+            properties: ['openDirectory'],
+            title: 'Open Local Repository'
+        });
+        if (result.canceled || result.filePaths.length === 0) return null;
+
+        const selectedDir = result.filePaths[0];
+
+        // Verify it's a git repo
+        try {
+            execSync('git rev-parse --is-inside-work-tree', { cwd: selectedDir, encoding: 'utf-8' });
+        } catch {
+            return { error: 'Not a Git repository' };
+        }
+
+        currentCwd = selectedDir;
+        addRecentRepo(selectedDir);
+        return { path: selectedDir };
+    });
+
+    ipcMain.handle('repos:get-recent', () => {
+        return getRecentRepos();
+    });
+
+    ipcMain.handle('repos:add-recent', (_, repoPath: string) => {
+        addRecentRepo(repoPath);
+    });
+
+    ipcMain.handle('repos:switch', (_, repoPath: string) => {
+        try {
+            execSync('git rev-parse --is-inside-work-tree', { cwd: repoPath, encoding: 'utf-8' });
+            currentCwd = repoPath;
+            addRecentRepo(repoPath);
+            return { success: true };
+        } catch {
+            return { success: false, error: 'Not a Git repository' };
+        }
+    });
+
+    ipcMain.handle('shell:open-external', (_, url: string) => {
+        shell.openExternal(url);
+    });
+
+    ipcMain.handle('shell:open-path', (_, filePath: string) => {
+        shell.showItemInFolder(filePath);
+    });
+
+    ipcMain.handle('app:get-cwd', () => {
+        return currentCwd;
     });
 });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { GitState, ThemeMode, CharacterState, GitFile, GitHubUser, GitConfig } from './types';
-import { GitService } from './services/gitService';
+import { GitService, CommitNode } from './services/gitService';
 import TopMenuBar from './components/TopMenuBar';
 import ProductTitleBar from './components/ProductTitleBar';
 import RepoHeader from './components/RepoHeader';
@@ -11,7 +11,7 @@ import Character from './components/Character';
 import ActionPanel from './components/ActionPanel';
 import ContextMenu, { ContextMenuItem } from './components/ContextMenu';
 import DustSpore from './components/DustSpore';
-import { Icons } from './constants';
+// Icons import removed — not used directly in App
 import OptionsModal from './components/OptionsModal';
 import SignInModal from './components/SignInModal';
 
@@ -19,22 +19,28 @@ const App: React.FC = () => {
   const [themeMode, setThemeMode] = useState<ThemeMode>(ThemeMode.PRINCESS);
   const [characterState, setCharacterState] = useState<CharacterState>(CharacterState.IDLE);
   const [gitState, setGitState] = useState<GitState>({
-    currentBranch: 'feature/shiny-new-buttons',
-    upstreamBranch: 'origin/develop',
-    repoName: 'git-cleanup-princess',
+    currentBranch: 'main',
+    upstreamBranch: 'origin/main',
+    repoName: 'loading...',
     files: [],
     selectedFileIds: new Set(),
-    lastFetched: '2 mins ago'
+    lastFetched: 'never'
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionHover, setActionHover] = useState<'REMOVE' | 'RESTORE' | null>(null);
 
-  // Auth \u0026 Config State
+  // Auth & Config State
   const [githubUser, setGithubUser] = useState<GitHubUser | null>(null);
   const [gitConfig, setGitConfig] = useState<GitConfig>({ name: '', email: '', defaultBranch: 'main' });
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isSignInOpen, setIsSignInOpen] = useState(false);
+
+  // Data lists (fetched from real git)
+  const [branches, setBranches] = useState<string[]>([]);
+  const [recentRepos, setRecentRepos] = useState<string[]>([]);
+  const [commitGraph, setCommitGraph] = useState<CommitNode[]>([]);
+  const [selectedDiff, setSelectedDiff] = useState<string>('');
 
   // Layout State
   const [sidebarWidth, setSidebarWidth] = useState(320);
@@ -50,22 +56,38 @@ const App: React.FC = () => {
   }>({ visible: false, x: 0, y: 0, items: [] });
 
   const refreshGitState = useCallback(async () => {
-    const [repoName, currentBranch, upstreamBranch, files, config] = await Promise.all([
-      GitService.getRepoName(),
-      GitService.getCurrentBranch(),
-      GitService.getUpstreamBranch(),
-      GitService.getStatusFiles(),
-      GitService.getGitConfig()
-    ]);
+    try {
+      const [repoName, currentBranch, upstreamBranch, files, config, branchList, commits] = await Promise.all([
+        GitService.getRepoName(),
+        GitService.getCurrentBranch(),
+        GitService.getUpstreamBranch(),
+        GitService.getStatusFiles(),
+        GitService.getGitConfig(),
+        GitService.getBranches(),
+        GitService.getCommitGraph()
+      ]);
 
-    setGitState(prev => ({
-      ...prev,
-      repoName,
-      currentBranch,
-      upstreamBranch,
-      files
-    }));
-    setGitConfig(config);
+      setGitState(prev => ({
+        ...prev,
+        repoName,
+        currentBranch,
+        upstreamBranch,
+        files
+      }));
+      setGitConfig(config);
+      setBranches(branchList);
+      setCommitGraph(commits);
+    } catch (err) {
+      console.error('Failed to refresh git state:', err);
+    }
+  }, []);
+
+  const loadRecentRepos = useCallback(async () => {
+    try {
+      // @ts-ignore
+      const repos = await window.electronAPI.getRecentRepos();
+      setRecentRepos(repos || []);
+    } catch { }
   }, []);
 
   useEffect(() => {
@@ -83,11 +105,12 @@ const App: React.FC = () => {
 
     initAuth();
     refreshGitState();
+    loadRecentRepos();
 
     // Auto-refresh every 10 seconds
     const interval = setInterval(refreshGitState, 10000);
     return () => clearInterval(interval);
-  }, [refreshGitState]);
+  }, [refreshGitState, loadRecentRepos]);
 
   useEffect(() => {
     if (isProcessing) return;
@@ -156,11 +179,23 @@ const App: React.FC = () => {
 
   const handleFetch = async () => {
     setIsProcessing(true);
-    // Real fetch would be git fetch, let's actually do it
-    // @ts-ignore
-    await window.electronAPI.gitCmd('git fetch origin');
+    await GitService.fetch();
     await refreshGitState();
     setGitState(prev => ({ ...prev, lastFetched: 'just now' }));
+    setIsProcessing(false);
+  };
+
+  const handlePull = async () => {
+    setIsProcessing(true);
+    await GitService.pull();
+    await refreshGitState();
+    setIsProcessing(false);
+  };
+
+  const handlePush = async () => {
+    setIsProcessing(true);
+    await GitService.push();
+    await refreshGitState();
     setIsProcessing(false);
   };
 
@@ -171,10 +206,8 @@ const App: React.FC = () => {
   const toggleSelectAll = () => {
     const newSet = new Set(gitState.selectedFileIds);
     if (allFilteredSelected) {
-      // Deselect filtered
       filteredFiles.forEach(f => newSet.delete(f.id));
     } else {
-      // Select filtered
       filteredFiles.forEach(f => newSet.add(f.id));
     }
     setGitState(prev => ({ ...prev, selectedFileIds: newSet }));
@@ -184,26 +217,79 @@ const App: React.FC = () => {
     setIsProcessing(true);
     setCharacterState(actionType === 'RESTORE' ? CharacterState.ACTION_GOOD : CharacterState.ACTION_BAD);
 
-    // In a real app we'd execute git restore or git rm
-    // For now we simulate the delay then refresh
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    const selectedFiles = gitState.files.filter(f => gitState.selectedFileIds.has(f.id));
+
+    for (const file of selectedFiles) {
+      if (actionType === 'RESTORE') {
+        await GitService.restoreFile(file.path);
+      } else {
+        await GitService.removeFile(file.path);
+      }
+    }
 
     await refreshGitState();
+    setGitState(prev => ({ ...prev, selectedFileIds: new Set() }));
     setIsProcessing(false);
     setCharacterState(CharacterState.IDLE);
+    setSelectedDiff('');
   };
+
+  const handleChangeBranch = async (branchName: string) => {
+    setIsProcessing(true);
+    await GitService.checkoutBranch(branchName);
+    await refreshGitState();
+    setIsProcessing(false);
+  };
+
+  const handleChangeRepo = async (repoPath: string) => {
+    // @ts-ignore
+    const result = await window.electronAPI.switchRepo(repoPath);
+    if (result.success) {
+      await refreshGitState();
+      await loadRecentRepos();
+    }
+  };
+
+  const handleOpenRepo = async () => {
+    // @ts-ignore
+    const result = await window.electronAPI.openDirectory();
+    if (result && !result.error) {
+      await refreshGitState();
+      await loadRecentRepos();
+    }
+  };
+
+  const handleOpenGithub = async () => {
+    const url = await GitService.getRemoteUrl();
+    if (url) {
+      // @ts-ignore
+      window.electronAPI.openExternal(url);
+    }
+  };
+
+  const handleNewBranch = async () => {
+    const name = window.prompt('Enter new branch name:');
+    if (name && name.trim()) {
+      await GitService.createBranch(name.trim());
+      await refreshGitState();
+    }
+  };
+
+  // Fetch diff when a file is selected (single selection)
+  const handleFileSelect = useCallback(async (file: GitFile) => {
+    const newSet = new Set<string>();
+    newSet.add(file.id);
+    setGitState(prev => ({ ...prev, selectedFileIds: newSet }));
+
+    const diff = await GitService.getDiff(file.path);
+    setSelectedDiff(diff);
+  }, []);
 
   const toggleTheme = () => {
     setThemeMode(prev => prev === ThemeMode.PRINCESS ? ThemeMode.PRINCE : ThemeMode.PRINCESS);
   };
 
-  const handleBranchChange = async (newBranch: string) => {
-    setIsProcessing(true);
-    // @ts-ignore
-    await window.electronAPI.gitCmd(`git checkout ${newBranch}`);
-    await refreshGitState();
-    setIsProcessing(false);
-  };
+  // handleBranchChange is replaced by handleChangeBranch above
 
   const handleContextMenu = (e: React.MouseEvent, type: 'FILE' | 'REPO' | 'BRANCH', payload?: GitFile) => {
     e.preventDefault();
@@ -218,10 +304,12 @@ const App: React.FC = () => {
         }
       });
       items.push({
-        label: 'Reveal in Finder / Explorer',
-        action: () => {
+        label: 'Reveal in Explorer',
+        action: async () => {
           // @ts-ignore
-          window.electronAPI.gitCmd(`explorer /select,${payload.path}`);
+          const cwd = await window.electronAPI.getCwd();
+          // @ts-ignore
+          window.electronAPI.showItemInFolder(`${cwd}/${payload.path}`);
         }
       });
       items.push({
@@ -234,22 +322,14 @@ const App: React.FC = () => {
         label: 'Copy Absolute Path',
         action: async () => {
           // @ts-ignore
-          const res = await window.electronAPI.gitCmd('git rev-parse --show-tapi'); // Note: intentional typo to check if I can fix it
-          // Let's just use the current path
-          navigator.clipboard.writeText(`${process.cwd()}/${payload.path}`);
+          const cwd = await window.electronAPI.getCwd();
+          navigator.clipboard.writeText(`${cwd}/${payload.path}`);
         }
       });
     } else if (type === 'REPO') {
       items.push({
         label: 'Open on GitHub',
-        action: async () => {
-          // @ts-ignore
-          const res = await window.electronAPI.gitCmd('git remote get-url origin');
-          if (res.success) {
-            const url = res.stdout.trim().replace('git@github.com:', 'https://github.com/').replace('.git', '');
-            window.open(url);
-          }
-        }
+        action: () => handleOpenGithub()
       });
       items.push({
         label: 'Open in Terminal',
@@ -286,7 +366,18 @@ const App: React.FC = () => {
   return (
     <div className={`flex flex-col h-screen w-screen overflow-hidden text-sm ${appBgClass} font-sans transition-colors duration-300`}>
       <div className="z-[100]">
-        <TopMenuBar mode={themeMode} onToggleTheme={toggleTheme} onOpenOptions={() => setIsOptionsOpen(true)} />
+        <TopMenuBar
+          mode={themeMode}
+          onToggleTheme={toggleTheme}
+          onOpenOptions={() => setIsOptionsOpen(true)}
+          onOpenRepo={handleOpenRepo}
+          onFetch={handleFetch}
+          onPull={handlePull}
+          onPush={handlePush}
+          onOpenGithub={handleOpenGithub}
+          onNewBranch={handleNewBranch}
+          onRefresh={refreshGitState}
+        />
       </div>
       <ProductTitleBar mode={themeMode} />
 
@@ -299,9 +390,12 @@ const App: React.FC = () => {
           isFetching={isProcessing}
           onContextMenu={handleContextMenu}
           sidebarWidth={sidebarWidth}
-          onChangeRepo={(name) => setGitState(prev => ({ ...prev, repoName: name }))}
-          onChangeBranch={handleBranchChange}
+          onChangeRepo={handleChangeRepo}
+          onChangeBranch={handleChangeBranch}
+          onOpenRepo={handleOpenRepo}
           fileCount={gitState.files.length}
+          repos={recentRepos}
+          branches={branches}
         />
 
         {/* 4. Main Workspace */}
@@ -426,7 +520,7 @@ const App: React.FC = () => {
                   </div>
                 ) : (
                   /* Single File Diff View */
-                  <DiffView file={selectedFile} mode={themeMode} />
+                  <DiffView file={selectedFile ? { ...selectedFile, diffContent: selectedDiff } : null} mode={themeMode} />
                 )}
 
                 {/* Floating Character - Always Visible on Top */}
@@ -446,7 +540,7 @@ const App: React.FC = () => {
 
             {/* Branch Tree Visualization (Bottom) */}
             <div className="h-24 shrink-0 bg-white border-t border-gray-200">
-              <BranchGraph mode={themeMode} />
+              <BranchGraph mode={themeMode} commits={commitGraph} />
             </div>
 
           </div>
@@ -481,7 +575,6 @@ const App: React.FC = () => {
         user={githubUser}
         gitConfig={gitConfig}
         onSave={(newConfig) => {
-          // In a real app we'd save this back to git config
           setGitConfig(newConfig);
         }}
         onSignOut={async () => {

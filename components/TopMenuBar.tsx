@@ -5,9 +5,18 @@ interface TopMenuBarProps {
   mode: ThemeMode;
   onToggleTheme: () => void;
   onOpenOptions: () => void;
+  onOpenRepo?: () => void;
+  onFetch?: () => void;
+  onPull?: () => void;
+  onPush?: () => void;
+  onOpenGithub?: () => void;
+  onNewBranch?: () => void;
+  onRefresh?: () => void;
 }
 
-const TopMenuBar: React.FC<TopMenuBarProps> = ({ mode, onOpenOptions }) => {
+const TopMenuBar: React.FC<TopMenuBarProps> = ({
+  mode, onOpenOptions, onOpenRepo, onFetch, onPull, onPush, onOpenGithub, onNewBranch, onRefresh
+}) => {
   const [activeMenu, setActiveMenu] = React.useState<string | null>(null);
   const isPrincess = mode === ThemeMode.PRINCESS;
   const bgClass = isPrincess ? 'bg-[#fff0f6]' : 'bg-[#eef5ff]';
@@ -31,7 +40,7 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({ mode, onOpenOptions }) => {
   `;
 
   const dropdownClass = `
-    absolute top-7 left-0 min-w-[180px] py-1 rounded-md shadow-xl border z-[500]
+    absolute top-7 left-0 min-w-[200px] py-1 rounded-md shadow-xl border z-[500]
     ${isPrincess ? 'bg-white border-pink-100' : 'bg-slate-800 border-slate-700'}
   `;
 
@@ -40,14 +49,20 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({ mode, onOpenOptions }) => {
     ${isPrincess ? 'hover:bg-pink-50 text-slate-700' : 'hover:bg-slate-700 text-slate-200'}
   `;
 
-  const renderDropdown = (name: string, items: { label: string, shortcut?: string, action?: () => void }[]) => (
+  const separatorClass = `
+    my-1 border-t ${isPrincess ? 'border-pink-100' : 'border-slate-700'}
+  `;
+
+  const renderDropdown = (name: string, items: { label: string, shortcut?: string, action?: () => void, separator?: boolean }[]) => (
     activeMenu === name && (
       <div className={dropdownClass}>
         {items.map((item, i) => (
-          <div key={i} className={dropdownItemClass} onClick={() => { item.action?.(); setActiveMenu(null); }}>
-            <span>{item.label}</span>
-            {item.shortcut && <span className="opacity-40 ml-4">{item.shortcut}</span>}
-          </div>
+          item.separator
+            ? <div key={i} className={separatorClass} />
+            : <div key={i} className={dropdownItemClass} onClick={() => { item.action?.(); setActiveMenu(null); }}>
+              <span>{item.label}</span>
+              {item.shortcut && <span className="opacity-40 ml-4">{item.shortcut}</span>}
+            </div>
         ))}
       </div>
     )
@@ -60,8 +75,10 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({ mode, onOpenOptions }) => {
           <div className={topItemClass('File')} onClick={() => setActiveMenu(activeMenu === 'File' ? null : 'File')}>File</div>
           {renderDropdown('File', [
             { label: 'New Window', shortcut: 'Ctrl+N' },
-            { label: 'Open Local Repository...', shortcut: 'Ctrl+O' },
+            { label: 'Open Local Repository...', shortcut: 'Ctrl+O', action: onOpenRepo },
+            { label: 'separator', separator: true },
             { label: 'Options...', shortcut: 'Ctrl+,', action: onOpenOptions },
+            { label: 'separator', separator: true },
             { label: 'Exit', action: () => window.close() }
           ])}
         </div>
@@ -70,22 +87,55 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({ mode, onOpenOptions }) => {
           {renderDropdown('Edit', [
             { label: 'Undo', shortcut: 'Ctrl+Z' },
             { label: 'Redo', shortcut: 'Ctrl+Y' },
-            { label: 'Cut', shortcut: 'Ctrl+X' },
-            { label: 'Copy', shortcut: 'Ctrl+C' },
-            { label: 'Paste', shortcut: 'Ctrl+V' }
+            { label: 'separator', separator: true },
+            { label: 'Find', shortcut: 'Ctrl+F' },
           ])}
         </div>
         <div className="relative">
           <div className={topItemClass('View')} onClick={() => setActiveMenu(activeMenu === 'View' ? null : 'View')}>View</div>
           {renderDropdown('View', [
-            { label: 'Reload', shortcut: 'Ctrl+R' },
+            { label: 'Reload', shortcut: 'Ctrl+R', action: onRefresh },
+            { label: 'separator', separator: true },
             { label: 'Toggle Full Screen', shortcut: 'F11' },
             { label: 'Toggle Developer Tools', shortcut: 'Ctrl+Shift+I' }
           ])}
         </div>
-        <div className={topItemClass('Repository')}>Repository</div>
-        <div className={topItemClass('Branch')}>Branch</div>
-        <div className={topItemClass('Help')}>Help</div>
+        <div className="relative">
+          <div className={topItemClass('Repository')} onClick={() => setActiveMenu(activeMenu === 'Repository' ? null : 'Repository')}>Repository</div>
+          {renderDropdown('Repository', [
+            { label: 'Fetch', shortcut: 'Ctrl+Shift+F', action: onFetch },
+            { label: 'Pull', shortcut: 'Ctrl+Shift+P', action: onPull },
+            { label: 'Push', shortcut: 'Ctrl+P', action: onPush },
+            { label: 'separator', separator: true },
+            { label: 'Open on GitHub', action: onOpenGithub },
+            {
+              label: 'Open in Explorer', action: async () => {
+                // @ts-ignore
+                const cwd = await window.electronAPI.getCwd();
+                // @ts-ignore
+                window.electronAPI.showItemInFolder(cwd);
+              }
+            },
+          ])}
+        </div>
+        <div className="relative">
+          <div className={topItemClass('Branch')} onClick={() => setActiveMenu(activeMenu === 'Branch' ? null : 'Branch')}>Branch</div>
+          {renderDropdown('Branch', [
+            { label: 'New Branch...', action: onNewBranch },
+          ])}
+        </div>
+        <div className="relative">
+          <div className={topItemClass('Help')} onClick={() => setActiveMenu(activeMenu === 'Help' ? null : 'Help')}>Help</div>
+          {renderDropdown('Help', [
+            { label: 'About Git Cleanup PRincess' },
+            {
+              label: 'Report an Issue...', action: () => {
+                // @ts-ignore
+                window.electronAPI.openExternal('https://github.com/seanbud/git-cleanup-PRincess/issues');
+              }
+            },
+          ])}
+        </div>
       </div>
     </div>
   );
