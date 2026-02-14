@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "web:dev": "vite",
+    "test": "vitest run",
     "build": "tsc && vite build && electron-builder",
     "preview": "vite preview",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on tcp:3000 && electron .\"",
@@ -27,6 +28,7 @@
     "vite": "^6.2.0",
     "vite-plugin-electron": "^0.28.2",
     "vite-plugin-electron-renderer": "^0.14.5",
-    "wait-on": "^7.2.0"
+    "wait-on": "^7.2.0",
+    "vitest": "^3.0.5"
   }
 }

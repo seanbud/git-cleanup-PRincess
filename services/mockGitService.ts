@@ -47,7 +47,7 @@ export const MOCK_BRANCHES = [
 ];
 
 // Helper to generate a long diff with gaps
-const generateLongDiff = (path: string) => {
+export const generateLongDiff = (path: string) => {
   const isCode = path.endsWith('.ts') || path.endsWith('.tsx') || path.endsWith('.js');
   if (!isCode) return `@@ -1,5 +1,5 @@\n-Old Title\n+New Title\n Some content here.\n More content.`;
 
