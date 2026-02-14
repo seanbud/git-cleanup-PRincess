@@ -1,0 +1,5 @@
+{
+  "name": "Git Cleanup PRincess",
+  "description": "Git tool for cleaning up before submitting a PRs.",
+  "requestFramePermissions": []
+}
