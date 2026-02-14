@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionHover, setActionHover] = useState<'REMOVE' | 'RESTORE' | null>(null);
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   // Auth & Config State
   const [githubUser, setGithubUser] = useState<GitHubUser | null>(null);
@@ -224,6 +225,13 @@ const App: React.FC = () => {
   }, [gitState.files, searchQuery]);
 
   const allFilteredSelected = filteredFiles.length > 0 && filteredFiles.every(f => gitState.selectedFileIds.has(f.id));
+  const someFilteredSelected = filteredFiles.length > 0 && filteredFiles.some(f => gitState.selectedFileIds.has(f.id)) && !allFilteredSelected;
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someFilteredSelected;
+    }
+  }, [someFilteredSelected]);
 
   const handleFetch = async () => {
     setIsProcessing(true);
