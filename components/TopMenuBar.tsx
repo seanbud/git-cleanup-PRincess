@@ -1,5 +1,6 @@
 import React from 'react';
 import { ThemeMode } from '../types';
+import { audioService } from '../services/audioService';
 
 interface TopMenuBarProps {
   mode: ThemeMode;
@@ -72,7 +73,7 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({
     <div className={`flex items-center w-full h-8 px-2 ${bgClass} border-b border-black/5 select-none transition-colors duration-300 relative`}>
       <div className="flex items-center space-x-1" ref={menuRef}>
         <div className="relative">
-          <div className={topItemClass('File')} onClick={() => setActiveMenu(activeMenu === 'File' ? null : 'File')}>File</div>
+          <div className={topItemClass('File')} onClick={() => { setActiveMenu(activeMenu === 'File' ? null : 'File'); audioService.play('pop'); }}>File</div>
           {renderDropdown('File', [
             { label: 'New Window', shortcut: 'Ctrl+N' },
             { label: 'Open Local Repository...', shortcut: 'Ctrl+O', action: onOpenRepo },
@@ -83,7 +84,7 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({
           ])}
         </div>
         <div className="relative">
-          <div className={topItemClass('Edit')} onClick={() => setActiveMenu(activeMenu === 'Edit' ? null : 'Edit')}>Edit</div>
+          <div className={topItemClass('Edit')} onClick={() => { setActiveMenu(activeMenu === 'Edit' ? null : 'Edit'); audioService.play('pop'); }}>Edit</div>
           {renderDropdown('Edit', [
             { label: 'Undo', shortcut: 'Ctrl+Z' },
             { label: 'Redo', shortcut: 'Ctrl+Y' },
@@ -140,10 +141,9 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({
         </div>
       </div>
 
-      {/* Theme Toggle Button (always visible) */}
       <div className="ml-auto mr-2">
         <button
-          onClick={onToggleTheme}
+          onClick={() => { onToggleTheme(); audioService.play('sparkle'); }}
           className={`px-2 py-0.5 rounded-full text-xs font-bold transition-all active:scale-95 ${isPrincess ? 'bg-pink-200 hover:bg-pink-300 text-pink-800' : 'bg-blue-200 hover:bg-blue-300 text-blue-800'}`}
           title={isPrincess ? 'Switch to Prince Mode' : 'Switch to Princess Mode'}
         >

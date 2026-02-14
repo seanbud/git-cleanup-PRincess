@@ -14,6 +14,7 @@ import DustSpore from './components/DustSpore';
 // Icons import removed — not used directly in App
 import OptionsModal from './components/OptionsModal';
 import SignInModal from './components/SignInModal';
+import { audioService } from './services/audioService';
 
 const App: React.FC = () => {
   const [themeMode, setThemeMode] = useState<ThemeMode>(ThemeMode.PRINCESS);
@@ -109,6 +110,7 @@ const App: React.FC = () => {
 
     // Initial greeting
     setCharacterState(CharacterState.WAVING);
+    audioService.play('sparkle');
     setTimeout(() => {
       setCharacterState(CharacterState.IDLE);
     }, 3000);
@@ -243,6 +245,7 @@ const App: React.FC = () => {
 
       // Celebration state for 2 seconds
       setCharacterState(CharacterState.CELEBRATING);
+      audioService.play('sparkle');
       setTimeout(() => {
         setCharacterState(CharacterState.IDLE);
       }, 2000);
@@ -251,6 +254,7 @@ const App: React.FC = () => {
     } catch (err) {
       console.error(err);
       setCharacterState(CharacterState.WORRIED);
+      audioService.play('error');
       setTimeout(() => setCharacterState(CharacterState.IDLE), 3000);
       setIsProcessing(false);
     }

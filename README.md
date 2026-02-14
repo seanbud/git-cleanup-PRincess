@@ -1,20 +1,48 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Git Cleanup PRincess 👑✨
 
-# Run and deploy your AI Studio app
+**A royal way to tidy up your repositories.**
 
-This contains everything you need to run your app locally.
+Git Cleanup PRincess is a delightful, theme-able Git client focused on helping you clean up your local changes. Whether you're a coded-blooded Princess or a brave Prince, this tool makes repository maintenance magical.
 
-View your app in AI Studio: https://ai.studio/apps/drive/10KQ3PmsE5bMef8fKcy_JaMeESY6ysjs6
+## Features
 
-## Run Locally
+- **👑 Dual Themes**: Switch between **Princess Mode** (Pink/Sparkles) and **Prince Mode** (Blue/Adventure) with a single click.
+- **✨ Interactive Characters**: High-resolution character sprites react to your actions (Waving, Sweeping, Celebrating, Worrying).
+- **🧹 Cleanup Focused**: Easily view changed files, diffs, and decide to **Restore** (keep) or **Remove** (sweep away) them.
+- **🔊 Audio Feedback**: Satisfying sound effects for your actions—swish, pop, and sparkle!
+- **🌳 Visual History**: A clear, beautiful graph of your commit history.
 
-**Prerequisites:**  Node.js
+## Getting Started
 
+### Prerequisites
+- Node.js (v16+)
+- Git
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/seanbud/git-cleanup-PRincess.git
+   cd git-cleanup-PRincess
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Run the application:
+   ```bash
+   npm run dev
+   ```
+
+## Technologies
+- **Electron**: Desktop application framework.
+- **React**: UI library.
+- **TypeScript**: For type-safe code.
+- **Tailwind CSS**: For beautiful styling.
+- **Vite**: For fast development and building.
+
+---
+
+*Made with 💖 by the Royal Engineering Team*
