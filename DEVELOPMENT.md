@@ -21,5 +21,16 @@ This document outlines how we will work together to iteratively improve the appl
 - We can implement unit tests (Vitest) for logic that doesn't require a GUI.
 - We can implement Playwright/Spectron tests for end-to-end Electron testing.
 
+## 🌐 Agent Testing via Browser
+
+Since I cannot see your local desktop GUI, I use a "Web Sandbox" to test UI changes:
+
+1.  **Web Server**: I run `npm run web:dev` to start a standard web version of the app.
+2.  **Browser Tool**: I use my internal browser agent to visit `http://localhost:3000`.
+3.  **Verification**: I take screenshots and inspect the DOM to ensure buttons, layouts, and animations are working as expected.
+
+> [!NOTE]
+> This testing only covers the **Renderer (UI)**. Electron-specific features (like system menus or file-system access via Node) must be verified by you locally.
+
 ## 🚀 Deployment
 - Every time we push a tag (e.g., `v1.0.1`), the GitHub Action I created will automatically build installers for Windows, Mac, and Linux and upload them to a GitHub Release.
