@@ -1,7 +1,56 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import Modal from './Modal';
 import { ThemeMode, GitHubUser } from '../types';
 import { GitHubAuthClient, DeviceCodeResponse } from '../services/githubAuth';
+
+function launchConfetti(isPrincess: boolean) {
+    const canvas = document.createElement('canvas');
+    canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999';
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d')!;
+
+    const colors = isPrincess
+        ? ['#ec4899', '#f472b6', '#fbbf24', '#f9a8d4', '#ffffff', '#fde68a']
+        : ['#3b82f6', '#60a5fa', '#94a3b8', '#7dd3fc', '#ffffff', '#c0c0c0'];
+
+    const particles = Array.from({ length: 120 }, () => ({
+        x: canvas.width / 2 + (Math.random() - 0.5) * 200,
+        y: canvas.height / 2,
+        vx: (Math.random() - 0.5) * 16,
+        vy: Math.random() * -18 - 4,
+        size: Math.random() * 8 + 3,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rotation: Math.random() * 360,
+        rotationSpeed: (Math.random() - 0.5) * 12,
+        life: 1,
+    }));
+
+    let frame = 0;
+    const maxFrames = 180; // ~3 seconds at 60fps
+    function animate() {
+        if (frame++ > maxFrames) { canvas.remove(); return; }
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (const p of particles) {
+            p.x += p.vx;
+            p.vy += 0.35; // gravity
+            p.y += p.vy;
+            p.rotation += p.rotationSpeed;
+            p.life -= 0.006;
+            if (p.life <= 0) continue;
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.rotation * Math.PI) / 180);
+            ctx.globalAlpha = Math.max(0, p.life);
+            ctx.fillStyle = p.color;
+            ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+            ctx.restore();
+        }
+        requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+}
 
 interface SignInModalProps {
     isOpen: boolean;
@@ -14,6 +63,8 @@ const SignInModal: React.FC<SignInModalProps> = ({ isOpen, mode, onSuccess }) =>
     const [error, setError] = useState<string | null>(null);
     const [isPolling, setIsPolling] = useState(false);
 
+    const isPrincess = mode === ThemeMode.PRINCESS;
+
     const startSignIn = async () => {
         try {
             setError(null);
@@ -23,6 +74,9 @@ const SignInModal: React.FC<SignInModalProps> = ({ isOpen, mode, onSuccess }) =>
 
             const token = await GitHubAuthClient.pollForToken(data.device_code, data.interval);
             if (token) {
+                // 🎉 Confetti!
+                launchConfetti(isPrincess);
+
                 // Now fetch user info
                 // @ts-ignore
                 const user = await window.electronAPI.githubGetUser(token);
@@ -33,8 +87,6 @@ const SignInModal: React.FC<SignInModalProps> = ({ isOpen, mode, onSuccess }) =>
             console.error(err);
         }
     };
-
-    const isPrincess = mode === ThemeMode.PRINCESS;
 
     return (
         <Modal
@@ -71,8 +123,8 @@ const SignInModal: React.FC<SignInModalProps> = ({ isOpen, mode, onSuccess }) =>
                     <button
                         onClick={startSignIn}
                         className={`w-full py-3 px-4 rounded-lg font-bold transition-all transform hover:scale-[1.02] active:scale-[0.98] ${isPrincess
-                                ? 'bg-pink-500 text-white hover:bg-pink-600 shadow-pink-500/25 shadow-lg'
-                                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-600/25 shadow-lg'
+                            ? 'bg-pink-500 text-white hover:bg-pink-600 shadow-pink-500/25 shadow-lg'
+                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-600/25 shadow-lg'
                             }`}
                     >
                         Sign in with GitHub

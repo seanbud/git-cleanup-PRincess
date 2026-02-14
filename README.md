@@ -2,46 +2,60 @@
 
 **A royal way to tidy up your repositories.**
 
-Git Cleanup PRincess is a delightful, theme-able Git client focused on helping you clean up your local changes. Whether you're a coded-blooded Princess or a brave Prince, this tool makes repository maintenance magical.
+<p align="center">
+  <img src="public/sprites/princess-idle.png" height="120" alt="Princess">
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="public/sprites/prince-idle.png" height="120" alt="Prince">
+</p>
 
-## Features
+Git Cleanup PRincess is a desktop Git client built for one thing: **cleaning up your local changes fast.** Pick your theme, select your files, and sweep them away — or restore them with a click.
 
-- **👑 Dual Themes**: Switch between **Princess Mode** (Pink/Sparkles) and **Prince Mode** (Blue/Adventure) with a single click.
-- **✨ Interactive Characters**: High-resolution character sprites react to your actions (Waving, Sweeping, Celebrating, Worrying).
-- **🧹 Cleanup Focused**: Easily view changed files, diffs, and decide to **Restore** (keep) or **Remove** (sweep away) them.
-- **🔊 Audio Feedback**: Satisfying sound effects for your actions—swish, pop, and sparkle!
-- **🌳 Visual History**: A clear, beautiful graph of your commit history.
+## ⬇️ Download
 
-## Getting Started
+Grab the latest release for your platform:
 
-### Prerequisites
-- Node.js (v16+)
-- Git
+| Platform | Download |
+|----------|----------|
+| 🪟 Windows | [`.exe` installer](https://github.com/seanbud/git-cleanup-PRincess/releases/latest) |
+| 🍎 macOS | [`.dmg`](https://github.com/seanbud/git-cleanup-PRincess/releases/latest) |
+| 🐧 Linux | [`.AppImage` / `.deb`](https://github.com/seanbud/git-cleanup-PRincess/releases/latest) |
 
-### Installation
+> **macOS note:** The app is unsigned. Right-click → Open on first launch to bypass Gatekeeper.
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/seanbud/git-cleanup-PRincess.git
-   cd git-cleanup-PRincess
-   ```
+## ✨ Features
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+- **👑 Princess & Prince Modes** — Switch themes instantly with a click.
+- **🧹 Quick Cleanup** — View changed files, check the diff, then Restore or Remove.
+- **🗑️ Recycle Bin Safety** — Removed files go to your system's trash, never permanently deleted.
+- **🎉 Confetti** — Because signing in should feel like a celebration.
+- **🔊 Sound Effects** — Satisfying pops, sparkles, and swishes.
+- **🌳 Commit Graph** — A clean visual of your recent commit history.
 
-3. Run the application:
-   ```bash
-   npm run dev
-   ```
+<p align="center">
+  <img src="public/sprites/princess-action-complete.png" height="100" alt="Princess Celebrating">
+  <img src="public/sprites/prince-action-complete.png" height="100" alt="Prince Celebrating">
+</p>
 
-## Technologies
-- **Electron**: Desktop application framework.
-- **React**: UI library.
-- **TypeScript**: For type-safe code.
-- **Tailwind CSS**: For beautiful styling.
-- **Vite**: For fast development and building.
+## 🛠️ Build from Source
+
+**Prerequisites:** Node.js (v18+), Git
+
+```bash
+git clone https://github.com/seanbud/git-cleanup-PRincess.git
+cd git-cleanup-PRincess
+npm install
+npm run dev
+```
+
+To build the desktop installer:
+
+```bash
+npm run electron:build
+```
+
+## Tech Stack
+
+Electron · React · TypeScript · Tailwind CSS · Vite
 
 ---
 

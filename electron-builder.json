@@ -2,7 +2,7 @@
   "appId": "com.princess.gitcleanup",
   "productName": "Git Cleanup PRincess",
   "directories": {
-    "output": "dist-electron"
+    "output": "release"
   },
   "files": [
     "dist/**/*",
