@@ -195,8 +195,8 @@ const App: React.FC = () => {
       });
       items.push({
         label: 'Copy Absolute Path',
-        action: () => {
-           const absPath = `/Users/developer/projects/${gitState.repoName}/${payload.path}`;
+        action: async () => {
+           const absPath = await window.electronAPI.resolvePath(payload.path);
            navigator.clipboard.writeText(absPath);
         }
       });

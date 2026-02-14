@@ -5,5 +5,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     on: (channel: string, callback: Function) => {
         ipcRenderer.on(channel, (_, data) => callback(data));
     },
-    // Add more IPC wrappers here as needed safely
+    resolvePath: (path: string) => ipcRenderer.invoke('app:resolve-path', path),
 });

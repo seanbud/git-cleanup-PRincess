@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -66,4 +66,9 @@ app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+    ipcMain.handle('app:resolve-path', async (_event, relativePath) => {
+        return path.resolve(process.cwd(), relativePath);
+    });
+    createWindow();
+});
