@@ -1,6 +1,8 @@
 {
   "name": "git-cleanup-princess",
   "private": true,
+  "author": "Git Cleanup PRincess <princess@example.com>",
+  "description": "A git cleanup tool fit for royalty",
   "version": "0.0.0",
   "type": "module",
   "main": "dist-electron/main.js",
