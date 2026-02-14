@@ -231,6 +231,16 @@ app.whenReady().then(() => {
         shell.showItemInFolder(filePath);
     });
 
+    ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
+        const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
+        try {
+            await shell.trashItem(fullPath);
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
     ipcMain.handle('app:get-cwd', () => {
         return currentCwd;
     });

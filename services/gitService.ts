@@ -170,8 +170,14 @@ export class GitService {
     }
 
     static async removeFile(filePath: string): Promise<boolean> {
+        // 1. Remove from git index first (keep on disk)
+        // Use --ignore-unmatch so it doesn't fail if the file is untracked
         // @ts-ignore
-        const res = await window.electronAPI.gitCmd(`git rm -f "${filePath}"`);
+        await window.electronAPI.gitCmd(`git rm --cached -f --ignore-unmatch "${filePath}"`);
+
+        // 2. Move the local file to trash/recycle bin
+        // @ts-ignore
+        const res = await window.electronAPI.trashFile(filePath);
         return res.success;
     }
 

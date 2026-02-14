@@ -21,19 +21,38 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
     const isPrincess = mode === ThemeMode.PRINCESS;
     const characterPrefix = isPrincess ? 'princess' : 'prince';
 
-    // Map state to sprite filename
+    // Map state to sprite filename (Base follows Prince pattern)
     const spriteMap: Record<CharacterState, string> = {
         [CharacterState.IDLE]: 'idle.png',
         [CharacterState.SELECTED]: 'selected.png',
-        [CharacterState.ACTION_GOOD]: 'restore.png',
-        [CharacterState.ACTION_BAD]: 'remove.png',
-        [CharacterState.CELEBRATING]: 'celebrating.png',
+        [CharacterState.ACTION_GOOD]: 'action.png',
+        [CharacterState.ACTION_BAD]: 'worried.png',
+        [CharacterState.CELEBRATING]: 'action-complete.png',
         [CharacterState.SWEEPING]: 'sweeping.png',
         [CharacterState.WORRIED]: 'worried.png',
-        [CharacterState.WAVING]: 'waving.png',
+        [CharacterState.WAVING]: 'idle.png', // Fallback
     };
 
-    const spriteName = spriteMap[state] || 'idle.png';
+    let spriteName = spriteMap[state];
+
+    // Princess-specific overrides for unique filenames
+    if (isPrincess) {
+        switch (state) {
+            case CharacterState.ACTION_GOOD: // Restore
+                spriteName = 'restore-action.png';
+                break;
+            case CharacterState.ACTION_BAD: // Remove
+                spriteName = 'action.png';
+                break;
+            case CharacterState.CELEBRATING:
+                spriteName = 'action-complete.png';
+                break;
+        }
+    }
+
+    // Ensure we have a valid spriteName
+    if (!spriteName) spriteName = spriteMap[state] || 'idle.png';
+
     const spritePath = `./sprites/${characterPrefix}-${spriteName}`;
 
     // Backdrop path
@@ -56,8 +75,9 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
 
     return (
         <div className="relative w-full h-full flex items-center justify-center pointer-events-none overflow-visible">
+            {/* Larger container (increased by 25%) */}
             <div
-                className="w-48 h-60 transition-transform duration-300 relative flex items-center justify-center"
+                className="w-60 h-72 transition-transform duration-300 relative flex items-center justify-center"
                 style={{ transform: `translateY(${bounce}px)` }}
             >
                 {/* Backdrop */}
@@ -65,25 +85,36 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
                     {renderBackdrop()}
                 </svg>
 
-                {/* Character Sprite with Sticker effect */}
-                <div className="relative z-10 w-full h-full flex items-center justify-center">
+                {/* Character Sprite with Sticker effect & Transition wrapper */}
+                <div key={`${mode}-${state}`} className="relative z-10 w-full h-full flex items-center justify-center animate-character-swap">
                     <img
                         src={spritePath}
                         alt={`${characterPrefix} ${state}`}
-                        className="max-w-full max-h-full object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.1)] transition-opacity duration-200"
+                        className="max-w-full max-h-full object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.1)]"
                         style={{
-                            // Simulate sticker border if image doesn't have it baked in
-                            // We'll bake it in for best results, but this helps visibility
-                            filter: `drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white)`
+                            // Border is now baked into the image by the script, 
+                            // but we keep a subtle shadow for depth
                         }}
                         onError={(e) => {
-                            // Hide if missing during generation phase
                             (e.target as HTMLImageElement).style.opacity = '0';
                         }}
-                        onLoad={(e) => {
-                            (e.target as HTMLImageElement).style.opacity = '1';
-                        }}
                     />
+
+                    <style>{`
+                        @keyframes character-swap {
+                            0% {
+                                opacity: 0;
+                                transform: translateX(20px) scale(0.95);
+                            }
+                            100% {
+                                opacity: 1;
+                                transform: translateX(0) scale(1);
+                            }
+                        }
+                        .animate-character-swap {
+                            animation: character-swap 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+                        }
+                    `}</style>
                 </div>
             </div>
         </div>
