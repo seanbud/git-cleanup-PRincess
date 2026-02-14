@@ -121,11 +121,31 @@ const FileList: React.FC<FileListProps> = ({
   const hoverBg = isPrincess ? 'hover:bg-pink-50' : 'hover:bg-blue-50';
 
   // Helper to order files logically for display
-  const orderedFiles = useMemo(() => {
-    const uncommitted = files.filter(f => f.changeType === ChangeType.UNCOMMITTED);
-    const stashed = files.filter(f => f.changeType === ChangeType.STASHED);
-    const unpushed = files.filter(f => f.changeType === ChangeType.UNPUSHED);
-    return [...uncommitted, ...stashed, ...unpushed];
+  const { orderedFiles, uncommitted, stashed, unpushed } = useMemo(() => {
+    const uncommitted: GitFile[] = [];
+    const stashed: GitFile[] = [];
+    const unpushed: GitFile[] = [];
+
+    files.forEach((f) => {
+      switch (f.changeType) {
+        case ChangeType.UNCOMMITTED:
+          uncommitted.push(f);
+          break;
+        case ChangeType.STASHED:
+          stashed.push(f);
+          break;
+        case ChangeType.UNPUSHED:
+          unpushed.push(f);
+          break;
+      }
+    });
+
+    return {
+      orderedFiles: [...uncommitted, ...stashed, ...unpushed],
+      uncommitted,
+      stashed,
+      unpushed,
+    };
   }, [files]);
 
   const handleSelect = useCallback((e: React.MouseEvent, file: GitFile) => {
@@ -186,10 +206,6 @@ const FileList: React.FC<FileListProps> = ({
       </div>
     );
   };
-
-  const stashed = orderedFiles.filter(f => f.changeType === ChangeType.STASHED);
-  const uncommitted = orderedFiles.filter(f => f.changeType === ChangeType.UNCOMMITTED);
-  const unpushed = orderedFiles.filter(f => f.changeType === ChangeType.UNPUSHED);
 
   return (
     <div 
