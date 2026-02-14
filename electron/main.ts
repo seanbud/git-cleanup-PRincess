@@ -1,5 +1,10 @@
-import { app, BrowserWindow, shell } from 'electron';
-import path from 'path';
+import * as electron from 'electron';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const { app, BrowserWindow, shell } = electron;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // The built directory structure
 //
@@ -11,24 +16,25 @@ import path from 'path';
 // │ ├─┬ renderer
 // │ │ └── index.html
 //
-process.env.DIST_ELECTRON = path.join(__dirname, '../dist-electron');
-process.env.DIST = path.join(__dirname, '../dist');
-process.env.PUBLIC = app.isPackaged
-    ? process.env.DIST
-    : path.join(process.env.DIST, '../public');
 
 let win: BrowserWindow | null;
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
 
 function createWindow() {
+    process.env.DIST_ELECTRON = path.join(__dirname, '../dist-electron');
+    process.env.DIST = path.join(__dirname, '../dist');
+    process.env.PUBLIC = app.isPackaged
+        ? process.env.DIST
+        : path.join(process.env.DIST, '../public');
+
     win = new BrowserWindow({
         width: 1200,
         height: 800,
         icon: path.join(process.env.PUBLIC, 'icon.png'),
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
+            preload: path.join(__dirname, 'preload.mjs'),
         },
-        frame: true, // We might want a custom frame later for the PRincess theme
+        frame: true,
         autoHideMenuBar: true,
     });
 
@@ -40,7 +46,6 @@ function createWindow() {
     if (VITE_DEV_SERVER_URL) {
         win.loadURL(VITE_DEV_SERVER_URL);
     } else {
-        // win.loadFile('dist/index.html')
         win.loadFile(path.join(process.env.DIST, 'index.html'));
     }
 

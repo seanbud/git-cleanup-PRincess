@@ -8,17 +8,28 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+
+# Production
 dist
 dist-ssr
-*.local
+dist-electron
 
-# Editor directories and files
+# IDEs
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+
+# OS Files
+Thumbs.db
+Desktop.ini
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
