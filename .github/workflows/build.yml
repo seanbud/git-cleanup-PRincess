@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build/Release
 
 on:
   push:
@@ -6,29 +6,27 @@ on:
       - 'v*'
 
 jobs:
-  build:
+  release:
     runs-on: ${{ matrix.os }}
+
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - name: Check out Git repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
+          cache: 'npm'
 
       - name: Install Dependencies
         run: npm install
 
-      - name: Build React App
-        run: npm run build
-
-      - name: Build Electron App
-        uses: samuelmeuli/action-electron-builder@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          release: true
+      - name: Build & Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run electron:build

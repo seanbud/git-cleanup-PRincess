@@ -6,22 +6,34 @@
   },
   "files": [
     "dist/**/*",
-    "electron/**/*"
+    "dist-electron/**/*"
   ],
   "mac": {
     "category": "public.app-category.developer-tools",
-    "target": ["dmg", "zip"]
+    "target": [
+      "dmg",
+      "zip"
+    ],
+    "icon": "resources/icon.png"
   },
   "win": {
     "target": [
       {
         "target": "nsis",
-        "arch": ["x64", "ia32"]
+        "arch": [
+          "x64",
+          "ia32"
+        ]
       }
-    ]
+    ],
+    "icon": "resources/icon.png"
   },
   "linux": {
-    "target": ["AppImage", "deb"]
+    "target": [
+      "AppImage",
+      "deb"
+    ],
+    "icon": "resources/icon.png"
   },
   "nsis": {
     "oneClick": false,

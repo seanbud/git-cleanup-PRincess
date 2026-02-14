@@ -1,0 +1,48 @@
+{
+    "character_name": "Git Cleanup PRincess",
+    "art_style": {
+        "primary_influence": "Adventure Time (CalArts style)",
+        "line_work": "Clean, consistent medium-weight black outlines; no tapered ends",
+        "shading": "Minimal to none; flat cell shading if any",
+        "background": "Solid white or transparent"
+    },
+    "physical_attributes": {
+        "stature": "Short, petite, roughly 3-4 heads tall",
+        "head_shape": "Large, rounded-bean shape",
+        "eyes": {
+            "style": "Simple black dots",
+            "whites": "Strictly none",
+            "spacing": "Wide set on the face"
+        },
+        "hair": {
+            "color": "Pale blonde/butter-yellow",
+            "style": "Long, flowing, thick clumps with rounded tips; no individual strands",
+            "length": "Reaches below the waist"
+        },
+        "expression": "Smug, confident, adventurous, or slightly mischievous"
+    },
+    "outfit_and_accessories": {
+        "headwear": {
+            "item": "Classic gold crown",
+            "details": "Three visible points with a small blue circular gem in the center point"
+        },
+        "dress": {
+            "color": "Bubblegum pink",
+            "style": "Short-sleeved puffed shoulders, cinched waist with a darker pink belt line, flared skirt with a scalloped white trim at the hem"
+        },
+        "footwear": {
+            "item": "Tall brown adventuring boots",
+            "details": "Knee-high with dark 'X' pattern laces"
+        },
+        "weapon": {
+            "item": "Wooden broom",
+            "details": "Simple straw bristles tied with twine to a dark wood handle; no magical glow or sparkles"
+        }
+    },
+    "signature_poses": [
+        "Confident wide stance with hands on hips",
+        "Pointing heroically with one hand while the broom rests on the shoulder",
+        "Sitting cross-legged with the broom held vertically",
+        "Squatting low in a 'battle-ready' stance"
+    ]
+}
