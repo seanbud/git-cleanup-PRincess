@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, safeStorage, dialog } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, safeStorage, dialog, Menu } from 'electron';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { execSync } from 'child_process';
@@ -101,6 +101,64 @@ app.on('activate', () => {
 
 app.whenReady().then(() => {
     createWindow();
+
+    // ─── Application Menu (Shortcuts) ──────────────────────────────
+    const template: any[] = [
+        {
+            label: 'Edit',
+            submenu: [
+                { role: 'undo' },
+                { role: 'redo' },
+                { type: 'separator' },
+                { role: 'cut' },
+                { role: 'copy' },
+                { role: 'paste' },
+                { role: 'selectAll' }
+            ]
+        },
+        {
+            label: 'View',
+            submenu: [
+                { role: 'reload' },
+                { role: 'forceReload' },
+                { role: 'toggleDevTools' },
+                { type: 'separator' },
+                { role: 'resetZoom' },
+                { role: 'zoomIn', accelerator: 'CommandOrControl+Plus' },
+                { role: 'zoomIn', accelerator: 'CommandOrControl+=' },
+                { role: 'zoomOut' },
+                { type: 'separator' },
+                { role: 'togglefullscreen' }
+            ]
+        },
+        {
+            role: 'window',
+            submenu: [
+                { role: 'minimize' },
+                { role: 'close' }
+            ]
+        }
+    ];
+
+    if (process.platform === 'darwin') {
+        template.unshift({
+            label: app.name,
+            submenu: [
+                { role: 'about' },
+                { type: 'separator' },
+                { role: 'services' },
+                { type: 'separator' },
+                { role: 'hide' },
+                { role: 'hideOthers' },
+                { role: 'unhide' },
+                { type: 'separator' },
+                { role: 'quit' }
+            ]
+        });
+    }
+
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
 
     // ─── Auto-Update ─────────────────────────────────────────────
     if (app.isPackaged) {
