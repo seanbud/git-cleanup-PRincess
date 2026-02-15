@@ -1,0 +1,100 @@
+import React, { useState, useCallback } from 'react';
+import { GitFile } from '../types';
+import { ContextMenuItem } from '../components/ContextMenu';
+
+export interface ContextMenuState {
+    visible: boolean;
+    x: number;
+    y: number;
+    items: ContextMenuItem[];
+}
+
+interface UseContextMenuOptions {
+    currentBranch: string;
+    onOpenGithub: () => void;
+}
+
+export interface UseContextMenuReturn {
+    contextMenu: ContextMenuState;
+    handleContextMenu: (e: React.MouseEvent, type: 'FILE' | 'REPO' | 'BRANCH', payload?: GitFile) => void;
+    closeContextMenu: () => void;
+}
+
+export function useContextMenu({ currentBranch, onOpenGithub }: UseContextMenuOptions): UseContextMenuReturn {
+    const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+        visible: false,
+        x: 0,
+        y: 0,
+        items: []
+    });
+
+    const handleContextMenu = useCallback((e: React.MouseEvent, type: 'FILE' | 'REPO' | 'BRANCH', payload?: GitFile) => {
+        e.preventDefault();
+        const items: ContextMenuItem[] = [];
+
+        if (type === 'FILE' && payload) {
+            items.push({
+                label: 'Open with External Editor',
+                action: () => {
+                    // @ts-ignore
+                    window.electronAPI.gitCmd(`code ${payload.path}`);
+                }
+            });
+            items.push({
+                label: 'Reveal in Explorer',
+                action: async () => {
+                    // @ts-ignore
+                    const cwd = await window.electronAPI.getCwd();
+                    // @ts-ignore
+                    window.electronAPI.showItemInFolder(`${cwd}/${payload.path}`);
+                }
+            });
+            items.push({
+                label: 'Copy Relative Path',
+                action: () => {
+                    navigator.clipboard.writeText(payload.path);
+                }
+            });
+            items.push({
+                label: 'Copy Absolute Path',
+                action: async () => {
+                    // @ts-ignore
+                    const cwd = await window.electronAPI.getCwd();
+                    navigator.clipboard.writeText(`${cwd}/${payload.path}`);
+                }
+            });
+        } else if (type === 'REPO') {
+            items.push({
+                label: 'Open on GitHub',
+                action: () => onOpenGithub()
+            });
+            items.push({
+                label: 'Open in Terminal',
+                action: () => {
+                    // @ts-ignore
+                    window.electronAPI.gitCmd('start cmd');
+                }
+            });
+        } else if (type === 'BRANCH') {
+            items.push({
+                label: 'Copy Branch Name',
+                action: () => {
+                    navigator.clipboard.writeText(currentBranch);
+                }
+            });
+        }
+
+        setContextMenu({
+            visible: true,
+            x: e.clientX,
+            y: e.clientY,
+            items
+        });
+    }, [currentBranch, onOpenGithub]);
+
+    const closeContextMenu = useCallback(() => {
+        setContextMenu(prev => ({ ...prev, visible: false }));
+    }, []);
+
+    return { contextMenu, handleContextMenu, closeContextMenu };
+}
