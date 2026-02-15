@@ -23,6 +23,7 @@ const OptionsModal: React.FC<OptionsModalProps> = ({
 }) => {
     const [activeTab, setActiveTab] = useState<'accounts' | 'git'>('accounts');
     const [localConfig, setLocalConfig] = useState(gitConfig);
+    const [showSaved, setShowSaved] = useState(false);
 
     const isPrincess = mode === ThemeMode.PRINCESS;
     const tabClass = (tab: string) => `
@@ -112,7 +113,12 @@ const OptionsModal: React.FC<OptionsModalProps> = ({
             </div>
 
             {/* Footer */}
-            <div className={`flex justify-end space-x-3 px-6 py-4 border-t ${isPrincess ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
+            <div className={`flex justify-end items-center space-x-3 px-6 py-4 border-t ${isPrincess ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
+                {showSaved && (
+                    <span className={`text-xs font-bold animate-pulse ${isPrincess ? 'text-pink-500' : 'text-blue-400'}`}>
+                        Saved ✓
+                    </span>
+                )}
                 <button onClick={onClose} className="px-4 py-2 text-sm opacity-60 hover:opacity-100 transition-opacity">Cancel</button>
                 <button
                     onClick={async () => {
@@ -130,7 +136,11 @@ const OptionsModal: React.FC<OptionsModalProps> = ({
                             await window.electronAPI.gitCmd(`git config init.defaultBranch "${localConfig.defaultBranch}"`);
                         }
                         onSave(localConfig);
-                        onClose();
+                        setShowSaved(true);
+                        setTimeout(() => {
+                            setShowSaved(false);
+                            onClose();
+                        }, 1200);
                     }}
                     className={`px-6 py-2 rounded-lg text-sm font-bold text-white shadow-lg transition-transform active:scale-[0.98] ${isPrincess ? 'bg-pink-500 hover:bg-pink-600 shadow-pink-500/20' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'
                         }`}

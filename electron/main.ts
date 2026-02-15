@@ -333,4 +333,25 @@ app.whenReady().then(() => {
     ipcMain.handle('app:get-cwd', () => {
         return currentCwd;
     });
+
+    // ─── Window Controls ─────────────────────────────────────────
+    ipcMain.handle('window:toggle-fullscreen', () => {
+        if (win) {
+            win.setFullScreen(!win.isFullScreen());
+        }
+    });
+
+    ipcMain.handle('window:toggle-devtools', () => {
+        if (win) {
+            win.webContents.toggleDevTools();
+        }
+    });
+
+    ipcMain.handle('window:new', () => {
+        createWindow();
+    });
+
+    ipcMain.handle('app:get-version', () => {
+        return app.getVersion();
+    });
 });

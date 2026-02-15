@@ -50,17 +50,30 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({
     ${isPrincess ? 'hover:bg-pink-50 text-slate-700' : 'hover:bg-slate-700 text-slate-200'}
   `;
 
+  const disabledItemClass = `
+    px-4 py-1.5 text-xs flex justify-between items-center opacity-40 cursor-default
+  `;
+
   const separatorClass = `
     my-1 border-t ${isPrincess ? 'border-pink-100' : 'border-slate-700'}
   `;
 
-  const renderDropdown = (name: string, items: { label: string, shortcut?: string, action?: () => void, separator?: boolean }[]) => (
+  const renderDropdown = (name: string, items: { label: string, shortcut?: string, action?: () => void, separator?: boolean, disabled?: boolean }[]) => (
     activeMenu === name && (
       <div className={dropdownClass}>
         {items.map((item, i) => (
           item.separator
             ? <div key={i} className={separatorClass} />
-            : <div key={i} className={dropdownItemClass} onClick={() => { item.action?.(); setActiveMenu(null); }}>
+            : <div
+              key={i}
+              className={item.disabled ? disabledItemClass : dropdownItemClass}
+              onClick={() => {
+                if (!item.disabled) {
+                  item.action?.();
+                  setActiveMenu(null);
+                }
+              }}
+            >
               <span>{item.label}</span>
               {item.shortcut && <span className="opacity-40 ml-4">{item.shortcut}</span>}
             </div>
@@ -75,7 +88,12 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({
         <div className="relative">
           <div className={topItemClass('File')} onClick={() => { setActiveMenu(activeMenu === 'File' ? null : 'File'); audioService.play('pop'); }}>File</div>
           {renderDropdown('File', [
-            { label: 'New Window', shortcut: 'Ctrl+N' },
+            {
+              label: 'New Window', shortcut: 'Ctrl+N', action: () => {
+                // @ts-ignore
+                window.electronAPI.newWindow();
+              }
+            },
             { label: 'Open Local Repository...', shortcut: 'Ctrl+O', action: onOpenRepo },
             { label: 'separator', separator: true },
             { label: 'Options...', shortcut: 'Ctrl+,', action: onOpenOptions },
@@ -86,10 +104,10 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({
         <div className="relative">
           <div className={topItemClass('Edit')} onClick={() => { setActiveMenu(activeMenu === 'Edit' ? null : 'Edit'); audioService.play('pop'); }}>Edit</div>
           {renderDropdown('Edit', [
-            { label: 'Undo', shortcut: 'Ctrl+Z' },
-            { label: 'Redo', shortcut: 'Ctrl+Y' },
+            { label: 'Undo', shortcut: 'Ctrl+Z', disabled: true },
+            { label: 'Redo', shortcut: 'Ctrl+Y', disabled: true },
             { label: 'separator', separator: true },
-            { label: 'Find', shortcut: 'Ctrl+F' },
+            { label: 'Find', shortcut: 'Ctrl+F', disabled: true },
           ])}
         </div>
         <div className="relative">
@@ -99,8 +117,18 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({
             { label: 'separator', separator: true },
             { label: isPrincess ? 'Switch to Prince Mode ⚔️' : 'Switch to Princess Mode 👑', action: onToggleTheme },
             { label: 'separator', separator: true },
-            { label: 'Toggle Full Screen', shortcut: 'F11' },
-            { label: 'Toggle Developer Tools', shortcut: 'Ctrl+Shift+I' }
+            {
+              label: 'Toggle Full Screen', shortcut: 'F11', action: () => {
+                // @ts-ignore
+                window.electronAPI.toggleFullScreen();
+              }
+            },
+            {
+              label: 'Toggle Developer Tools', shortcut: 'Ctrl+Shift+I', action: () => {
+                // @ts-ignore
+                window.electronAPI.toggleDevTools();
+              }
+            },
           ])}
         </div>
         <div className="relative">
@@ -130,7 +158,20 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({
         <div className="relative">
           <div className={topItemClass('Help')} onClick={() => setActiveMenu(activeMenu === 'Help' ? null : 'Help')}>Help</div>
           {renderDropdown('Help', [
-            { label: 'About Git Cleanup PRincess' },
+            {
+              label: 'About Git Cleanup PRincess', action: async () => {
+                // @ts-ignore
+                const version = await window.electronAPI.getAppVersion?.() || '1.0.0';
+                alert(`Git Cleanup PRincess v${version}\n\nA gamified Git cleanup tool fit for royalty.\n\nhttps://github.com/seanbud/git-cleanup-PRincess`);
+              }
+            },
+            { label: 'separator', separator: true },
+            {
+              label: 'Check for Updates...', action: () => {
+                // @ts-ignore
+                window.electronAPI.checkForUpdate?.();
+              }
+            },
             {
               label: 'Report an Issue...', action: () => {
                 // @ts-ignore

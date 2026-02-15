@@ -30,4 +30,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     checkForUpdate: () => ipcRenderer.invoke('update:check'),
     downloadUpdate: () => ipcRenderer.invoke('update:download'),
     installUpdate: () => ipcRenderer.invoke('update:install'),
+    // Window Controls
+    toggleFullScreen: () => ipcRenderer.invoke('window:toggle-fullscreen'),
+    toggleDevTools: () => ipcRenderer.invoke('window:toggle-devtools'),
+    newWindow: () => ipcRenderer.invoke('window:new'),
+    getAppVersion: () => ipcRenderer.invoke('app:get-version'),
 });
