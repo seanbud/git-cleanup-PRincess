@@ -3,7 +3,7 @@
   "private": true,
   "author": "Git Cleanup PRincess <princess@example.com>",
   "description": "A git cleanup tool fit for royalty",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -15,7 +15,7 @@
     "electron:build": "vite build && electron-builder"
   },
   "dependencies": {
-    "electron-updater": "^6.1.7",
+    "electron-updater": "^6.7.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
