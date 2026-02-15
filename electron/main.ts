@@ -241,6 +241,52 @@ app.whenReady().then(() => {
         }
     });
 
+    // File Preview: read file from disk as base64 data URI
+    ipcMain.handle('file:read-base64', (_, relativePath: string) => {
+        try {
+            const fullPath = path.isAbsolute(relativePath) ? relativePath : path.join(currentCwd, relativePath);
+            if (!fs.existsSync(fullPath)) return { success: false, error: 'File not found' };
+            const buffer = fs.readFileSync(fullPath);
+            const ext = path.extname(fullPath).toLowerCase();
+            const mimeMap: Record<string, string> = {
+                '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+                '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
+                '.bmp': 'image/bmp', '.ico': 'image/x-icon',
+            };
+            const mime = mimeMap[ext] || 'application/octet-stream';
+            const base64 = buffer.toString('base64');
+            const size = buffer.length;
+            return { success: true, dataUri: `data:${mime};base64,${base64}`, size };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    // File Preview: read file from git HEAD as base64 data URI
+    ipcMain.handle('git:show-file-base64', (_, relativePath: string) => {
+        try {
+            const result = execSync(`git show HEAD:"${relativePath}"`, {
+                cwd: currentCwd,
+                encoding: 'buffer',
+                maxBuffer: 10 * 1024 * 1024,
+                stdio: ['pipe', 'pipe', 'pipe']
+            });
+            const ext = path.extname(relativePath).toLowerCase();
+            const mimeMap: Record<string, string> = {
+                '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+                '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
+                '.bmp': 'image/bmp', '.ico': 'image/x-icon',
+            };
+            const mime = mimeMap[ext] || 'application/octet-stream';
+            const base64 = result.toString('base64');
+            const size = result.length;
+            return { success: true, dataUri: `data:${mime};base64,${base64}`, size };
+        } catch {
+            // File doesn't exist in HEAD (new file)
+            return { success: false, error: 'Not in HEAD' };
+        }
+    });
+
     ipcMain.handle('app:get-cwd', () => {
         return currentCwd;
     });

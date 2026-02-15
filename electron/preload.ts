@@ -23,4 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     showItemInFolder: (path: string) => ipcRenderer.invoke('shell:open-path', path),
     trashFile: (path: string) => ipcRenderer.invoke('shell:trash-item', path),
     getCwd: () => ipcRenderer.invoke('app:get-cwd'),
+    // File Preview
+    readFileBase64: (path: string) => ipcRenderer.invoke('file:read-base64', path),
+    getGitFileBase64: (path: string) => ipcRenderer.invoke('git:show-file-base64', path),
 });
