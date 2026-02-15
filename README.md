@@ -24,17 +24,24 @@ Git Cleanup PRincess is a lightweight desktop utility designed to handle the "me
 - Real-time Git status tracking with line-level statistics.
 - Seamless GitHub authentication and repository management.
 
-## Installation
+## ⬇️ Download
 
 Git Cleanup PRincess is free and available for Windows, macOS, and Linux.
 
-| Platform | Download |
-| :--- | :--- |
-| **Windows** | [Download .exe installer](https://github.com/seanbud/git-cleanup-PRincess/releases/latest) |
-| **macOS** | [Download .dmg](https://github.com/seanbud/git-cleanup-PRincess/releases/latest) |
-| **Linux** | [Download .AppImage / .deb](https://github.com/seanbud/git-cleanup-PRincess/releases/latest) |
+### 🪟 Windows
+[Download .exe installer](https://github.com/seanbud/git-cleanup-PRincess/releases/download/v1.0.0/Git-Cleanup-PRincess-Setup-1.0.0.exe)
+*Standard installer for Windows users.*
 
-*Note for macOS users: As this is an community-driven tool, you may need to Right-click > Open on the first launch.*
+### 🍎 macOS
+[Download .dmg](https://github.com/seanbud/git-cleanup-PRincess/releases/download/v1.0.0/Git-Cleanup-PRincess-1.0.0.dmg)
+*Note: Right-click > Open on the first launch as this is a community-driven tool.*
+
+### 🐧 Linux
+[Download .AppImage](https://github.com/seanbud/git-cleanup-PRincess/releases/download/v1.0.0/Git-Cleanup-PRincess-1.0.0.AppImage) | [Download .deb](https://github.com/seanbud/git-cleanup-PRincess/releases/download/v1.0.0/Git-Cleanup-PRincess-1.0.0.deb)
+
+---
+
+View all releases and architectures on the [Releases Page](https://github.com/seanbud/git-cleanup-PRincess/releases/latest).
 
 ### Build from Source
 If you prefer to build it yourself:
@@ -49,7 +56,9 @@ npm run dev
 
 If the PRincess has saved your workflow, consider supporting future development.
 
-[Buy Me a Coffee](https://www.buymeacoffee.com/seanbud)
+<a href="https://www.buymeacoffee.com/seanbud">
+  <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-☕-pink?style=for-the-badge" alt="Buy Me a Coffee">
+</a>
 
 ---
 *Created by the Royal Engineering Team. Free, open source, and cross-platform.*
