@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { GitFile, ThemeMode } from '../types';
 import ImagePreview from './ImagePreview';
 import BinaryPreview from './BinaryPreview';
+import { highlightCode } from '../utils/syntaxHighlighter';
 
 interface DiffViewProps {
   file: GitFile | null;
@@ -48,9 +49,11 @@ type DiffSection =
 interface DiffLineItemProps {
   line: DiffLine;
   isPrincess: boolean;
+  filePath: string;
+  mode: ThemeMode;
 }
 
-const DiffLineItem: React.FC<DiffLineItemProps> = ({ line, isPrincess }) => {
+const DiffLineItem: React.FC<DiffLineItemProps> = ({ line, isPrincess, filePath, mode }) => {
   let lineBgClass = '';
   let textClass = 'text-gray-600';
 
@@ -73,7 +76,7 @@ const DiffLineItem: React.FC<DiffLineItemProps> = ({ line, isPrincess }) => {
       </div>
       {/* Code Content */}
       <div className={`px-3 py-[1px] whitespace-pre-wrap break-all ${textClass} font-mono leading-relaxed w-full`}>
-        {line.text}
+        {line.type === 'header' ? line.text : highlightCode(line.text, filePath, mode)}
       </div>
     </div>
   );
@@ -245,7 +248,7 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
                     </div>
                     {section.lines.map((line, lineIdx) => {
                       const uniqueKey = `${idx}-${lineIdx}-${line.originalIndex}`;
-                      return <DiffLineItem key={uniqueKey} line={line} isPrincess={isPrincess} />;
+                      return <DiffLineItem key={uniqueKey} line={line} isPrincess={isPrincess} filePath={file.path} mode={mode} />;
                     })}
                   </div>
                 );
@@ -277,7 +280,7 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
 
             return section.lines.map((line, lineIdx) => {
               const uniqueKey = `${idx}-${lineIdx}-${line.originalIndex}`;
-              return <DiffLineItem key={uniqueKey} line={line} isPrincess={isPrincess} />;
+              return <DiffLineItem key={uniqueKey} line={line} isPrincess={isPrincess} filePath={file.path} mode={mode} />;
             });
           })}
         </div>
