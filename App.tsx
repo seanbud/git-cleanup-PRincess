@@ -12,6 +12,7 @@ import ContextMenu from './components/ContextMenu';
 import DustSpore from './components/DustSpore';
 import OptionsModal from './components/OptionsModal';
 import SignInModal from './components/SignInModal';
+import UpdateBanner from './components/UpdateBanner';
 
 import { useGitState } from './hooks/useGitState';
 import { useCharacter } from './hooks/useCharacter';
@@ -93,6 +94,7 @@ const App: React.FC = () => {
   // ─── Render ────────────────────────────────────────────────────
   return (
     <div className={`flex flex-col h-screen w-screen overflow-hidden text-sm ${appBgClass} font-sans transition-colors duration-300`}>
+      <UpdateBanner mode={themeMode} />
       <div className="z-[100]">
         <TopMenuBar
           mode={themeMode}

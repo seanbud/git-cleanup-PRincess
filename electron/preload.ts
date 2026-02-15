@@ -26,4 +26,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // File Preview
     readFileBase64: (path: string) => ipcRenderer.invoke('file:read-base64', path),
     getGitFileBase64: (path: string) => ipcRenderer.invoke('git:show-file-base64', path),
+    // Auto-Update
+    checkForUpdate: () => ipcRenderer.invoke('update:check'),
+    downloadUpdate: () => ipcRenderer.invoke('update:download'),
+    installUpdate: () => ipcRenderer.invoke('update:install'),
 });

@@ -8,6 +8,13 @@
     "dist/**/*",
     "dist-electron/**/*"
   ],
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "seanbud",
+      "repo": "git-cleanup-PRincess"
+    }
+  ],
   "mac": {
     "category": "public.app-category.developer-tools",
     "target": [

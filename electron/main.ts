@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { execSync } from 'child_process';
 import fs from 'fs';
+import { autoUpdater } from 'electron-updater';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -100,6 +101,48 @@ app.on('activate', () => {
 
 app.whenReady().then(() => {
     createWindow();
+
+    // ─── Auto-Update ─────────────────────────────────────────────
+    if (app.isPackaged) {
+        autoUpdater.autoDownload = false;
+        autoUpdater.autoInstallOnAppQuit = true;
+
+        autoUpdater.on('update-available', (info) => {
+            win?.webContents.send('update-available', {
+                version: info.version,
+                releaseNotes: info.releaseNotes,
+            });
+        });
+
+        autoUpdater.on('update-not-available', () => {
+            win?.webContents.send('update-not-available');
+        });
+
+        autoUpdater.on('download-progress', (progress) => {
+            win?.webContents.send('update-download-progress', {
+                percent: progress.percent,
+                bytesPerSecond: progress.bytesPerSecond,
+                transferred: progress.transferred,
+                total: progress.total,
+            });
+        });
+
+        autoUpdater.on('update-downloaded', () => {
+            win?.webContents.send('update-downloaded');
+        });
+
+        autoUpdater.on('error', (err) => {
+            console.error('Auto-update error:', err);
+        });
+
+        // Check for updates after a short delay to not block startup
+        setTimeout(() => autoUpdater.checkForUpdates(), 3000);
+
+        // IPC handlers for update actions
+        ipcMain.handle('update:download', () => autoUpdater.downloadUpdate());
+        ipcMain.handle('update:install', () => autoUpdater.quitAndInstall());
+        ipcMain.handle('update:check', () => autoUpdater.checkForUpdates());
+    }
 
     // ─── GitHub Auth IPC ──────────────────────────────────────────
     ipcMain.handle('github:start-auth', async (_, clientId) => {
