@@ -13,10 +13,11 @@ interface TopMenuBarProps {
   onOpenGithub?: () => void;
   onNewBranch?: () => void;
   onRefresh?: () => void;
+  onOpenAbout?: () => void;
 }
 
 const TopMenuBar: React.FC<TopMenuBarProps> = ({
-  mode, onToggleTheme, onOpenOptions, onOpenRepo, onFetch, onPull, onPush, onOpenGithub, onNewBranch, onRefresh
+  mode, onToggleTheme, onOpenOptions, onOpenRepo, onFetch, onPull, onPush, onOpenGithub, onNewBranch, onRefresh, onOpenAbout
 }) => {
   const [activeMenu, setActiveMenu] = React.useState<string | null>(null);
   const isPrincess = mode === ThemeMode.PRINCESS;
@@ -159,10 +160,8 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({
           <div className={topItemClass('Help')} onClick={() => setActiveMenu(activeMenu === 'Help' ? null : 'Help')}>Help</div>
           {renderDropdown('Help', [
             {
-              label: 'About Git Cleanup PRincess', action: async () => {
-                // @ts-ignore
-                const version = await window.electronAPI.getAppVersion?.() || '1.0.0';
-                alert(`Git Cleanup PRincess v${version}\n\nA gamified Git cleanup tool fit for royalty.\n\nhttps://github.com/seanbud/git-cleanup-PRincess`);
+              label: 'About Git Cleanup PRincess', action: () => {
+                onOpenAbout?.();
               }
             },
             { label: 'separator', separator: true },

@@ -6,7 +6,8 @@
   },
   "files": [
     "dist/**/*",
-    "dist-electron/**/*"
+    "dist-electron/main.js",
+    "dist-electron/preload.mjs"
   ],
   "publish": [
     {
@@ -28,8 +29,7 @@
       {
         "target": "nsis",
         "arch": [
-          "x64",
-          "ia32"
+          "x64"
         ]
       }
     ],

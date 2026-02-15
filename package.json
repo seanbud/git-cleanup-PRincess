@@ -11,8 +11,9 @@
     "web:dev": "vite --config vite.web.config.ts",
     "build": "tsc && vite build && electron-builder",
     "preview": "vite preview",
+    "clean": "node -e \"const fs=require('fs');['dist','dist-electron','release'].forEach(d=>{if(fs.existsSync(d)){fs.rmSync(d,{recursive:true,force:true})}})\"",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on tcp:3000 && electron .\"",
-    "electron:build": "vite build && electron-builder"
+    "electron:build": "npm run clean && vite build && electron-builder"
   },
   "dependencies": {
     "electron-updater": "^6.7.3",

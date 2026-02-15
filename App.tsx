@@ -13,6 +13,7 @@ import DustSpore from './components/DustSpore';
 import OptionsModal from './components/OptionsModal';
 import SignInModal from './components/SignInModal';
 import UpdateBanner from './components/UpdateBanner';
+import AboutModal from './components/AboutModal';
 
 import { useGitState } from './hooks/useGitState';
 import { useCharacter } from './hooks/useCharacter';
@@ -28,6 +29,7 @@ const App: React.FC = () => {
   // ─── Modal State ───────────────────────────────────────────────
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isSignInOpen, setIsSignInOpen] = useState(false);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
 
   // ─── Custom Hooks ──────────────────────────────────────────────
   const git = useGitState();
@@ -107,6 +109,7 @@ const App: React.FC = () => {
           onOpenGithub={git.handleOpenGithub}
           onNewBranch={git.handleNewBranch}
           onRefresh={git.refreshGitState}
+          onOpenAbout={() => setIsAboutOpen(true)}
         />
       </div>
       <ProductTitleBar mode={themeMode} />
@@ -312,6 +315,12 @@ const App: React.FC = () => {
           git.setGithubUser(null);
           setIsSignInOpen(true);
         }}
+      />
+
+      <AboutModal
+        isOpen={isAboutOpen}
+        onClose={() => setIsAboutOpen(false)}
+        mode={themeMode}
       />
     </div>
   );
