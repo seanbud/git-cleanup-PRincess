@@ -35,6 +35,15 @@ export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges }
 
         if (type === 'FILE' && payload) {
             items.push({
+                label: 'Discard Local Changes...',
+                action: () => {
+                    if (onDiscardChanges) {
+                        onDiscardChanges([payload]);
+                    }
+                }
+            });
+            items.push({ label: 'separator', separator: true });
+            items.push({
                 label: 'Open with External Editor',
                 action: () => {
                     // @ts-ignore
@@ -62,15 +71,6 @@ export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges }
                     // @ts-ignore
                     const cwd = await window.electronAPI.getCwd();
                     navigator.clipboard.writeText(`${cwd}/${payload.path}`);
-                }
-            });
-            items.push({ label: 'separator', separator: true });
-            items.push({
-                label: 'Discard Local Changes...',
-                action: () => {
-                    if (onDiscardChanges) {
-                        onDiscardChanges([payload]);
-                    }
                 }
             });
         } else if (type === 'REPO') {
