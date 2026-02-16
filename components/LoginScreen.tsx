@@ -95,11 +95,17 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ mode, onLogin }) => {
           {/* Footer Status */}
           <div
              className="flex items-center justify-center gap-2 text-xs text-gray-400 mt-4 cursor-pointer hover:text-gray-600 transition-colors"
-             onClick={onLogin} // Hidden trigger for testing/demo
-             title="Click to simulate authorization"
+             onClick={() => {
+               // Security: Only allow bypass in development
+               if (import.meta.env.DEV) {
+                 onLogin();
+               }
+             }}
+             title={import.meta.env.DEV ? "Click to simulate authorization (DEV ONLY)" : "Waiting for authorization..."}
           >
              <div className={`w-2 h-2 rounded-full ${isPrincess ? 'bg-pink-400' : 'bg-blue-400'} animate-pulse`} />
              <span>Waiting for authorization...</span>
+             {import.meta.env.DEV && <span className="text-[10px] text-red-400 font-mono border border-red-200 px-1 rounded">DEV</span>}
           </div>
 
         </div>
