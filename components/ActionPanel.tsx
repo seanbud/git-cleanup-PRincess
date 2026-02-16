@@ -46,9 +46,9 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
 
         <div className="grid grid-cols-2 gap-3">
           <button
-            onClick={() => setConfirmAction('RESTORE')}
+            onClick={() => { setConfirmAction('RESTORE'); onHoverAction?.('RESTORE'); }}
             onMouseEnter={() => onHoverAction?.('RESTORE')}
-            onMouseLeave={() => onHoverAction?.(null)}
+            onMouseLeave={() => !confirmAction && onHoverAction?.(null)}
             disabled={isProcessing}
             className={`
               ${secondaryColorClass} 
@@ -61,9 +61,9 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
           </button>
 
           <button
-            onClick={() => setConfirmAction('REMOVE')}
+            onClick={() => { setConfirmAction('REMOVE'); onHoverAction?.('REMOVE'); }}
             onMouseEnter={() => onHoverAction?.('REMOVE')}
-            onMouseLeave={() => onHoverAction?.(null)}
+            onMouseLeave={() => !confirmAction && onHoverAction?.(null)}
             disabled={isProcessing}
             className={`
               ${primaryColorClass} 
@@ -87,7 +87,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
       {/* Confirmation Modal */}
       <ConfirmActionModal
         isOpen={confirmAction !== null}
-        onClose={() => setConfirmAction(null)}
+        onClose={() => { setConfirmAction(null); onHoverAction?.(null); }}
         onConfirm={() => {
           if (confirmAction === 'REMOVE') onRemove();
           else if (confirmAction === 'RESTORE') onRestore();
