@@ -41,8 +41,8 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, mode }) => {
         <Modal isOpen={isOpen} onClose={onClose} title="" mode={mode}>
             <div className="flex flex-col items-center text-center py-2 -mt-4">
                 {/* App Icon */}
-                <div className={`w-24 h-24 rounded-2xl overflow-hidden shadow-lg mb-4 ring-4 ${isPrincess ? 'ring-pink-200' : 'ring-blue-200'}`}>
-                    <img src="/sprites/app-icon.png" alt="Git Cleanup PRincess" className="w-full h-full object-cover" />
+                <div className={`w-28 h-28 flex items-center justify-center p-2 mb-4 drop-shadow-xl transform hover:scale-105 transition-transform duration-500`}>
+                    <img src="/sprites/app-icon.png" alt="Git Cleanup PRincess" className="max-w-full max-h-full object-contain" />
                 </div>
 
                 {/* App Name */}

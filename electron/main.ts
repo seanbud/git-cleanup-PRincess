@@ -332,6 +332,10 @@ app.whenReady().then(() => {
         shell.showItemInFolder(filePath);
     });
 
+    ipcMain.handle('shell:open-directory', (_, dirPath: string) => {
+        shell.openPath(dirPath);
+    });
+
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
         const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
         try {

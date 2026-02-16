@@ -51,7 +51,7 @@ export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges }
                 }
             });
             items.push({
-                label: 'Reveal in Explorer',
+                label: 'Open in File Explorer',
                 action: async () => {
                     // @ts-ignore
                     const cwd = await window.electronAPI.getCwd();
@@ -75,12 +75,12 @@ export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges }
             });
         } else if (type === 'REPO') {
             items.push({
-                label: 'Reveal in Explorer',
+                label: 'Open in File Explorer',
                 action: async () => {
                     // @ts-ignore
                     const cwd = await window.electronAPI.getCwd();
                     // @ts-ignore
-                    window.electronAPI.showItemInFolder(cwd);
+                    window.electronAPI.openDirectoryPath(cwd);
                 }
             });
             items.push({ label: 'separator', separator: true });

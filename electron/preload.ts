@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Shell
     openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
     showItemInFolder: (path: string) => ipcRenderer.invoke('shell:open-path', path),
+    openDirectoryPath: (path: string) => ipcRenderer.invoke('shell:open-directory', path),
     trashFile: (path: string) => ipcRenderer.invoke('shell:trash-item', path),
     getCwd: () => ipcRenderer.invoke('app:get-cwd'),
     // File Preview
