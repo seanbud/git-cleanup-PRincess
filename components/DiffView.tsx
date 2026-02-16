@@ -58,11 +58,11 @@ const DiffLineItem: React.FC<DiffLineItemProps> = ({ line, isPrincess, filePath,
   let textClass = 'text-gray-600';
 
   if (line.type === 'added') {
-    lineBgClass = isPrincess ? 'bg-pink-100/40' : 'bg-green-100/30';
-    textClass = isPrincess ? 'text-pink-900' : 'text-green-900';
+    lineBgClass = isPrincess ? 'bg-green-100/40' : 'bg-green-100/30';
+    textClass = isPrincess ? 'text-green-900 font-medium' : 'text-green-900';
   } else if (line.type === 'removed') {
-    lineBgClass = isPrincess ? 'bg-purple-100/40' : 'bg-red-100/30';
-    textClass = isPrincess ? 'text-purple-900' : 'text-red-900';
+    lineBgClass = isPrincess ? 'bg-red-100/40' : 'bg-red-100/30';
+    textClass = isPrincess ? 'text-red-900 font-medium' : 'text-red-900';
   } else if (line.type === 'header') {
     lineBgClass = isPrincess ? 'bg-pink-50 text-pink-400' : 'bg-blue-50 text-blue-400';
     textClass = 'font-bold opacity-80';
