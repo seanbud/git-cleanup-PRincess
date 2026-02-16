@@ -29,15 +29,15 @@ Git Cleanup PRincess is a lightweight desktop utility designed to handle the "me
 Git Cleanup PRincess is free and available for Windows, macOS, and Linux.
 
 ### 🪟 Windows
-[Download .exe installer](https://github.com/seanbud/git-cleanup-PRincess/releases/download/v1.0.0/Git-Cleanup-PRincess-Setup-1.0.0.exe)
+[Download .exe installer](https://github.com/seanbud/git-cleanup-PRincess/releases/download/v1.1.0/Git-Cleanup-PRincess-Setup-1.1.0.exe)
 *Standard installer for Windows users.*
 
 ### 🍎 macOS
-[Download .dmg](https://github.com/seanbud/git-cleanup-PRincess/releases/download/v1.0.0/Git-Cleanup-PRincess-1.0.0.dmg)
+[Download .dmg](https://github.com/seanbud/git-cleanup-PRincess/releases/download/v1.1.0/Git-Cleanup-PRincess-1.1.0.dmg)
 *Note: Right-click > Open on the first launch as this is a community-driven tool.*
 
 ### 🐧 Linux
-[Download .AppImage](https://github.com/seanbud/git-cleanup-PRincess/releases/download/v1.0.0/Git-Cleanup-PRincess-1.0.0.AppImage) | [Download .deb](https://github.com/seanbud/git-cleanup-PRincess/releases/download/v1.0.0/Git-Cleanup-PRincess-1.0.0.deb)
+[Download .AppImage](https://github.com/seanbud/git-cleanup-PRincess/releases/download/v1.1.0/Git-Cleanup-PRincess-1.1.0.AppImage) | [Download .deb](https://github.com/seanbud/git-cleanup-PRincess/releases/download/v1.1.0/Git-Cleanup-PRincess-1.1.0.deb)
 
 ---
 
