@@ -93,23 +93,6 @@ export function useGitState(): UseGitStateReturn {
         return () => clearInterval(interval);
     }, [refreshGitState, loadRecentRepos]);
 
-    // Fetch diff when selection changes to exactly one file
-    useEffect(() => {
-        const fetchSelectedDiff = async () => {
-            if (gitState.selectedFileIds.size === 1) {
-                const id = Array.from(gitState.selectedFileIds)[0];
-                const file = gitState.files.find(f => f.id === id);
-                if (file) {
-                    const diff = await GitService.getDiff(file.path);
-                    setSelectedDiff(diff);
-                }
-            } else if (gitState.selectedFileIds.size === 0) {
-                setSelectedDiff('');
-            }
-        };
-        fetchSelectedDiff();
-    }, [gitState.selectedFileIds, gitState.files]);
-
     const handleFetch = useCallback(async () => {
         setIsProcessing(true);
         await GitService.fetch();
@@ -221,8 +204,25 @@ export function useGitState(): UseGitStateReturn {
         setSelectedDiff(diff);
     }, []);
 
-    const handleSelectionChange = useCallback((newSet: Set<string>) => {
+    const handleSelectionChange = useCallback(async (newSet: Set<string>) => {
         setGitState(prev => ({ ...prev, selectedFileIds: newSet }));
+
+        // Automatically fetch diff when exactly one file is selected
+        if (newSet.size === 1) {
+            const id = Array.from(newSet)[0];
+            // We need to find the file — use a functional update to get latest state
+            setGitState(prev => {
+                const file = prev.files.find(f => f.id === id);
+                if (file) {
+                    GitService.getDiff(file.path).then(diff => {
+                        setSelectedDiff(diff);
+                    });
+                }
+                return prev;
+            });
+        } else if (newSet.size === 0) {
+            setSelectedDiff('');
+        }
     }, []);
 
     return {

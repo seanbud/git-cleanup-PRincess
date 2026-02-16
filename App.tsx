@@ -225,7 +225,7 @@ const App: React.FC = () => {
               files={filteredFiles}
               selectedIds={git.gitState.selectedFileIds}
               onSelectionChange={git.handleSelectionChange}
-              onHoverStateChange={setCharacterState}
+              onHoverStateChange={(state) => !git.isProcessing && git.gitState.selectedFileIds.size === 0 && setCharacterState(state)}
               onContextMenu={handleContextMenu}
               mode={themeMode}
             />
