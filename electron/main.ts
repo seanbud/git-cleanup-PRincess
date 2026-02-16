@@ -15,17 +15,38 @@ const RECENT_REPOS_PATH = path.join(app.getPath('userData'), 'recent-repos.json'
 const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
 
 // Track the current working directory for git commands
-// Auto-detect git root if launched from within a repo
 let currentCwd = process.cwd();
-try {
-    const gitRoot = execSync('git rev-parse --show-toplevel', {
-        encoding: 'utf-8',
-        cwd: process.cwd(),
-        stdio: ['pipe', 'pipe', 'pipe']
-    }).trim();
-    if (gitRoot) currentCwd = gitRoot;
-} catch {
-    // Not a git repo — will be set when user opens one
+
+function initializeCwd() {
+    try {
+        // 1. Try launch directory
+        const gitRoot = execSync('git rev-parse --show-toplevel', {
+            encoding: 'utf-8',
+            cwd: process.cwd(),
+            stdio: ['pipe', 'pipe', 'pipe']
+        }).trim();
+        if (gitRoot) {
+            currentCwd = gitRoot;
+            return;
+        }
+    } catch { }
+
+    try {
+        // 2. Fall back to most recent repo from history
+        const recent = getRecentRepos();
+        if (recent.length > 0) {
+            const lastRepo = recent[0];
+            // Verify it still exists and is a repo
+            execSync('git rev-parse --is-inside-work-tree', {
+                cwd: lastRepo,
+                encoding: 'utf-8',
+                stdio: ['pipe', 'pipe', 'pipe']
+            });
+            currentCwd = lastRepo;
+        }
+    } catch {
+        // Fallback to process.cwd() or let the user open one
+    }
 }
 
 function storeToken(token: string) {
@@ -85,10 +106,14 @@ function createWindow() {
         icon: path.join(process.env.PUBLIC, 'icon.png'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.mjs'),
+            zoomFactor: 1.0,
         },
         frame: true,
         autoHideMenuBar: true,
     });
+
+    win.webContents.setZoomFactor(1.0);
+    win.webContents.setZoomLevel(0);
 
     win.webContents.on('did-finish-load', () => {
         win?.webContents.send('main-process-message', (new Date).toLocaleString());
@@ -118,6 +143,7 @@ app.on('activate', () => {
 });
 
 app.whenReady().then(() => {
+    initializeCwd();
     createWindow();
 
     // ─── Application Menu (Shortcuts) ──────────────────────────────
