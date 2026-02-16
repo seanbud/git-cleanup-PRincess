@@ -7,7 +7,7 @@
 So you're an indie dev. You're reviewing your PR before submitting it, and you realize you accidentally pushed some materials and shader changes—but you didn't mean to. What a pain...
 
 Let the PRincess help! She'll help you:
-- Figure out what files changed in this PR
+- Figure out what files changed before submitting your PR
 - Remove any files you shouldn't have pushed
 - Restore any changes you shouldn't have pushed
 
