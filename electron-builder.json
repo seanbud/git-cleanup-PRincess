@@ -4,6 +4,7 @@
   "directories": {
     "output": "release"
   },
+  "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
   "files": [
     "dist/**/*",
     "dist-electron/main.js",
@@ -33,7 +34,8 @@
         ]
       }
     ],
-    "icon": "resources/icon.png"
+    "icon": "resources/icon.png",
+    "artifactName": "${productName}-Setup-${version}.${ext}"
   },
   "linux": {
     "target": [
