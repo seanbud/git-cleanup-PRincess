@@ -12,15 +12,16 @@ export interface ContextMenuState {
 interface UseContextMenuOptions {
     currentBranch: string;
     onOpenGithub: () => void;
+    onDiscardChanges?: (files: GitFile[]) => void;
 }
 
 export interface UseContextMenuReturn {
     contextMenu: ContextMenuState;
-    handleContextMenu: (e: React.MouseEvent, type: 'FILE' | 'REPO' | 'BRANCH', payload?: GitFile) => void;
+    handleContextMenu: (e: React.MouseEvent, type: 'FILE' | 'REPO' | 'BRANCH' | 'HEADER', payload?: any) => void;
     closeContextMenu: () => void;
 }
 
-export function useContextMenu({ currentBranch, onOpenGithub }: UseContextMenuOptions): UseContextMenuReturn {
+export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges }: UseContextMenuOptions): UseContextMenuReturn {
     const [contextMenu, setContextMenu] = useState<ContextMenuState>({
         visible: false,
         x: 0,
@@ -28,7 +29,7 @@ export function useContextMenu({ currentBranch, onOpenGithub }: UseContextMenuOp
         items: []
     });
 
-    const handleContextMenu = useCallback((e: React.MouseEvent, type: 'FILE' | 'REPO' | 'BRANCH', payload?: GitFile) => {
+    const handleContextMenu = useCallback((e: React.MouseEvent, type: 'FILE' | 'REPO' | 'BRANCH' | 'HEADER', payload?: any) => {
         e.preventDefault();
         const items: ContextMenuItem[] = [];
 
@@ -75,6 +76,24 @@ export function useContextMenu({ currentBranch, onOpenGithub }: UseContextMenuOp
                     window.electronAPI.gitCmd('start cmd');
                 }
             });
+            items.push({
+                label: 'Reveal in Explorer',
+                action: async () => {
+                    // @ts-ignore
+                    const cwd = await window.electronAPI.getCwd();
+                    // @ts-ignore
+                    window.electronAPI.showItemInFolder(cwd);
+                }
+            });
+        } else if (type === 'HEADER' && payload) {
+            items.push({
+                label: `Discard Local Changes in ${payload.title}...`,
+                action: () => {
+                    if (onDiscardChanges) {
+                        onDiscardChanges(payload.files);
+                    }
+                }
+            });
         } else if (type === 'BRANCH') {
             items.push({
                 label: 'Copy Branch Name',
@@ -90,7 +109,7 @@ export function useContextMenu({ currentBranch, onOpenGithub }: UseContextMenuOp
             y: e.clientY,
             items
         });
-    }, [currentBranch, onOpenGithub]);
+    }, [currentBranch, onOpenGithub, onDiscardChanges]);
 
     const closeContextMenu = useCallback(() => {
         setContextMenu(prev => ({ ...prev, visible: false }));

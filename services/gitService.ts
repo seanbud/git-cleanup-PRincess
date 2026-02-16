@@ -169,6 +169,28 @@ export class GitService {
         return res.success;
     }
 
+    static async discardChanges(filePaths: string[]): Promise<boolean> {
+        if (filePaths.length === 0) return true;
+
+        // Wrap in quotes for safety
+        const quotedPaths = filePaths.map(p => `"${p}"`).join(' ');
+
+        // 1. Unstage everything in the list
+        // @ts-ignore
+        await window.electronAPI.gitCmd(`git reset HEAD -- ${quotedPaths}`);
+
+        // 2. Restore working tree for tracked files (Modified/Deleted)
+        // @ts-ignore
+        const restoreRes = await window.electronAPI.gitCmd(`git checkout -- ${quotedPaths}`);
+
+        // 3. Optional: Remove untracked files (Added/Untracked)
+        // Only if they are actually untracked (not just staged).
+        // For simplicity and safety in a "Princess" tool, we might just stick to tracked files 
+        // or specifically handle untracked if they exist.
+
+        return restoreRes.success;
+    }
+
     static async removeFile(filePath: string): Promise<boolean> {
         // 1. Remove from git index first (keep on disk)
         // Use --ignore-unmatch so it doesn't fail if the file is untracked

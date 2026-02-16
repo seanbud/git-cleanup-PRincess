@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ThemeMode, CharacterState } from './types';
+import { GitFile, CharacterState, ThemeMode } from './types';
+import { GitService } from './services/gitService';
 import TopMenuBar from './components/TopMenuBar';
 import ProductTitleBar from './components/ProductTitleBar';
 import RepoHeader from './components/RepoHeader';
@@ -42,9 +43,35 @@ const App: React.FC = () => {
 
   const { sidebarWidth, isResizing, sidebarRef, startResizing } = useResizableSidebar(320);
 
+  const handleDiscardChanges = async (files: GitFile[]) => {
+    if (files.length === 0) return;
+
+    const confirmMessage = files.length === 1
+      ? `Are you sure you want to discard changes in ${files[0].path}?`
+      : `Are you sure you want to discard changes in ${files.length} files?`;
+
+    if (!confirm(confirmMessage)) return;
+
+    // Trigger character reaction
+    setCharacterState(CharacterState.ACTION_GOOD);
+
+    const paths = files.map(f => f.path);
+    const success = await GitService.discardChanges(paths);
+
+    if (success) {
+      git.refreshGitState();
+      // Keep state for a bit for the animation
+      setTimeout(() => setCharacterState(CharacterState.IDLE), 2000);
+    } else {
+      alert('Failed to discard changes.');
+      setCharacterState(CharacterState.IDLE);
+    }
+  };
+
   const { contextMenu, handleContextMenu, closeContextMenu } = useContextMenu({
     currentBranch: git.gitState.currentBranch,
     onOpenGithub: git.handleOpenGithub,
+    onDiscardChanges: handleDiscardChanges
   });
 
   const {
@@ -198,8 +225,9 @@ const App: React.FC = () => {
               files={filteredFiles}
               selectedIds={git.gitState.selectedFileIds}
               onSelectionChange={git.handleSelectionChange}
-              onHoverStateChange={(state) => !git.isProcessing && git.gitState.selectedFileIds.size === 0 && setCharacterState(state)}
+              onHoverStateChange={setCharacterState}
               onContextMenu={handleContextMenu}
+              onHeaderContextMenu={handleContextMenu}
               mode={themeMode}
             />
 
