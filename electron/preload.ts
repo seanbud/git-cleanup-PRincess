@@ -36,4 +36,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     toggleDevTools: () => ipcRenderer.invoke('window:toggle-devtools'),
     newWindow: () => ipcRenderer.invoke('window:new'),
     getAppVersion: () => ipcRenderer.invoke('app:get-version'),
+    getAppSettings: () => ipcRenderer.invoke('app:get-settings'),
+    saveAppSettings: (settings: any) => ipcRenderer.invoke('app:save-settings', settings),
 });

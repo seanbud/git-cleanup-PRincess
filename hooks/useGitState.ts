@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { GitState, GitFile, GitHubUser, GitConfig } from '../types';
+import { GitState, GitFile, GitHubUser, GitConfig, AppSettings } from '../types';
 import { GitService, CommitNode } from '../services/gitService';
 import { audioService } from '../services/audioService';
 import { CharacterState } from '../types';
@@ -17,6 +17,8 @@ export interface UseGitStateReturn {
     setGitConfig: React.Dispatch<React.SetStateAction<GitConfig>>;
     githubUser: GitHubUser | null;
     setGithubUser: React.Dispatch<React.SetStateAction<GitHubUser | null>>;
+    appSettings: AppSettings;
+    setAppSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
     refreshGitState: () => Promise<void>;
     loadRecentRepos: () => Promise<void>;
     handleFetch: () => Promise<void>;
@@ -48,20 +50,25 @@ export function useGitState(): UseGitStateReturn {
     const [selectedDiff, setSelectedDiff] = useState<string>('');
     const [gitConfig, setGitConfig] = useState<GitConfig>({ name: '', email: '', defaultBranch: 'main' });
     const [githubUser, setGithubUser] = useState<GitHubUser | null>(null);
+    const [appSettings, setAppSettings] = useState<AppSettings>({
+        externalEditor: 'code',
+        shell: 'powershell'
+    });
 
     // Ref to always have access to latest files (avoids stale closures)
     const filesRef = useRef<GitFile[]>([]);
 
     const refreshGitState = useCallback(async () => {
         try {
-            const [repoName, currentBranch, upstreamBranch, files, config, branchList, commits] = await Promise.all([
+            const [repoName, currentBranch, upstreamBranch, files, config, branchList, commits, settings] = await Promise.all([
                 GitService.getRepoName(),
                 GitService.getCurrentBranch(),
                 GitService.getUpstreamBranch(),
                 GitService.getStatusFiles(),
                 GitService.getGitConfig(),
                 GitService.getBranches(),
-                GitService.getCommitGraph()
+                GitService.getCommitGraph(),
+                GitService.getAppSettings()
             ]);
 
             setGitState(prev => ({
@@ -75,6 +82,9 @@ export function useGitState(): UseGitStateReturn {
             setGitConfig(config);
             setBranches(branchList);
             setCommitGraph(commits);
+            if (settings) {
+                setAppSettings(settings);
+            }
         } catch (err) {
             console.error('Failed to refresh git state:', err);
         }
@@ -237,6 +247,8 @@ export function useGitState(): UseGitStateReturn {
         setGitConfig,
         githubUser,
         setGithubUser,
+        appSettings,
+        setAppSettings,
         refreshGitState,
         loadRecentRepos,
         handleFetch,

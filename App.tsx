@@ -71,7 +71,8 @@ const App: React.FC = () => {
   const { contextMenu, handleContextMenu, closeContextMenu } = useContextMenu({
     currentBranch: git.gitState.currentBranch,
     onOpenGithub: git.handleOpenGithub,
-    onDiscardChanges: handleDiscardChanges
+    onDiscardChanges: handleDiscardChanges,
+    appSettings: git.appSettings
   });
 
   const {
@@ -333,8 +334,13 @@ const App: React.FC = () => {
         mode={themeMode}
         user={git.githubUser}
         gitConfig={git.gitConfig}
-        onSave={(newConfig) => {
-          git.setGitConfig(newConfig);
+        appSettings={git.appSettings}
+        onSave={async (newGitConfig, newAppSettings) => {
+          git.setGitConfig(newGitConfig);
+          if (newAppSettings) {
+            git.setAppSettings(newAppSettings);
+            await GitService.saveAppSettings(newAppSettings);
+          }
         }}
         onSignOut={async () => {
           // @ts-ignore

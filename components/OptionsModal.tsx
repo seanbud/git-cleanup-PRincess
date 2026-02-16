@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
-import { ThemeMode, GitHubUser, GitConfig } from '../types';
+import { ThemeMode, GitHubUser, GitConfig, AppSettings } from '../types';
 
 interface OptionsModalProps {
     isOpen: boolean;
@@ -8,7 +8,8 @@ interface OptionsModalProps {
     mode: ThemeMode;
     user: GitHubUser | null;
     gitConfig: GitConfig;
-    onSave: (config: GitConfig) => void;
+    appSettings: AppSettings;
+    onSave: (gitConfig: GitConfig, appSettings: AppSettings) => void;
     onSignOut: () => void;
 }
 
@@ -18,11 +19,13 @@ const OptionsModal: React.FC<OptionsModalProps> = ({
     mode,
     user,
     gitConfig,
+    appSettings,
     onSave,
     onSignOut
 }) => {
-    const [activeTab, setActiveTab] = useState<'accounts' | 'git'>('accounts');
-    const [localConfig, setLocalConfig] = useState(gitConfig);
+    const [activeTab, setActiveTab] = useState<'accounts' | 'git' | 'integrations'>('accounts');
+    const [localGitConfig, setLocalGitConfig] = useState(gitConfig);
+    const [localAppSettings, setLocalAppSettings] = useState(appSettings);
     const [showSaved, setShowSaved] = useState(false);
     const [avatarError, setAvatarError] = useState(false);
 
@@ -31,18 +34,19 @@ const OptionsModal: React.FC<OptionsModalProps> = ({
     // Pre-populate Git config from GitHub user when fields are empty
     useEffect(() => {
         if (isOpen) {
-            setLocalConfig(prev => ({
+            setLocalGitConfig(prev => ({
                 name: prev.name || (user?.name ?? '') || (user?.login ?? ''),
                 email: prev.email || (user?.email ?? ''),
                 defaultBranch: prev.defaultBranch || 'main'
             }));
+            setLocalAppSettings(appSettings);
             setAvatarError(false);
         }
-    }, [isOpen, user]);
+    }, [isOpen, user, appSettings]);
 
     // Sync with external config changes
     useEffect(() => {
-        setLocalConfig(prev => ({
+        setLocalGitConfig(prev => ({
             name: gitConfig.name || prev.name,
             email: gitConfig.email || prev.email,
             defaultBranch: gitConfig.defaultBranch || prev.defaultBranch
@@ -57,8 +61,8 @@ const OptionsModal: React.FC<OptionsModalProps> = ({
     `;
 
     const inputClass = `w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 transition-colors ${isPrincess
-            ? 'border-pink-200 bg-white focus:ring-pink-300 focus:border-pink-400'
-            : 'border-slate-700 bg-slate-800 focus:ring-blue-500 focus:border-blue-500 text-slate-100'
+        ? 'border-pink-200 bg-white focus:ring-pink-300 focus:border-pink-400'
+        : 'border-slate-700 bg-slate-800 focus:ring-blue-500 focus:border-blue-500 text-slate-100'
         }`;
 
     const labelClass = 'block text-xs font-bold uppercase tracking-wider opacity-50 mb-1.5';
@@ -80,12 +84,16 @@ const OptionsModal: React.FC<OptionsModalProps> = ({
                         <span>🛠️</span>
                         <span>Git</span>
                     </div>
+                    <div onClick={() => setActiveTab('integrations')} className={tabClass('integrations')}>
+                        <span>🔌</span>
+                        <span>Integrations</span>
+                    </div>
                 </div>
 
                 {/* Content Area */}
                 <div className={`flex-1 flex flex-col min-w-0 ${isPrincess ? 'bg-white' : 'bg-slate-900'}`}>
                     <div className="flex-1 p-6 overflow-y-auto">
-                        {activeTab === 'accounts' ? (
+                        {activeTab === 'accounts' && (
                             <div className="space-y-5">
                                 <h3 className={`text-base font-bold ${isPrincess ? 'text-slate-800' : 'text-slate-100'}`}>GitHub.com</h3>
                                 {user ? (
@@ -129,14 +137,16 @@ const OptionsModal: React.FC<OptionsModalProps> = ({
                                     </div>
                                 )}
                             </div>
-                        ) : (
+                        )}
+
+                        {activeTab === 'git' && (
                             <div className="space-y-5">
                                 <div>
                                     <label className={labelClass}>Name</label>
                                     <input
                                         type="text"
-                                        value={localConfig.name}
-                                        onChange={e => setLocalConfig({ ...localConfig, name: e.target.value })}
+                                        value={localGitConfig.name}
+                                        onChange={e => setLocalGitConfig({ ...localGitConfig, name: e.target.value })}
                                         placeholder={user?.name || user?.login || 'Your Name'}
                                         className={inputClass}
                                     />
@@ -145,8 +155,8 @@ const OptionsModal: React.FC<OptionsModalProps> = ({
                                     <label className={labelClass}>Email</label>
                                     <input
                                         type="email"
-                                        value={localConfig.email}
-                                        onChange={e => setLocalConfig({ ...localConfig, email: e.target.value })}
+                                        value={localGitConfig.email}
+                                        onChange={e => setLocalGitConfig({ ...localGitConfig, email: e.target.value })}
                                         placeholder={user?.email || 'your@email.com'}
                                         className={inputClass}
                                     />
@@ -155,9 +165,40 @@ const OptionsModal: React.FC<OptionsModalProps> = ({
                                     <label className={labelClass}>Default branch</label>
                                     <input
                                         type="text"
-                                        value={localConfig.defaultBranch}
-                                        onChange={e => setLocalConfig({ ...localConfig, defaultBranch: e.target.value })}
+                                        value={localGitConfig.defaultBranch}
+                                        onChange={e => setLocalGitConfig({ ...localGitConfig, defaultBranch: e.target.value })}
                                         className={inputClass}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'integrations' && (
+                            <div className="space-y-5">
+                                <div>
+                                    <label className={labelClass}>External Editor Command</label>
+                                    <div className={`text-[10px] mb-2 ${isPrincess ? 'text-pink-400' : 'text-slate-500'}`}>
+                                        Common: code (VS Code), subl, atom, charm (WebStorm)
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={localAppSettings.externalEditor}
+                                        onChange={e => setLocalAppSettings({ ...localAppSettings, externalEditor: e.target.value })}
+                                        className={inputClass}
+                                        placeholder="e.g. code"
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Shell / Terminal</label>
+                                    <div className={`text-[10px] mb-2 ${isPrincess ? 'text-pink-400' : 'text-slate-500'}`}>
+                                        Command used to open terminal in repo folder
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={localAppSettings.shell}
+                                        onChange={e => setLocalAppSettings({ ...localAppSettings, shell: e.target.value })}
+                                        className={inputClass}
+                                        placeholder="e.g. powershell or bash"
                                     />
                                 </div>
                             </div>
@@ -177,19 +218,19 @@ const OptionsModal: React.FC<OptionsModalProps> = ({
                         <button
                             onClick={async () => {
                                 // Persist to git config
-                                if (localConfig.name !== gitConfig.name) {
+                                if (localGitConfig.name !== gitConfig.name) {
                                     // @ts-ignore
-                                    await window.electronAPI.gitCmd(`git config user.name "${localConfig.name}"`);
+                                    await window.electronAPI.gitCmd(`git config user.name "${localGitConfig.name}"`);
                                 }
-                                if (localConfig.email !== gitConfig.email) {
+                                if (localGitConfig.email !== gitConfig.email) {
                                     // @ts-ignore
-                                    await window.electronAPI.gitCmd(`git config user.email "${localConfig.email}"`);
+                                    await window.electronAPI.gitCmd(`git config user.email "${localGitConfig.email}"`);
                                 }
-                                if (localConfig.defaultBranch !== gitConfig.defaultBranch) {
+                                if (localGitConfig.defaultBranch !== gitConfig.defaultBranch) {
                                     // @ts-ignore
-                                    await window.electronAPI.gitCmd(`git config init.defaultBranch "${localConfig.defaultBranch}"`);
+                                    await window.electronAPI.gitCmd(`git config init.defaultBranch "${localGitConfig.defaultBranch}"`);
                                 }
-                                onSave(localConfig);
+                                onSave(localGitConfig, localAppSettings);
                                 setShowSaved(true);
                                 setTimeout(() => {
                                     setShowSaved(false);

@@ -276,4 +276,14 @@ export class GitService {
         if (!res.success) return '';
         return res.stdout.trim().replace('git@github.com:', 'https://github.com/').replace('.git', '');
     }
+
+    static async getAppSettings(): Promise<any> {
+        // @ts-ignore
+        return await window.electronAPI.getAppSettings();
+    }
+
+    static async saveAppSettings(settings: any): Promise<void> {
+        // @ts-ignore
+        await window.electronAPI.saveAppSettings(settings);
+    }
 }

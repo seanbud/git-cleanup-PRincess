@@ -12,6 +12,7 @@ const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
 
 const TOKEN_PATH = path.join(app.getPath('userData'), 'github-token.bin');
 const RECENT_REPOS_PATH = path.join(app.getPath('userData'), 'recent-repos.json');
+const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
 
 // Track the current working directory for git commands
 // Auto-detect git root if launched from within a repo
@@ -52,6 +53,23 @@ function addRecentRepo(repoPath: string) {
     repos.unshift(repoPath); // Most recent first
     if (repos.length > 10) repos.length = 10;
     fs.writeFileSync(RECENT_REPOS_PATH, JSON.stringify(repos));
+}
+
+function getSettings() {
+    try {
+        if (fs.existsSync(SETTINGS_PATH)) {
+            return JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+        }
+    } catch { }
+    // Defaults
+    return {
+        externalEditor: 'code',
+        shell: process.platform === 'win32' ? 'powershell' : 'bash'
+    };
+}
+
+function saveSettings(settings: any) {
+    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
 }
 
 function createWindow() {
@@ -415,5 +433,13 @@ app.whenReady().then(() => {
 
     ipcMain.handle('app:get-version', () => {
         return app.getVersion();
+    });
+
+    ipcMain.handle('app:get-settings', () => {
+        return getSettings();
+    });
+
+    ipcMain.handle('app:save-settings', (_, settings) => {
+        saveSettings(settings);
     });
 });

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { GitFile } from '../types';
+import { GitFile, AppSettings } from '../types';
 import { ContextMenuItem } from '../components/ContextMenu';
 
 export interface ContextMenuState {
@@ -13,6 +13,7 @@ interface UseContextMenuOptions {
     currentBranch: string;
     onOpenGithub: () => void;
     onDiscardChanges?: (files: GitFile[]) => void;
+    appSettings: AppSettings;
 }
 
 export interface UseContextMenuReturn {
@@ -21,7 +22,7 @@ export interface UseContextMenuReturn {
     closeContextMenu: () => void;
 }
 
-export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges }: UseContextMenuOptions): UseContextMenuReturn {
+export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges, appSettings }: UseContextMenuOptions): UseContextMenuReturn {
     const [contextMenu, setContextMenu] = useState<ContextMenuState>({
         visible: false,
         x: 0,
@@ -47,7 +48,7 @@ export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges }
                 label: 'Open with External Editor',
                 action: () => {
                     // @ts-ignore
-                    window.electronAPI.gitCmd(`code ${payload.path}`);
+                    window.electronAPI.gitCmd(`${appSettings.externalEditor || 'code'} "${payload.path}"`);
                 }
             });
             items.push({
@@ -91,8 +92,10 @@ export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges }
             items.push({
                 label: 'Open in Terminal',
                 action: () => {
+                    const shellCmd = appSettings.shell || 'powershell';
+                    const fullCmd = shellCmd === 'powershell' ? 'start powershell' : (shellCmd === 'cmd' ? 'start cmd' : shellCmd);
                     // @ts-ignore
-                    window.electronAPI.gitCmd('start cmd');
+                    window.electronAPI.gitCmd(fullCmd);
                 }
             });
         } else if (type === 'BRANCH') {

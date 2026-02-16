@@ -59,3 +59,8 @@ export interface GitConfig {
   email: string;
   defaultBranch: string;
 }
+
+export interface AppSettings {
+  externalEditor: string;
+  shell: string;
+}
