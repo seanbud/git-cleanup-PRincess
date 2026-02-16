@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { GitState, GitFile, GitHubUser, GitConfig } from '../types';
 import { GitService, CommitNode } from '../services/gitService';
 import { audioService } from '../services/audioService';
@@ -49,6 +49,9 @@ export function useGitState(): UseGitStateReturn {
     const [gitConfig, setGitConfig] = useState<GitConfig>({ name: '', email: '', defaultBranch: 'main' });
     const [githubUser, setGithubUser] = useState<GitHubUser | null>(null);
 
+    // Ref to always have access to latest files (avoids stale closures)
+    const filesRef = useRef<GitFile[]>([]);
+
     const refreshGitState = useCallback(async () => {
         try {
             const [repoName, currentBranch, upstreamBranch, files, config, branchList, commits] = await Promise.all([
@@ -68,6 +71,7 @@ export function useGitState(): UseGitStateReturn {
                 upstreamBranch,
                 files
             }));
+            filesRef.current = files;
             setGitConfig(config);
             setBranches(branchList);
             setCommitGraph(commits);
@@ -210,16 +214,11 @@ export function useGitState(): UseGitStateReturn {
         // Automatically fetch diff when exactly one file is selected
         if (newSet.size === 1) {
             const id = Array.from(newSet)[0];
-            // We need to find the file — use a functional update to get latest state
-            setGitState(prev => {
-                const file = prev.files.find(f => f.id === id);
-                if (file) {
-                    GitService.getDiff(file.path).then(diff => {
-                        setSelectedDiff(diff);
-                    });
-                }
-                return prev;
-            });
+            const file = filesRef.current.find(f => f.id === id);
+            if (file) {
+                const diff = await GitService.getDiff(file.path);
+                setSelectedDiff(diff);
+            }
         } else if (newSet.size === 0) {
             setSelectedDiff('');
         }
