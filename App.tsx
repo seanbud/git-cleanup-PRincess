@@ -134,7 +134,6 @@ const App: React.FC = () => {
           onPull={git.handlePull}
           onPush={git.handlePush}
           onOpenGithub={git.handleOpenGithub}
-          onNewBranch={git.handleNewBranch}
           onRefresh={git.refreshGitState}
           onOpenAbout={() => setIsAboutOpen(true)}
         />

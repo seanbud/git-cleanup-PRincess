@@ -11,13 +11,12 @@ interface TopMenuBarProps {
   onPull?: () => void;
   onPush?: () => void;
   onOpenGithub?: () => void;
-  onNewBranch?: () => void;
   onRefresh?: () => void;
   onOpenAbout?: () => void;
 }
 
 const TopMenuBar: React.FC<TopMenuBarProps> = ({
-  mode, onToggleTheme, onOpenOptions, onOpenRepo, onFetch, onPull, onPush, onOpenGithub, onNewBranch, onRefresh, onOpenAbout
+  mode, onToggleTheme, onOpenOptions, onOpenRepo, onFetch, onPull, onPush, onOpenGithub, onRefresh, onOpenAbout
 }) => {
   const [activeMenu, setActiveMenu] = React.useState<string | null>(null);
   const isPrincess = mode === ThemeMode.PRINCESS;
@@ -119,12 +118,6 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({
             { label: isPrincess ? 'Switch to Prince Mode ⚔️' : 'Switch to Princess Mode 👑', action: onToggleTheme },
             { label: 'separator', separator: true },
             {
-              label: 'Toggle Full Screen', shortcut: 'F11', action: () => {
-                // @ts-ignore
-                window.electronAPI.toggleFullScreen();
-              }
-            },
-            {
               label: 'Toggle Developer Tools', shortcut: 'Ctrl+Shift+I', action: () => {
                 // @ts-ignore
                 window.electronAPI.toggleDevTools();
@@ -150,12 +143,7 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({
             },
           ])}
         </div>
-        <div className="relative">
-          <div className={topItemClass('Branch')} onClick={() => setActiveMenu(activeMenu === 'Branch' ? null : 'Branch')}>Branch</div>
-          {renderDropdown('Branch', [
-            { label: 'New Branch...', action: onNewBranch },
-          ])}
-        </div>
+
         <div className="relative">
           <div className={topItemClass('Help')} onClick={() => setActiveMenu(activeMenu === 'Help' ? null : 'Help')}>Help</div>
           {renderDropdown('Help', [
