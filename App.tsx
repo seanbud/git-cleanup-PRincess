@@ -231,6 +231,7 @@ const App: React.FC = () => {
 
             <ActionPanel
               selectedCount={git.gitState.selectedFileIds.size}
+              selectedPaths={git.gitState.files.filter(f => git.gitState.selectedFileIds.has(f.id)).map(f => f.path)}
               mode={themeMode}
               onRemove={() => handleAction('REMOVE')}
               onRestore={() => handleAction('RESTORE')}
