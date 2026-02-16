@@ -62,8 +62,18 @@ const ProductTitleBar: React.FC<ProductTitleBarProps> = ({ mode, onToggleTheme }
 
       {/* Theme Toggle - Simplified */}
       <div 
-        className="flex items-center space-x-3 cursor-pointer select-none group" 
+        className="flex items-center space-x-3 cursor-pointer select-none group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 rounded-lg p-1"
         onClick={onToggleTheme}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggleTheme();
+          }
+        }}
+        tabIndex={0}
+        role="switch"
+        aria-checked={isPrincess}
+        aria-label="Toggle between Princess and Prince themes"
       >
         <span className={`text-xs font-bold uppercase tracking-widest ${isPrincess ? activeLabelColor : inactiveLabelColor}`}>
           Princess
