@@ -35,7 +35,7 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
 
     let spriteName = spriteMap[state];
 
-    // Princess-specific overrides for unique filenames
+    // Character-specific overrides for unique filenames
     if (isPrincess) {
         switch (state) {
             case CharacterState.ACTION_GOOD: // Restore
@@ -46,6 +46,13 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
                 break;
             case CharacterState.CELEBRATING:
                 spriteName = 'action-complete.png';
+                break;
+        }
+    } else {
+        // Prince-specific overrides
+        switch (state) {
+            case CharacterState.ACTION_GOOD: // Restore
+                spriteName = 'restore-action.png';
                 break;
         }
     }
