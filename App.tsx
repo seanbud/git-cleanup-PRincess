@@ -282,24 +282,24 @@ const App: React.FC = () => {
                   <DiffView file={selectedFile ? { ...selectedFile, diffContent: git.selectedDiff } : null} mode={themeMode} />
                 )}
 
-                {/* Floating Character */}
-                <div className="absolute bottom-4 right-4 w-40 h-48 pointer-events-none z-30">
-                  <div className="relative w-full h-full">
-                    <Character mode={themeMode} state={characterState} showBackdrop={isMultipleSelected} />
-                    {git.isProcessing && (
-                      <div className="absolute -top-4 left-0 w-full text-center bg-black/80 text-white text-[10px] py-1 px-2 rounded-lg animate-bounce">
-                        Processing...
-                      </div>
-                    )}
-                  </div>
-                </div>
-
               </div>
             </div>
 
             {/* Branch Tree Visualization (Bottom) */}
             <div className="h-24 shrink-0 bg-white border-t border-gray-200">
               <BranchGraph mode={themeMode} commits={git.commitGraph} />
+            </div>
+
+            {/* Floating Character — positioned over all right panel content */}
+            <div className="absolute bottom-4 right-4 w-40 h-48 pointer-events-none z-40">
+              <div className="relative w-full h-full">
+                <Character mode={themeMode} state={characterState} showBackdrop={isMultipleSelected} />
+                {git.isProcessing && (
+                  <div className="absolute -top-4 left-0 w-full text-center bg-black/80 text-white text-[10px] py-1 px-2 rounded-lg animate-bounce">
+                    Processing...
+                  </div>
+                )}
+              </div>
             </div>
 
           </div>
