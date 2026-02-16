@@ -59,7 +59,12 @@ export class GitService {
         const lines = res.stdout.split('\n').filter(Boolean);
         const files: GitFile[] = lines.map((line: string, index: number) => {
             const code = line.substring(0, 2);
-            const filePath = line.substring(3).trim();
+            let filePath = line.substring(3).trim();
+
+            // Unquote if necessary (git quotes paths with spaces)
+            if (filePath.startsWith('"') && filePath.endsWith('"')) {
+                filePath = filePath.substring(1, filePath.length - 1);
+            }
 
             let status = FileStatus.MODIFIED;
             if (code.includes('A') || code.includes('?')) status = FileStatus.ADDED;
@@ -87,7 +92,11 @@ export class GitService {
                 if (parts.length >= 3) {
                     const added = parseInt(parts[0]) || 0;
                     const removed = parseInt(parts[1]) || 0;
-                    statMap.set(parts[2], { added, removed });
+                    let p = parts[2];
+                    if (p.startsWith('"') && p.endsWith('"')) {
+                        p = p.substring(1, p.length - 1);
+                    }
+                    statMap.set(p, { added, removed });
                 }
             }
 
@@ -110,8 +119,11 @@ export class GitService {
                 if (parts.length >= 3) {
                     const added = parseInt(parts[0]) || 0;
                     const removed = parseInt(parts[1]) || 0;
-                    const path = parts[2];
-                    const file = files.find(f => f.path === path);
+                    let p = parts[2];
+                    if (p.startsWith('"') && p.endsWith('"')) {
+                        p = p.substring(1, p.length - 1);
+                    }
+                    const file = files.find(f => f.path === p);
                     if (file && file.linesAdded === 0 && file.linesRemoved === 0) {
                         file.linesAdded = added;
                         file.linesRemoved = removed;
