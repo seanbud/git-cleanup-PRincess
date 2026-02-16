@@ -227,7 +227,6 @@ const App: React.FC = () => {
               onSelectionChange={git.handleSelectionChange}
               onHoverStateChange={setCharacterState}
               onContextMenu={handleContextMenu}
-              onHeaderContextMenu={handleContextMenu}
               mode={themeMode}
             />
 

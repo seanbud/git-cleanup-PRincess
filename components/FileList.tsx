@@ -100,7 +100,6 @@ interface FileListProps {
   onSelectionChange: (ids: Set<string>) => void;
   onHoverStateChange: (state: CharacterState) => void;
   onContextMenu: (e: React.MouseEvent, type: 'FILE', payload?: GitFile) => void;
-  onHeaderContextMenu: (e: React.MouseEvent, type: 'HEADER', payload: { title: string; files: GitFile[] }) => void;
   mode: ThemeMode;
 }
 
@@ -110,7 +109,6 @@ const FileList: React.FC<FileListProps> = ({
   onSelectionChange,
   onHoverStateChange,
   onContextMenu,
-  onHeaderContextMenu,
   mode
 }) => {
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
@@ -208,13 +206,7 @@ const FileList: React.FC<FileListProps> = ({
     return (
       <div className="mb-4">
         {/* Darker header background */}
-        <div
-          className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${groupHeaderBg} border-y shadow-sm sticky top-0 z-10 flex justify-between items-center cursor-context-menu`}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            onHeaderContextMenu(e, 'HEADER', { title, files: groupFiles });
-          }}
-        >
+        <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${groupHeaderBg} border-y shadow-sm sticky top-0 z-10 flex justify-between items-center`}>
           <span>{title}</span>
           <span className="bg-white/50 text-gray-800 rounded-md px-1.5 py-0.5 text-[10px] border border-black/5">{groupFiles.length}</span>
         </div>

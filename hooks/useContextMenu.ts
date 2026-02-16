@@ -17,7 +17,7 @@ interface UseContextMenuOptions {
 
 export interface UseContextMenuReturn {
     contextMenu: ContextMenuState;
-    handleContextMenu: (e: React.MouseEvent, type: 'FILE' | 'REPO' | 'BRANCH' | 'HEADER', payload?: any) => void;
+    handleContextMenu: (e: React.MouseEvent, type: 'FILE' | 'REPO' | 'BRANCH', payload?: any) => void;
     closeContextMenu: () => void;
 }
 
@@ -29,7 +29,7 @@ export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges }
         items: []
     });
 
-    const handleContextMenu = useCallback((e: React.MouseEvent, type: 'FILE' | 'REPO' | 'BRANCH' | 'HEADER', payload?: any) => {
+    const handleContextMenu = useCallback((e: React.MouseEvent, type: 'FILE' | 'REPO' | 'BRANCH', payload?: any) => {
         e.preventDefault();
         const items: ContextMenuItem[] = [];
 
@@ -64,18 +64,16 @@ export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges }
                     navigator.clipboard.writeText(`${cwd}/${payload.path}`);
                 }
             });
-        } else if (type === 'REPO') {
+            items.push({ label: 'separator', separator: true });
             items.push({
-                label: 'Open on GitHub',
-                action: () => onOpenGithub()
-            });
-            items.push({
-                label: 'Open in Terminal',
+                label: 'Discard Local Changes...',
                 action: () => {
-                    // @ts-ignore
-                    window.electronAPI.gitCmd('start cmd');
+                    if (onDiscardChanges) {
+                        onDiscardChanges([payload]);
+                    }
                 }
             });
+        } else if (type === 'REPO') {
             items.push({
                 label: 'Reveal in Explorer',
                 action: async () => {
@@ -85,13 +83,16 @@ export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges }
                     window.electronAPI.showItemInFolder(cwd);
                 }
             });
-        } else if (type === 'HEADER' && payload) {
+            items.push({ label: 'separator', separator: true });
             items.push({
-                label: `Discard Local Changes in ${payload.title}...`,
+                label: 'Open on GitHub',
+                action: () => onOpenGithub()
+            });
+            items.push({
+                label: 'Open in Terminal',
                 action: () => {
-                    if (onDiscardChanges) {
-                        onDiscardChanges(payload.files);
-                    }
+                    // @ts-ignore
+                    window.electronAPI.gitCmd('start cmd');
                 }
             });
         } else if (type === 'BRANCH') {
