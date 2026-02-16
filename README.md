@@ -61,4 +61,4 @@ If the PRincess has saved your workflow, consider supporting future development.
 </a>
 
 ---
-*Created by the Royal Engineering Team. Free, open source, and cross-platform.*
+*Created by the Princess' Royal Engineering Team. Free, open source, and cross-platform.*
