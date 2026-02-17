@@ -94,9 +94,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ mode, onLogin }) => {
 
           {/* Footer Status */}
           <div
-             className="flex items-center justify-center gap-2 text-xs text-gray-400 mt-4 cursor-pointer hover:text-gray-600 transition-colors"
-             onClick={onLogin} // Hidden trigger for testing/demo
-             title="Click to simulate authorization"
+             className={`flex items-center justify-center gap-2 text-xs text-gray-400 mt-4 ${import.meta.env.DEV ? 'cursor-pointer hover:text-gray-600' : 'cursor-default'} transition-colors`}
+             onClick={() => {
+               // Security: Restrict hidden bypass to development environment only
+               if (import.meta.env.DEV) {
+                 onLogin();
+               }
+             }}
+             title={import.meta.env.DEV ? "Click to simulate authorization" : undefined}
           >
              <div className={`w-2 h-2 rounded-full ${isPrincess ? 'bg-pink-400' : 'bg-blue-400'} animate-pulse`} />
              <span>Waiting for authorization...</span>
