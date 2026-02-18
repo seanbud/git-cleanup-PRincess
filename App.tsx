@@ -34,6 +34,7 @@ const App: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Context Menu State
   const [contextMenu, setContextMenu] = useState<{
@@ -81,6 +82,20 @@ const App: React.FC = () => {
       window.removeEventListener('mouseup', stopResizing);
     };
   }, [resize, stopResizing]);
+
+  // Keyboard Shortcut for Search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '/' &&
+          document.activeElement?.tagName !== 'INPUT' &&
+          document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
 
   // Filtering Logic
@@ -300,8 +315,10 @@ const App: React.FC = () => {
           <div className={`p-3 border-b border-gray-200/60 ${sidebarHeaderBg} backdrop-blur-sm flex flex-col gap-3 transition-colors duration-300 shadow-sm z-10`}>
              <div className="relative group">
                <input 
+                 ref={searchInputRef}
                  type="text" 
-                 placeholder="Filter (e.g. *.md, src feature)..."
+                 placeholder="Filter files... [/]"
+                 aria-label="Filter files"
                  value={searchQuery}
                  onChange={(e) => setSearchQuery(e.target.value)}
                  className="w-full pl-2 pr-7 py-1.5 text-xs bg-white border border-gray-200 rounded text-gray-700 placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
@@ -309,6 +326,7 @@ const App: React.FC = () => {
                {searchQuery && (
                  <button 
                     onClick={() => setSearchQuery('')}
+                    aria-label="Clear filter"
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 rounded-full p-0.5 hover:bg-gray-100 transition-colors"
                  >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -321,19 +339,13 @@ const App: React.FC = () => {
 
              <div className="flex items-center select-none">
                 <div className="mr-2 flex items-center justify-center">
-                   {allFilteredSelected ? (
-                      <input 
-                        type="checkbox" 
-                        checked={true}
-                        onChange={toggleSelectAll}
-                        className={`h-3.5 w-3.5 border-gray-300 rounded focus:ring-blue-500 cursor-pointer ${isPrincess ? 'accent-pink-500' : 'accent-blue-600'}`}
-                      />
-                   ) : (
-                      <div 
-                         onClick={toggleSelectAll} 
-                         className="h-3.5 w-3.5 rounded-[3px] border border-gray-400/60 bg-white/40 hover:border-blue-400 cursor-pointer"
-                      />
-                   )}
+                   <input
+                      type="checkbox"
+                      checked={allFilteredSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="Select all filtered files"
+                      className={`h-3.5 w-3.5 border-gray-300 rounded focus:ring-blue-500 cursor-pointer ${isPrincess ? 'accent-pink-500' : 'accent-blue-600'}`}
+                   />
                 </div>
                 
                 <div onClick={toggleSelectAll} className="cursor-pointer flex items-baseline truncate">
