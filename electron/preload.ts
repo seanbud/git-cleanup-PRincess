@@ -5,8 +5,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.on(channel, (_, data) => callback(data));
     },
     // GitHub Auth
-    githubStartAuth: (clientId: string) => ipcRenderer.invoke('github:start-auth', clientId),
-    githubPollToken: (clientId: string, deviceCode: string) => ipcRenderer.invoke('github:poll-token', clientId, deviceCode),
+    githubStartAuth: () => ipcRenderer.invoke('github:start-auth'),
+    githubPollToken: (deviceCode: string) => ipcRenderer.invoke('github:poll-token', deviceCode),
     githubGetUser: (token?: string) => ipcRenderer.invoke('github:get-user', token),
     githubIsAuthenticated: () => ipcRenderer.invoke('github:is-authenticated'),
     githubSignOut: () => ipcRenderer.invoke('github:sign-out'),
