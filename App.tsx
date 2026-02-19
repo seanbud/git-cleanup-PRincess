@@ -15,6 +15,7 @@ import OptionsModal from './components/OptionsModal';
 import SignInModal from './components/SignInModal';
 import UpdateBanner from './components/UpdateBanner';
 import AboutModal from './components/AboutModal';
+import UpdateCheckModal from './components/UpdateCheckModal';
 
 import { useGitState } from './hooks/useGitState';
 import { useCharacter } from './hooks/useCharacter';
@@ -31,6 +32,7 @@ const App: React.FC = () => {
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isUpdateCheckOpen, setIsUpdateCheckOpen] = useState(false);
 
   // ─── Custom Hooks ──────────────────────────────────────────────
   const git = useGitState();
@@ -146,6 +148,7 @@ const App: React.FC = () => {
           onOpenGithub={git.handleOpenGithub}
           onRefresh={git.refreshGitState}
           onOpenAbout={() => setIsAboutOpen(true)}
+          onCheckUpdate={() => setIsUpdateCheckOpen(true)}
         />
       </div>
       <ProductTitleBar mode={themeMode} onToggleTheme={toggleTheme} />
@@ -362,6 +365,12 @@ const App: React.FC = () => {
       <AboutModal
         isOpen={isAboutOpen}
         onClose={() => setIsAboutOpen(false)}
+        mode={themeMode}
+      />
+
+      <UpdateCheckModal
+        isOpen={isUpdateCheckOpen}
+        onClose={() => setIsUpdateCheckOpen(false)}
         mode={themeMode}
       />
     </div>

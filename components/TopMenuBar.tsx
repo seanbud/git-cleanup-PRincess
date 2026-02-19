@@ -13,10 +13,11 @@ interface TopMenuBarProps {
   onOpenGithub?: () => void;
   onRefresh?: () => void;
   onOpenAbout?: () => void;
+  onCheckUpdate?: () => void;
 }
 
 const TopMenuBar: React.FC<TopMenuBarProps> = ({
-  mode, onToggleTheme, onOpenOptions, onOpenRepo, onFetch, onPull, onPush, onOpenGithub, onRefresh, onOpenAbout
+  mode, onToggleTheme, onOpenOptions, onOpenRepo, onFetch, onPull, onPush, onOpenGithub, onRefresh, onOpenAbout, onCheckUpdate
 }) => {
   const [activeMenu, setActiveMenu] = React.useState<string | null>(null);
   const isPrincess = mode === ThemeMode.PRINCESS;
@@ -155,8 +156,7 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({
             { label: 'separator', separator: true },
             {
               label: 'Check for Updates...', action: () => {
-                // @ts-ignore
-                window.electronAPI.checkForUpdate?.();
+                onCheckUpdate?.();
               }
             },
             {
