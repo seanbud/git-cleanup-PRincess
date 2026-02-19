@@ -1,6 +1,7 @@
 {
   "appId": "com.princess.gitcleanup",
   "productName": "Git Cleanup PRincess",
+  "compression": "maximum",
   "directories": {
     "output": "release"
   },
