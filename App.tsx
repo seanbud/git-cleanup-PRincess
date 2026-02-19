@@ -106,7 +106,16 @@ const App: React.FC = () => {
 
   // ─── Derived Values ────────────────────────────────────────────
   const toggleTheme = () => {
-    setThemeMode(prev => prev === ThemeMode.PRINCESS ? ThemeMode.PRINCE : ThemeMode.PRINCESS);
+    const newMode = themeMode === ThemeMode.PRINCESS ? ThemeMode.PRINCE : ThemeMode.PRINCESS;
+    setThemeMode(newMode);
+
+    // Update Electron title bar overlay color
+    const overlayOptions = newMode === ThemeMode.PRINCESS
+      ? { color: '#fff0f6', symbolColor: '#742a2a' }
+      : { color: '#eef5ff', symbolColor: '#1e293b' };
+
+    // @ts-ignore
+    window.electronAPI.setTitleBarOverlay?.(overlayOptions);
   };
 
   const handleAction = async (actionType: 'RESTORE' | 'REMOVE') => {

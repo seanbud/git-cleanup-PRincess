@@ -108,7 +108,13 @@ function createWindow() {
             preload: path.join(__dirname, 'preload.mjs'),
             zoomFactor: 1.0,
         },
-        frame: true,
+        frame: false,
+        titleBarStyle: 'hidden',
+        titleBarOverlay: {
+            color: '#fff0f6', // Matches Princess mode default background
+            symbolColor: '#742a2a',
+            height: 32
+        },
         autoHideMenuBar: true,
     });
 

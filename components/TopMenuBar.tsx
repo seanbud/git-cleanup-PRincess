@@ -83,8 +83,8 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({
   );
 
   return (
-    <div className={`flex items-center w-full h-8 px-2 ${bgClass} border-b border-black/5 select-none transition-colors duration-300 relative`}>
-      <div className="flex items-center space-x-1" ref={menuRef}>
+    <div className={`flex items-center w-full h-8 px-2 pr-[140px] ${bgClass} border-b border-black/5 select-none transition-colors duration-300 relative`} style={{ WebkitAppRegion: 'drag' } as any}>
+      <div className="flex items-center space-x-1" ref={menuRef} style={{ WebkitAppRegion: 'no-drag' } as any}>
         <div className="relative">
           <div className={topItemClass('File')} onClick={() => { setActiveMenu(activeMenu === 'File' ? null : 'File'); audioService.play('pop'); }}>File</div>
           {renderDropdown('File', [
