@@ -1,10 +1,9 @@
 import path from 'path';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import electron from 'vite-plugin-electron/simple';
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, '.', '');
   return {
     base: './', // Important for Electron to load relative assets
     server: {
@@ -26,11 +25,6 @@ export default defineConfig(({ mode }) => {
         renderer: {},
       }),
     ],
-    // Security: Sensitive API keys must not be bundled into client-side code.
-    // They should be managed via environment variables and accessed only within the Electron main process.
-    define: {
-      'process.env.APP_MODE': JSON.stringify(mode),
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

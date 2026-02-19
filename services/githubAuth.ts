@@ -1,5 +1,3 @@
-export const GITHUB_CLIENT_ID = 'Ov23lil6obiLhsHkt1R2';
-
 export interface DeviceCodeResponse {
     device_code: string;
     user_code: string;
@@ -21,14 +19,14 @@ export interface AuthTokenResponse {
 export class GitHubAuthClient {
     static async requestDeviceCode(): Promise<DeviceCodeResponse> {
         // @ts-ignore
-        return window.electronAPI.githubStartAuth(GITHUB_CLIENT_ID);
+        return window.electronAPI.githubStartAuth();
     }
 
     static async pollForToken(deviceCode: string, interval: number): Promise<string | null> {
         return new Promise((resolve) => {
             const poll = async () => {
                 // @ts-ignore
-                const token = await window.electronAPI.githubPollToken(GITHUB_CLIENT_ID, deviceCode);
+                const token = await window.electronAPI.githubPollToken(deviceCode);
                 if (token) {
                     resolve(token);
                 } else {

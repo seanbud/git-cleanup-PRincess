@@ -10,6 +10,8 @@ const __dirname = path.dirname(__filename);
 let win: BrowserWindow | null;
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
 
+const GITHUB_CLIENT_ID = 'Ov23lil6obiLhsHkt1R2';
+
 const TOKEN_PATH = path.join(app.getPath('userData'), 'github-token.bin');
 const RECENT_REPOS_PATH = path.join(app.getPath('userData'), 'recent-repos.json');
 const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
@@ -254,21 +256,21 @@ app.whenReady().then(() => {
     }
 
     // ─── GitHub Auth IPC ──────────────────────────────────────────
-    ipcMain.handle('github:start-auth', async (_, clientId) => {
+    ipcMain.handle('github:start-auth', async () => {
         const response = await fetch('https://github.com/login/device/code', {
             method: 'POST',
             headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ client_id: clientId, scope: 'repo,user' })
+            body: JSON.stringify({ client_id: GITHUB_CLIENT_ID, scope: 'repo,user' })
         });
         return response.json();
     });
 
-    ipcMain.handle('github:poll-token', async (_, clientId, deviceCode) => {
+    ipcMain.handle('github:poll-token', async (_, deviceCode) => {
         const response = await fetch('https://github.com/login/oauth/access_token', {
             method: 'POST',
             headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                client_id: clientId,
+                client_id: GITHUB_CLIENT_ID,
                 device_code: deviceCode,
                 grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
             })

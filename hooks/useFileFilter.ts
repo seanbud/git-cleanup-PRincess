@@ -4,7 +4,7 @@ import { GitFile } from '../types';
 interface UseFileFilterOptions {
     files: GitFile[];
     selectedFileIds: Set<string>;
-    onSelectionChange: (newSet: Set<string>) => void;
+    onSelectionChange: (updater: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
 }
 
 export interface UseFileFilterReturn {
@@ -48,8 +48,14 @@ export function useFileFilter({ files, selectedFileIds, onSelectionChange }: Use
         });
     }, [files, searchQuery]);
 
-    const allFilteredSelected = filteredFiles.length > 0 && filteredFiles.every(f => selectedFileIds.has(f.id));
-    const someFilteredSelected = filteredFiles.length > 0 && filteredFiles.some(f => selectedFileIds.has(f.id)) && !allFilteredSelected;
+    // Optimization: Memoize selection state checks to avoid O(N) re-calculations on every render
+    const allFilteredSelected = useMemo(() =>
+        filteredFiles.length > 0 && filteredFiles.every(f => selectedFileIds.has(f.id)),
+        [filteredFiles, selectedFileIds]);
+
+    const someFilteredSelected = useMemo(() =>
+        filteredFiles.length > 0 && filteredFiles.some(f => selectedFileIds.has(f.id)) && !allFilteredSelected,
+        [filteredFiles, selectedFileIds, allFilteredSelected]);
 
     useEffect(() => {
         if (selectAllRef.current) {

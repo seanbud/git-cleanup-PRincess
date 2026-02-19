@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GitFile, CharacterState, ThemeMode } from './types';
 import { GitService } from './services/gitService';
 import TopMenuBar from './components/TopMenuBar';
@@ -44,8 +44,9 @@ const App: React.FC = () => {
   });
 
   const { sidebarWidth, isResizing, sidebarRef, startResizing } = useResizableSidebar(320);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const handleDiscardChanges = async (files: GitFile[]) => {
+  const handleDiscardChanges = React.useCallback(async (files: GitFile[]) => {
     if (files.length === 0) return;
 
     const confirmMessage = files.length === 1
@@ -68,7 +69,7 @@ const App: React.FC = () => {
       alert('Failed to discard changes.');
       setCharacterState(CharacterState.IDLE);
     }
-  };
+  }, [git.refreshGitState, setCharacterState]);
 
   const { contextMenu, handleContextMenu, closeContextMenu } = useContextMenu({
     currentBranch: git.gitState.currentBranch,
@@ -89,6 +90,20 @@ const App: React.FC = () => {
     selectedFileIds: git.gitState.selectedFileIds,
     onSelectionChange: git.handleSelectionChange,
   });
+
+  // ─── Keyboard Shortcuts ────────────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // '/' to focus search, if not already in an input
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // ─── Auth Init ─────────────────────────────────────────────────
   useEffect(() => {
@@ -191,8 +206,10 @@ const App: React.FC = () => {
             <div className={`p-3 border-b border-gray-200/60 ${sidebarHeaderBg} backdrop-blur-sm flex flex-col gap-3 transition-colors duration-300 shadow-sm z-10`}>
               <div className="relative group">
                 <input
+                  ref={searchInputRef}
                   type="text"
-                  placeholder="Filter (e.g. *.md, src feature)..."
+                  placeholder="Filter files... [/]"
+                  aria-label="Filter files"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-2 pr-7 py-1.5 text-xs bg-white border border-gray-200 rounded text-gray-700 placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
@@ -212,19 +229,14 @@ const App: React.FC = () => {
 
               <div className="flex items-center select-none">
                 <div className="mr-2 flex items-center justify-center">
-                  {allFilteredSelected ? (
-                    <input
-                      type="checkbox"
-                      checked={true}
-                      onChange={toggleSelectAll}
-                      className={`h-3.5 w-3.5 border-gray-300 rounded focus:ring-blue-500 cursor-pointer ${isPrincess ? 'accent-pink-500' : 'accent-blue-600'}`}
-                    />
-                  ) : (
-                    <div
-                      onClick={toggleSelectAll}
-                      className="h-3.5 w-3.5 rounded-[3px] border border-gray-400/60 bg-white/40 hover:border-blue-400 cursor-pointer"
-                    />
-                  )}
+                  <input
+                    ref={selectAllRef}
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="Select all filtered files"
+                    className={`h-3.5 w-3.5 border-gray-300 rounded focus:ring-blue-500 cursor-pointer ${isPrincess ? 'accent-pink-500' : 'accent-blue-600'}`}
+                  />
                 </div>
 
                 <div onClick={toggleSelectAll} className="cursor-pointer flex items-baseline truncate">
