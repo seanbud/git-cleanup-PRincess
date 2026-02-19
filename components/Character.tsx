@@ -47,9 +47,9 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
         'princess-worried.png': 1.0,
 
         // Prince Scaling (relative to idle)
-        'prince-idle.png': 1.0,
-        'prince-selected.png': 0.82,  // 22% bigger -> scale down
-        'prince-selected2.png': 0.82,
+        'prince-idle.png': 1.05,        // 5% bump from 1.0
+        'prince-selected.png': 0.90,    // ~10% bump from 0.82
+        'prince-selected2.png': 0.90,
         'prince-action.png': 1.05,    // 5% smaller -> scale up
         'prince-restore-action.png': 1.15, // 15% smaller -> scale up
         'prince-action-complete.png': 1.0,
