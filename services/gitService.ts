@@ -38,7 +38,42 @@ export class GitService {
     static async getUpstreamBranch(): Promise<string> {
         // @ts-ignore
         const res = await window.electronAPI.gitCmd('git rev-parse --abbrev-ref --symbolic-full-name @{u}');
-        return res.success ? res.stdout.trim() : 'origin/main';
+        return res.success ? res.stdout.trim() : '';
+    }
+
+    static async getBestComparisonBranch(): Promise<string> {
+        // 1. Try upstream
+        const upstream = await this.getUpstreamBranch();
+        if (upstream) return upstream;
+
+        // 2. Try common branches
+        const common = ['develop', 'development', 'main', 'master'];
+        const branches = await this.getBranches();
+
+        for (const target of common) {
+            if (branches.includes(target)) {
+                // Verify it's not the same branch
+                const current = await this.getCurrentBranch();
+                if (current !== target) return target;
+            }
+        }
+
+        // 3. Check for remote versions of common branches
+        // @ts-ignore
+        const remoteRes = await window.electronAPI.gitCmd('git branch -r');
+        if (remoteRes.success) {
+            const remoteBranches = remoteRes.stdout.split('\n').map((b: string) => b.trim());
+            for (const target of common) {
+                const rTarget = `origin/${target}`;
+                if (remoteBranches.some((rb: string) => rb.includes(rTarget))) {
+                    const current = await this.getCurrentBranch();
+                    if (current !== rTarget) return rTarget;
+                }
+            }
+        }
+
+        // 4. Fallback to self
+        return await this.getCurrentBranch();
     }
 
     static async getBranches(): Promise<string[]> {
@@ -51,39 +86,78 @@ export class GitService {
             .map((b: string) => b.replace('*', '').trim());
     }
 
-    static async getStatusFiles(): Promise<GitFile[]> {
+    static async getStatusFiles(comparisonBranch?: string): Promise<GitFile[]> {
+        const files: GitFile[] = [];
+        const seenPaths = new Set<string>();
+
+        // 1. Get uncommitted files (Status)
         // @ts-ignore
         const res = await window.electronAPI.gitCmd('git status --porcelain');
-        if (!res.success || !res.stdout.trim()) return [];
+        if (res.success && res.stdout.trim()) {
+            const lines = res.stdout.split('\n').filter(Boolean);
+            lines.forEach((line: string, index: number) => {
+                const code = line.substring(0, 2);
+                let filePath = line.substring(3).trim();
+                if (filePath.startsWith('"') && filePath.endsWith('"')) {
+                    filePath = filePath.substring(1, filePath.length - 1);
+                }
 
-        const lines = res.stdout.split('\n').filter(Boolean);
-        const files: GitFile[] = lines.map((line: string, index: number) => {
-            const code = line.substring(0, 2);
-            let filePath = line.substring(3).trim();
+                let status = FileStatus.MODIFIED;
+                if (code.includes('A') || code.includes('?')) status = FileStatus.ADDED;
+                if (code.includes('D')) status = FileStatus.DELETED;
+                if (code.includes('R')) status = FileStatus.RENAMED;
 
-            // Unquote if necessary (git quotes paths with spaces)
-            if (filePath.startsWith('"') && filePath.endsWith('"')) {
-                filePath = filePath.substring(1, filePath.length - 1);
+                files.push({
+                    id: `status-${index}`,
+                    path: filePath,
+                    status,
+                    changeType: ChangeType.UNCOMMITTED,
+                    linesAdded: 0,
+                    linesRemoved: 0
+                });
+                seenPaths.add(filePath);
+            });
+        }
+
+        // 2. Get committed differences if comparing to another branch
+        const currentBranch = await this.getCurrentBranch();
+        if (comparisonBranch && comparisonBranch !== currentBranch) {
+            // @ts-ignore
+            const diffRes = await window.electronAPI.gitCmd(`git diff --name-status ${comparisonBranch}...HEAD`);
+            if (diffRes.success && diffRes.stdout.trim()) {
+                const lines = diffRes.stdout.split('\n').filter(Boolean);
+                lines.forEach((line: string, index: number) => {
+                    const parts = line.split(/\s+/);
+                    const code = parts[0];
+                    const filePath = parts[parts.length - 1];
+
+                    // Skip if already seen in status (local changes take priority)
+                    if (seenPaths.has(filePath)) return;
+
+                    let status = FileStatus.MODIFIED;
+                    if (code.startsWith('A')) status = FileStatus.ADDED;
+                    if (code.startsWith('D')) status = FileStatus.DELETED;
+                    if (code.startsWith('R')) status = FileStatus.RENAMED;
+
+                    files.push({
+                        id: `diff-${index}`,
+                        path: filePath,
+                        status,
+                        changeType: ChangeType.COMMITTED,
+                        linesAdded: 0,
+                        linesRemoved: 0
+                    });
+                });
             }
+        }
 
-            let status = FileStatus.MODIFIED;
-            if (code.includes('A') || code.includes('?')) status = FileStatus.ADDED;
-            if (code.includes('D')) status = FileStatus.DELETED;
-            if (code.includes('R')) status = FileStatus.RENAMED;
+        // Fetch line stats
+        const diffCmd = comparisonBranch && comparisonBranch !== currentBranch
+            ? `git diff --numstat ${comparisonBranch}...HEAD`
+            : 'git diff --numstat';
 
-            return {
-                id: `file-${index}`,
-                path: filePath,
-                status,
-                changeType: ChangeType.UNCOMMITTED,
-                linesAdded: 0,
-                linesRemoved: 0
-            };
-        });
-
-        // Fetch line stats in bulk
         // @ts-ignore
-        const numstatRes = await window.electronAPI.gitCmd('git diff --numstat');
+        const numstatRes = await window.electronAPI.gitCmd(diffCmd);
         if (numstatRes.success && numstatRes.stdout.trim()) {
             const statLines = numstatRes.stdout.split('\n').filter(Boolean);
             const statMap = new Map<string, { added: number; removed: number }>();
@@ -109,34 +183,20 @@ export class GitService {
             }
         }
 
-        // Also check for staged numstat
-        // @ts-ignore
-        const stagedRes = await window.electronAPI.gitCmd('git diff --cached --numstat');
-        if (stagedRes.success && stagedRes.stdout.trim()) {
-            const statLines = stagedRes.stdout.split('\n').filter(Boolean);
-            for (const sl of statLines) {
-                const parts = sl.split('\t');
-                if (parts.length >= 3) {
-                    const added = parseInt(parts[0]) || 0;
-                    const removed = parseInt(parts[1]) || 0;
-                    let p = parts[2];
-                    if (p.startsWith('"') && p.endsWith('"')) {
-                        p = p.substring(1, p.length - 1);
-                    }
-                    const file = files.find(f => f.path === p);
-                    if (file && file.linesAdded === 0 && file.linesRemoved === 0) {
-                        file.linesAdded = added;
-                        file.linesRemoved = removed;
-                    }
-                }
-            }
-        }
-
         return files;
     }
 
-    static async getDiff(filePath: string): Promise<string> {
-        // Try unstaged diff first
+    static async getDiff(filePath: string, comparisonBranch?: string): Promise<string> {
+        const currentBranch = await this.getCurrentBranch();
+
+        // If comparing branch to branch
+        if (comparisonBranch && comparisonBranch !== currentBranch) {
+            // @ts-ignore
+            const res = await window.electronAPI.gitCmd(`git diff ${comparisonBranch}...HEAD -- "${filePath}"`);
+            if (res.success) return res.stdout;
+        }
+
+        // Normal local diff (unstaged)
         // @ts-ignore
         const res = await window.electronAPI.gitCmd(`git diff -- "${filePath}"`);
         if (res.success && res.stdout.trim()) return res.stdout;
@@ -171,11 +231,19 @@ export class GitService {
         return res.success;
     }
 
-    static async restoreFile(filePath: string): Promise<boolean> {
-        // For staged files, unstage first
+    static async restoreFile(filePath: string, comparisonBranch?: string): Promise<boolean> {
+        const currentBranch = await this.getCurrentBranch();
+
+        // If restoring FROM a base branch (making it match the base)
+        if (comparisonBranch && comparisonBranch !== currentBranch) {
+            // @ts-ignore
+            const res = await window.electronAPI.gitCmd(`git checkout ${comparisonBranch} -- "${filePath}"`);
+            return res.success;
+        }
+
+        // Normal unstage + restore
         // @ts-ignore
         await window.electronAPI.gitCmd(`git reset HEAD -- "${filePath}"`);
-        // Then restore working tree
         // @ts-ignore
         const res = await window.electronAPI.gitCmd(`git checkout -- "${filePath}"`);
         return res.success;

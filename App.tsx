@@ -164,10 +164,12 @@ const App: React.FC = () => {
           sidebarWidth={sidebarWidth}
           onChangeRepo={git.handleChangeRepo}
           onChangeBranch={git.handleChangeBranch}
+          onSetComparison={git.handleSetComparisonBranch}
           onOpenRepo={git.handleOpenRepo}
           fileCount={git.gitState.files.length}
           repos={git.recentRepos}
           branches={git.branches}
+          comparisonBranch={git.comparisonBranch}
         />
 
         {/* Main Workspace */}

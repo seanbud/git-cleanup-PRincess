@@ -11,13 +11,15 @@ interface RepoHeaderProps {
   sidebarWidth: number;
   onChangeRepo?: (name: string) => void;
   onChangeBranch?: (name: string) => void;
+  onSetComparison?: (name: string) => void;
   onOpenRepo?: () => void;
   fileCount: number;
   repos: string[];
   branches: string[];
+  comparisonBranch: string;
 }
 
-type DropdownType = 'REPO' | 'BRANCH' | null;
+type DropdownType = 'REPO' | 'BRANCH' | 'COMPARE' | null;
 
 const RepoHeader: React.FC<RepoHeaderProps> = ({
   mode,
@@ -28,7 +30,9 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
   onOpenRepo,
   fileCount,
   repos,
-  branches
+  branches,
+  comparisonBranch,
+  onSetComparison
 }) => {
   const isPrincess = mode === ThemeMode.PRINCESS;
   const [activeDropdown, setActiveDropdown] = useState<DropdownType>(null);
@@ -149,11 +153,23 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
         </div>
 
         {/* Separator */}
-        <span className={`mx-3 text-xs font-medium ${compareText}`}>compare</span>
+        <span className={`mx-3 text-xs font-medium ${compareText}`}>compare to</span>
 
-        {/* Upstream Pill (Simplified) */}
-        <div className="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-sm font-mono flex items-center">
-          {state.upstreamBranch}
+        {/* Comparison Branch Dropdown */}
+        <div className="relative">
+          <button
+            onClick={(e) => handleDropdownClick(e, 'COMPARE')}
+            className={`bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-0.5 rounded text-sm font-mono flex items-center transition-colors border border-transparent hover:border-gray-400 active:scale-95`}
+          >
+            {comparisonBranch}
+            <span className="ml-1 opacity-50 text-[10px]">▼</span>
+          </button>
+
+          {activeDropdown === 'COMPARE' && (
+            <div className="absolute top-full left-0 z-50">
+              {renderDropdownList(branches, (name) => onSetComparison?.(name), comparisonBranch)}
+            </div>
+          )}
         </div>
       </div>
     </div>

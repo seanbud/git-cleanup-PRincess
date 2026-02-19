@@ -13,6 +13,8 @@ export interface UseGitStateReturn {
     commitGraph: CommitNode[];
     selectedDiff: string;
     setSelectedDiff: React.Dispatch<React.SetStateAction<string>>;
+    comparisonBranch: string;
+    handleSetComparisonBranch: (branch: string) => Promise<void>;
     gitConfig: GitConfig;
     setGitConfig: React.Dispatch<React.SetStateAction<GitConfig>>;
     githubUser: GitHubUser | null;
@@ -43,6 +45,7 @@ export function useGitState(): UseGitStateReturn {
         selectedFileIds: new Set(),
         lastFetched: 'never'
     });
+    const [comparisonBranch, setComparisonBranch] = useState<string>('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [branches, setBranches] = useState<string[]>([]);
     const [recentRepos, setRecentRepos] = useState<string[]>([]);
@@ -60,16 +63,25 @@ export function useGitState(): UseGitStateReturn {
 
     const refreshGitState = useCallback(async () => {
         try {
-            const [repoName, currentBranch, upstreamBranch, files, config, branchList, commits, settings] = await Promise.all([
+            const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp] = await Promise.all([
                 GitService.getRepoName(),
                 GitService.getCurrentBranch(),
                 GitService.getUpstreamBranch(),
-                GitService.getStatusFiles(),
                 GitService.getGitConfig(),
                 GitService.getBranches(),
                 GitService.getCommitGraph(),
-                GitService.getAppSettings()
+                GitService.getAppSettings(),
+                GitService.getBestComparisonBranch()
             ]);
+
+            // If we don't have a comparison branch set yet, use the best guess
+            let activeComp = comparisonBranch;
+            if (!activeComp) {
+                activeComp = bestComp;
+                setComparisonBranch(bestComp);
+            }
+
+            const files = await GitService.getStatusFiles(activeComp);
 
             setGitState(prev => ({
                 ...prev,
@@ -132,9 +144,23 @@ export function useGitState(): UseGitStateReturn {
     const handleChangeBranch = useCallback(async (branchName: string) => {
         setIsProcessing(true);
         await GitService.checkoutBranch(branchName);
+        setComparisonBranch(''); // Reset so it re-detects for the new branch
         await refreshGitState();
         setIsProcessing(false);
     }, [refreshGitState]);
+
+    const handleSetComparisonBranch = useCallback(async (branch: string) => {
+        setComparisonBranch(branch);
+        // Explicitly refresh with the new comparison
+        setIsProcessing(true);
+        try {
+            const files = await GitService.getStatusFiles(branch);
+            setGitState(prev => ({ ...prev, files }));
+            filesRef.current = files;
+        } finally {
+            setIsProcessing(false);
+        }
+    }, []);
 
     const handleChangeRepo = useCallback(async (repoPath: string) => {
         // @ts-ignore
@@ -214,9 +240,9 @@ export function useGitState(): UseGitStateReturn {
         newSet.add(file.id);
         setGitState(prev => ({ ...prev, selectedFileIds: newSet }));
 
-        const diff = await GitService.getDiff(file.path);
+        const diff = await GitService.getDiff(file.path, comparisonBranch);
         setSelectedDiff(diff);
-    }, []);
+    }, [comparisonBranch]);
 
     const handleSelectionChange = useCallback(async (newSet: Set<string>) => {
         setGitState(prev => ({ ...prev, selectedFileIds: newSet }));
@@ -226,13 +252,13 @@ export function useGitState(): UseGitStateReturn {
             const id = Array.from(newSet)[0];
             const file = filesRef.current.find(f => f.id === id);
             if (file) {
-                const diff = await GitService.getDiff(file.path);
+                const diff = await GitService.getDiff(file.path, comparisonBranch);
                 setSelectedDiff(diff);
             }
         } else if (newSet.size === 0) {
             setSelectedDiff('');
         }
-    }, []);
+    }, [comparisonBranch]);
 
     return {
         gitState,
@@ -243,6 +269,8 @@ export function useGitState(): UseGitStateReturn {
         commitGraph,
         selectedDiff,
         setSelectedDiff,
+        comparisonBranch,
+        handleSetComparisonBranch,
         gitConfig,
         setGitConfig,
         githubUser,

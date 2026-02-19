@@ -13,7 +13,8 @@ export enum FileStatus {
 export enum ChangeType {
   UNCOMMITTED = 'Uncommitted Changes',
   STASHED = 'Stashed Changes',
-  UNPUSHED = 'Unpushed Commits' // Older commits not yet upstream
+  UNPUSHED = 'Unpushed Commits', // Older commits not yet upstream
+  COMMITTED = 'Committed on Branch'
 }
 
 export interface GitFile {
