@@ -306,7 +306,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Floating Character — positioned over all right panel content, sitting above the bottom edge */}
-            <div className="absolute bottom-10 right-4 w-80 h-96 pointer-events-none z-40">
+            <div className="absolute bottom-6 right-4 w-64 h-80 pointer-events-none z-40">
               <div className="relative w-full h-full">
                 <Character mode={themeMode} state={characterState} showBackdrop={isMultipleSelected} />
                 {git.isProcessing && (

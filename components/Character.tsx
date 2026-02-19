@@ -34,23 +34,32 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
     };
 
     // Normalization scales to make character heights and "mass" visually consistent
-    // Base scale is 1.15 (the 15% increase requested)
-    const BASE_SCALE = 1.15;
+    // Reverted 15% increase as per user request (BASE_SCALE = 1.0)
+    const BASE_SCALE = 1.0;
     const scales: Record<string, number> = {
-        'prince-idle.png': 1.05,
-        'prince-selected.png': 1.25, // Narrower, needs more scale for mass
-        'prince-selected2.png': 1.05,
-        'prince-action.png': 1.0,
-        'prince-action-complete.png': 1.0,
-        'prince-worried.png': 0.9,   // Tall because of sweat drops
-        'prince-restore-action.png': 0.95,
+        // Princess Scaling (relative to idle)
         'princess-idle.png': 1.0,
-        'princess-selected.png': 1.1,
-        'princess-selected2.png': 1.1,
-        'princess-action.png': 1.0,
+        'princess-selected.png': 0.95, // 5% bigger -> scale down
+        'princess-selected2.png': 0.95,
+        'princess-action.png': 1.08,   // 8% smaller -> scale up
+        'princess-restore-action.png': 1.15, // 15% smaller -> scale up
         'princess-action-complete.png': 1.0,
         'princess-worried.png': 1.0,
-        'princess-restore-action.png': 0.95,
+
+        // Prince Scaling (relative to idle)
+        'prince-idle.png': 1.0,
+        'prince-selected.png': 0.82,  // 22% bigger -> scale down
+        'prince-selected2.png': 0.82,
+        'prince-action.png': 1.05,    // 5% smaller -> scale up
+        'prince-restore-action.png': 1.15, // 15% smaller -> scale up
+        'prince-action-complete.png': 1.0,
+        'prince-worried.png': 1.0,
+    };
+
+    // Specific vertical offsets to fix "grounding" issues
+    const yOffsets: Record<string, number> = {
+        'princess-restore-action.png': -6, // Move up slightly
+        'prince-restore-action.png': -4,   // Move up slightly
     };
 
     let spriteName = spriteMap[state];
@@ -83,6 +92,7 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
     const spritePath = `./sprites/${characterPrefix}-${spriteName}`;
     const normalizationScale = scales[`${characterPrefix}-${spriteName}`] || 1.0;
     const finalScale = BASE_SCALE * normalizationScale;
+    const yOffset = yOffsets[`${characterPrefix}-${spriteName}`] || 0;
 
     // Backdrop path
     const renderBackdrop = () => {
@@ -104,9 +114,9 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
 
     return (
         <div className="relative w-full h-full flex items-center justify-center pointer-events-none overflow-visible">
-            {/* Larger container (increased to accommodate 15% bigger character and prevent clipping) */}
+            {/* Optimized container size for 1.0 base scale */}
             <div
-                className="w-80 h-96 transition-transform duration-300 relative flex items-end justify-center"
+                className="w-64 h-80 transition-transform duration-300 relative flex items-end justify-center"
                 style={{ transform: `translateY(${bounce}px)` }}
             >
                 {/* Backdrop */}
@@ -121,7 +131,7 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
                         alt={`${characterPrefix} ${state}`}
                         className="max-w-full max-h-full object-contain object-bottom filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.1)]"
                         style={{
-                            transform: `scale(${finalScale})`,
+                            transform: `scale(${finalScale}) translateY(${yOffset}px)`,
                             transformOrigin: 'bottom center',
                         }}
                         onError={(e) => {
@@ -148,6 +158,7 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
             </div>
         </div>
     );
+
 
 };
 
