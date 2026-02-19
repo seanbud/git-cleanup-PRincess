@@ -7,6 +7,22 @@ export interface CommitNode {
     isMerge: boolean;
 }
 
+const BINARY_EXTENSIONS = new Set([
+    '.fbx', '.obj', '.glb', '.gltf', '.blend', '.stl', '.3ds', '.dae',
+    '.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.wma',
+    '.ttf', '.otf', '.woff', '.woff2', '.eot',
+    '.mp4', '.webm', '.avi', '.mov', '.mkv',
+    '.zip', '.tar', '.gz', '.rar', '.7z',
+    '.exe', '.dll', '.so', '.dylib',
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.psd', '.ai',
+    '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.ico'
+]);
+
+function isTextFile(filePath: string): boolean {
+    const ext = '.' + filePath.split('.').pop()?.toLowerCase();
+    return !BINARY_EXTENSIONS.has(ext);
+}
+
 export class GitService {
     static async getRepoName(): Promise<string> {
         try {
@@ -152,17 +168,11 @@ export class GitService {
         }
 
         // Fetch line stats
-        const diffCmd = comparisonBranch && comparisonBranch !== currentBranch
-            ? `git diff --numstat ${comparisonBranch}...HEAD`
-            : 'git diff --numstat';
-
-        // @ts-ignore
-        const numstatRes = await window.electronAPI.gitCmd(diffCmd);
-        if (numstatRes.success && numstatRes.stdout.trim()) {
-            const statLines = numstatRes.stdout.split('\n').filter(Boolean);
-            const statMap = new Map<string, { added: number; removed: number }>();
-            for (const sl of statLines) {
-                const parts = sl.split('\t');
+        const statMap = new Map<string, { added: number; removed: number }>();
+        const addStats = (stdout: string) => {
+            const lines = stdout.split('\n').filter(Boolean);
+            for (const line of lines) {
+                const parts = line.split('\t');
                 if (parts.length >= 3) {
                     const added = parseInt(parts[0]) || 0;
                     const removed = parseInt(parts[1]) || 0;
@@ -170,16 +180,34 @@ export class GitService {
                     if (p.startsWith('"') && p.endsWith('"')) {
                         p = p.substring(1, p.length - 1);
                     }
-                    statMap.set(p, { added, removed });
+                    const existing = statMap.get(p) || { added: 0, removed: 0 };
+                    statMap.set(p, { added: existing.added + added, removed: existing.removed + removed });
                 }
             }
+        };
 
-            for (const file of files) {
-                const stats = statMap.get(file.path);
-                if (stats) {
-                    file.linesAdded = stats.added;
-                    file.linesRemoved = stats.removed;
-                }
+        // 1. Get uncommitted stats (staged + unstaged)
+        // Use separate commands for staged and unstaged to avoid issues with empty repos (no HEAD)
+        // @ts-ignore
+        const localStats = await window.electronAPI.gitCmd('git diff --numstat --text');
+        if (localStats.success) addStats(localStats.stdout);
+        // @ts-ignore
+        const stagedStats = await window.electronAPI.gitCmd('git diff --numstat --text --cached');
+        if (stagedStats.success) addStats(stagedStats.stdout);
+
+        // 2. Get committed stats for the branch comparison
+        if (comparisonBranch && comparisonBranch !== currentBranch) {
+            // @ts-ignore
+            const branchStats = await window.electronAPI.gitCmd(`git diff --numstat --text ${comparisonBranch}...HEAD`);
+            if (branchStats.success) addStats(branchStats.stdout);
+        }
+
+        // Apply stats to files
+        for (const file of files) {
+            const stats = statMap.get(file.path);
+            if (stats) {
+                file.linesAdded = stats.added;
+                file.linesRemoved = stats.removed;
             }
         }
 
@@ -188,28 +216,37 @@ export class GitService {
 
     static async getDiff(filePath: string, comparisonBranch?: string): Promise<string> {
         const currentBranch = await this.getCurrentBranch();
+        const textFlag = isTextFile(filePath) ? '--text' : '';
 
-        // If comparing branch to branch
+        // If comparing to another branch, we want the total diff (committed + uncommitted)
+        // relative to the merge-base, to match the summed statistics shown in the sidebar.
         if (comparisonBranch && comparisonBranch !== currentBranch) {
             // @ts-ignore
-            const res = await window.electronAPI.gitCmd(`git diff ${comparisonBranch}...HEAD -- "${filePath}"`);
-            if (res.success) return res.stdout;
+            const mbRes = await window.electronAPI.gitCmd(`git merge-base "${comparisonBranch}" HEAD`);
+            if (mbRes.success && mbRes.stdout.trim()) {
+                const mergeBase = mbRes.stdout.trim();
+                // @ts-ignore
+                const res = await window.electronAPI.gitCmd(`git diff ${textFlag} ${mergeBase} -- "${filePath}"`);
+                if (res.success && res.stdout.trim()) return res.stdout;
+            }
         }
 
-        // Normal local diff (unstaged)
+        // Fallback or normal local diff (unstaged + staged)
         // @ts-ignore
-        const res = await window.electronAPI.gitCmd(`git diff -- "${filePath}"`);
+        const res = await window.electronAPI.gitCmd(`git diff ${textFlag} HEAD -- "${filePath}"`);
         if (res.success && res.stdout.trim()) return res.stdout;
 
-        // Try staged diff
+        // Try staged diff separately if HEAD didn't work (e.g. initial commit)
         // @ts-ignore
-        const stagedRes = await window.electronAPI.gitCmd(`git diff --cached -- "${filePath}"`);
+        const stagedRes = await window.electronAPI.gitCmd(`git diff ${textFlag} --cached -- "${filePath}"`);
         if (stagedRes.success && stagedRes.stdout.trim()) return stagedRes.stdout;
 
-        // For untracked files, show the full file as "added"
+        // Final fallback: try to show the file content itself if it's untracked
+        // git diff --no-index returns 1 when there are differences, so success will be false,
+        // but stdout will contain the diff.
         // @ts-ignore
-        const catRes = await window.electronAPI.gitCmd(`git show :"${filePath}"`);
-        if (catRes.success) return catRes.stdout;
+        const untrackedRes = await window.electronAPI.gitCmd(`git diff --no-index ${textFlag} -- /dev/null "${filePath}"`);
+        if (untrackedRes.stdout.trim()) return untrackedRes.stdout;
 
         return 'No diff available';
     }
