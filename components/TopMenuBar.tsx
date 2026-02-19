@@ -169,15 +169,6 @@ const TopMenuBar: React.FC<TopMenuBarProps> = ({
         </div>
       </div>
 
-      <div className="ml-auto mr-2">
-        <button
-          onClick={() => { onToggleTheme(); audioService.play('sparkle'); }}
-          className={`px-2 py-0.5 rounded-full text-xs font-bold transition-all active:scale-95 ${isPrincess ? 'bg-pink-200 hover:bg-pink-300 text-pink-800' : 'bg-blue-200 hover:bg-blue-300 text-blue-800'}`}
-          title={isPrincess ? 'Switch to Prince Mode' : 'Switch to Princess Mode'}
-        >
-          {isPrincess ? '👑 Princess' : '⚔️ Prince'}
-        </button>
-      </div>
     </div>
   );
 };

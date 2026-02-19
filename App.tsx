@@ -132,7 +132,7 @@ const App: React.FC = () => {
 
   // ─── Render ────────────────────────────────────────────────────
   return (
-    <div className={`flex flex-col h-screen w-screen overflow-hidden text-sm ${appBgClass} font-sans transition-colors duration-300`}>
+    <div className={`flex flex-col h-screen w-screen overflow-hidden text-sm ${appBgClass} font-sans transition-colors duration-300 rounded-[2px] border border-black/10 shadow-inner`}>
       <UpdateBanner mode={themeMode} />
       <div className="z-[100]">
         <TopMenuBar
@@ -148,7 +148,7 @@ const App: React.FC = () => {
           onOpenAbout={() => setIsAboutOpen(true)}
         />
       </div>
-      <ProductTitleBar mode={themeMode} />
+      <ProductTitleBar mode={themeMode} onToggleTheme={toggleTheme} />
 
       <main className="flex-1 flex flex-col overflow-hidden relative">
         {/* Repository Header */}

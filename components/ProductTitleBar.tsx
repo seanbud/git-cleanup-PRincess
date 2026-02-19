@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { ThemeMode } from '../types';
+import { audioService } from '../services/audioService';
 
 interface ProductTitleBarProps {
   mode: ThemeMode;
+  onToggleTheme: () => void;
 }
 
-const ProductTitleBar: React.FC<ProductTitleBarProps> = ({ mode }) => {
+const ProductTitleBar: React.FC<ProductTitleBarProps> = ({ mode, onToggleTheme }) => {
   const isPrincess = mode === ThemeMode.PRINCESS;
   const [shake, setShake] = useState(false);
 
@@ -50,6 +52,16 @@ const ProductTitleBar: React.FC<ProductTitleBarProps> = ({ mode }) => {
           <span>ince</span>
           <span className={`transition-all duration-300 overflow-hidden ${isPrincess ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>ss</span>
         </span>
+      </div>
+
+      <div className="ml-auto flex items-center">
+        <button
+          onClick={() => { onToggleTheme(); audioService.play('sparkle'); }}
+          className={`px-3 py-1 rounded-full text-xs font-bold transition-all active:scale-95 shadow-sm border ${isPrincess ? 'bg-pink-100 hover:bg-pink-200 text-pink-700 border-pink-200' : 'bg-blue-100 hover:bg-blue-200 text-blue-700 border-blue-200'}`}
+          title={isPrincess ? 'Switch to Prince Mode' : 'Switch to Princess Mode'}
+        >
+          {isPrincess ? '👑 Princess' : '⚔️ Prince'}
+        </button>
       </div>
     </div>
   );
