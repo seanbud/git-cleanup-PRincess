@@ -180,26 +180,42 @@ const OptionsModal: React.FC<OptionsModalProps> = ({
                                     <div className={`text-[10px] mb-2 ${isPrincess ? 'text-pink-400' : 'text-slate-500'}`}>
                                         Common: code (VS Code), subl, atom, charm (WebStorm)
                                     </div>
-                                    <input
-                                        type="text"
+                                    <select
                                         value={localAppSettings.externalEditor}
                                         onChange={e => setLocalAppSettings({ ...localAppSettings, externalEditor: e.target.value })}
                                         className={inputClass}
-                                        placeholder="e.g. code"
-                                    />
+                                    >
+                                        <option value="code">Visual Studio Code (code)</option>
+                                        <option value="subl">Sublime Text (subl)</option>
+                                        <option value="atom">Atom (atom)</option>
+                                        <option value="idea">IntelliJ IDEA (idea)</option>
+                                        <option value="charm">PyCharm (charm)</option>
+                                        <option value="notepad">Notepad</option>
+                                        {/* Allow keeping custom values if they don't match the list */}
+                                        {!['code', 'subl', 'atom', 'idea', 'charm', 'notepad'].includes(localAppSettings.externalEditor) && (
+                                            <option value={localAppSettings.externalEditor}>{localAppSettings.externalEditor} (Custom)</option>
+                                        )}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className={labelClass}>Shell / Terminal</label>
                                     <div className={`text-[10px] mb-2 ${isPrincess ? 'text-pink-400' : 'text-slate-500'}`}>
                                         Command used to open terminal in repo folder
                                     </div>
-                                    <input
-                                        type="text"
+                                    <select
                                         value={localAppSettings.shell}
                                         onChange={e => setLocalAppSettings({ ...localAppSettings, shell: e.target.value })}
                                         className={inputClass}
-                                        placeholder="e.g. powershell or bash"
-                                    />
+                                    >
+                                        <option value="powershell">PowerShell</option>
+                                        <option value="cmd">Command Prompt (cmd)</option>
+                                        <option value="bash">Git Bash (bash)</option>
+                                        <option value="wsl">WSL (wsl)</option>
+                                        {/* Allow keeping custom values if they don't match the list */}
+                                        {!['powershell', 'cmd', 'bash', 'wsl'].includes(localAppSettings.shell) && (
+                                            <option value={localAppSettings.shell}>{localAppSettings.shell} (Custom)</option>
+                                        )}
+                                    </select>
                                 </div>
                             </div>
                         )}

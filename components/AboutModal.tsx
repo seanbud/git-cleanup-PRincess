@@ -42,7 +42,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, mode }) => {
             <div className="flex flex-col items-center text-center py-2 -mt-4">
                 {/* App Icon */}
                 <div className={`w-28 h-28 flex items-center justify-center p-2 mb-4 drop-shadow-xl transform hover:scale-105 transition-transform duration-500`}>
-                    <img src="/sprites/app-icon.png" alt="Git Cleanup PRincess" className="max-w-full max-h-full object-contain" />
+                    <img src="sprites/app-icon.png" alt="Git Cleanup PRincess" className="max-w-full max-h-full object-contain" />
                 </div>
 
                 {/* App Name */}

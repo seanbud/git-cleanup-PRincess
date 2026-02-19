@@ -116,6 +116,7 @@ function createWindow() {
     win.webContents.setZoomLevel(0);
 
     win.webContents.on('did-finish-load', () => {
+        win?.webContents.setZoomFactor(1.0);
         win?.webContents.send('main-process-message', (new Date).toLocaleString());
     });
 
@@ -242,7 +243,7 @@ app.whenReady().then(() => {
 
         // IPC handlers for update actions
         ipcMain.handle('update:download', () => autoUpdater.downloadUpdate());
-        ipcMain.handle('update:install', () => autoUpdater.quitAndInstall());
+        ipcMain.handle('update:install', () => autoUpdater.quitAndInstall(false, true));
         ipcMain.handle('update:check', () => autoUpdater.checkForUpdates());
     }
 
