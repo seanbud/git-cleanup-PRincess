@@ -174,9 +174,15 @@ const FileList: React.FC<FileListProps> = ({
       }
     }
     else {
-      newSelected.clear();
-      newSelected.add(currentId);
-      setLastSelectedId(currentId);
+      // Toggle logic: If this file is already the ONLY one selected, unselect it.
+      if (selectedIds.size === 1 && selectedIds.has(currentId)) {
+        newSelected.clear();
+        setLastSelectedId(null);
+      } else {
+        newSelected.clear();
+        newSelected.add(currentId);
+        setLastSelectedId(currentId);
+      }
     }
 
     onSelectionChange(newSelected);
