@@ -8,11 +8,15 @@ export default defineConfig(({ mode }) => {
     return {
         server: {
             port: 3000,
-            host: '0.0.0.0',
+            host: '127.0.0.1',
         },
         plugins: [
             react(),
         ],
+        // Security: Sensitive API keys must not be bundled into client-side code.
+        define: {
+            'process.env.APP_MODE': JSON.stringify(mode),
+        },
         resolve: {
             alias: {
                 '@': path.resolve(__dirname, './src'),

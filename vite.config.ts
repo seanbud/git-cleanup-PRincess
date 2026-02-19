@@ -26,9 +26,10 @@ export default defineConfig(({ mode }) => {
         renderer: {},
       }),
     ],
+    // Security: Sensitive API keys must not be bundled into client-side code.
+    // They should be managed via environment variables and accessed only within the Electron main process.
     define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+      'process.env.APP_MODE': JSON.stringify(mode),
     },
     resolve: {
       alias: {
