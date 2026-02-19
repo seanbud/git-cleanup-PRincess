@@ -66,8 +66,12 @@ const UpdateBanner: React.FC<UpdateBannerProps> = ({ mode }) => {
         ? 'bg-gradient-to-r from-pink-500 to-rose-400'
         : 'bg-gradient-to-r from-blue-600 to-indigo-500';
 
+    // @ts-ignore
+    const isWindows = window.electronAPI?.platform === 'win32';
+    const paddingRight = isWindows ? 'pr-[140px]' : 'px-4';
+
     return (
-        <div className={`${bgColor} text-white px-4 py-2 flex items-center justify-between text-xs shadow-lg z-[200] relative`}>
+        <div className={`${bgColor} text-white ${isWindows ? 'pl-4' : ''} ${paddingRight} py-2 flex items-center justify-between text-xs shadow-lg z-[200] relative`}>
             <div className="flex items-center gap-2">
                 <span className="text-sm">✨</span>
                 {state === 'available' && (

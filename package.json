@@ -3,7 +3,7 @@
   "private": true,
   "author": "Git Cleanup PRincess <princess@example.com>",
   "description": "A git cleanup tool fit for royalty",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
