@@ -33,6 +33,26 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
         [CharacterState.WAVING]: 'idle.png', // Fallback
     };
 
+    // Normalization scales to make character heights visually consistent
+    // Base scale is 1.15 (the 15% increase requested)
+    const BASE_SCALE = 1.15;
+    const scales: Record<string, number> = {
+        'prince-idle.png': 1.05,
+        'prince-selected.png': 1.05,
+        'prince-selected2.png': 0.95,
+        'prince-action.png': 0.98,
+        'prince-action-complete.png': 0.95,
+        'prince-worried.png': 0.85, // Tall because of sweat drops
+        'prince-restore-action.png': 0.92,
+        'princess-idle.png': 0.95,
+        'princess-selected.png': 0.98,
+        'princess-selected2.png': 1.0,
+        'princess-action.png': 0.92,
+        'princess-action-complete.png': 0.94,
+        'princess-worried.png': 1.0,
+        'princess-restore-action.png': 0.90,
+    };
+
     let spriteName = spriteMap[state];
 
     // Character-specific overrides for unique filenames
@@ -61,6 +81,8 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
     if (!spriteName) spriteName = spriteMap[state] || 'idle.png';
 
     const spritePath = `./sprites/${characterPrefix}-${spriteName}`;
+    const normalizationScale = scales[`${characterPrefix}-${spriteName}`] || 1.0;
+    const finalScale = BASE_SCALE * normalizationScale;
 
     // Backdrop path
     const renderBackdrop = () => {
@@ -82,9 +104,9 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
 
     return (
         <div className="relative w-full h-full flex items-center justify-center pointer-events-none overflow-visible">
-            {/* Larger container (increased by 25%) */}
+            {/* Larger container (increased to accommodate 15% bigger character) */}
             <div
-                className="w-60 h-72 transition-transform duration-300 relative flex items-center justify-center"
+                className="w-72 h-80 transition-transform duration-300 relative flex items-center justify-center"
                 style={{ transform: `translateY(${bounce}px)` }}
             >
                 {/* Backdrop */}
@@ -93,14 +115,14 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
                 </svg>
 
                 {/* Character Sprite with Sticker effect & Transition wrapper */}
-                <div key={`${mode}-${state}`} className="relative z-10 w-full h-full flex items-center justify-center animate-character-swap">
+                <div key={`${mode}-${state}`} className="relative z-10 w-full h-full flex items-end justify-center animate-character-swap">
                     <img
                         src={spritePath}
                         alt={`${characterPrefix} ${state}`}
-                        className="max-w-full max-h-full object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.1)]"
+                        className="max-w-full max-h-full object-contain object-bottom filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.1)]"
                         style={{
-                            // Border is now baked into the image by the script, 
-                            // but we keep a subtle shadow for depth
+                            transform: `scale(${finalScale})`,
+                            transformOrigin: 'bottom center',
                         }}
                         onError={(e) => {
                             (e.target as HTMLImageElement).style.opacity = '0';
@@ -111,11 +133,11 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
                         @keyframes character-swap {
                             0% {
                                 opacity: 0;
-                                transform: translateX(20px) scale(0.95);
+                                transform: translateY(10px) scale(0.95);
                             }
                             100% {
                                 opacity: 1;
-                                transform: translateX(0) scale(1);
+                                transform: translateY(0) scale(1);
                             }
                         }
                         .animate-character-swap {
@@ -126,6 +148,7 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
             </div>
         </div>
     );
+
 };
 
 export default Character;
