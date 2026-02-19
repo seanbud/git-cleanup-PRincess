@@ -33,24 +33,24 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
         [CharacterState.WAVING]: 'idle.png', // Fallback
     };
 
-    // Normalization scales to make character heights visually consistent
+    // Normalization scales to make character heights and "mass" visually consistent
     // Base scale is 1.15 (the 15% increase requested)
     const BASE_SCALE = 1.15;
     const scales: Record<string, number> = {
         'prince-idle.png': 1.05,
-        'prince-selected.png': 1.05,
-        'prince-selected2.png': 0.95,
-        'prince-action.png': 0.98,
-        'prince-action-complete.png': 0.95,
-        'prince-worried.png': 0.85, // Tall because of sweat drops
-        'prince-restore-action.png': 0.92,
-        'princess-idle.png': 0.95,
-        'princess-selected.png': 0.98,
-        'princess-selected2.png': 1.0,
-        'princess-action.png': 0.92,
-        'princess-action-complete.png': 0.94,
+        'prince-selected.png': 1.25, // Narrower, needs more scale for mass
+        'prince-selected2.png': 1.05,
+        'prince-action.png': 1.0,
+        'prince-action-complete.png': 1.0,
+        'prince-worried.png': 0.9,   // Tall because of sweat drops
+        'prince-restore-action.png': 0.95,
+        'princess-idle.png': 1.0,
+        'princess-selected.png': 1.1,
+        'princess-selected2.png': 1.1,
+        'princess-action.png': 1.0,
+        'princess-action-complete.png': 1.0,
         'princess-worried.png': 1.0,
-        'princess-restore-action.png': 0.90,
+        'princess-restore-action.png': 0.95,
     };
 
     let spriteName = spriteMap[state];
@@ -104,9 +104,9 @@ const Character: React.FC<CharacterProps> = ({ mode, state, showBackdrop }) => {
 
     return (
         <div className="relative w-full h-full flex items-center justify-center pointer-events-none overflow-visible">
-            {/* Larger container (increased to accommodate 15% bigger character) */}
+            {/* Larger container (increased to accommodate 15% bigger character and prevent clipping) */}
             <div
-                className="w-72 h-80 transition-transform duration-300 relative flex items-center justify-center"
+                className="w-80 h-96 transition-transform duration-300 relative flex items-end justify-center"
                 style={{ transform: `translateY(${bounce}px)` }}
             >
                 {/* Backdrop */}

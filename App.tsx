@@ -305,8 +305,8 @@ const App: React.FC = () => {
               <BranchGraph mode={themeMode} commits={git.commitGraph} />
             </div>
 
-            {/* Floating Character — positioned over all right panel content */}
-            <div className="absolute bottom-4 right-4 w-40 h-48 pointer-events-none z-40">
+            {/* Floating Character — positioned over all right panel content, sitting above the bottom edge */}
+            <div className="absolute bottom-10 right-4 w-80 h-96 pointer-events-none z-40">
               <div className="relative w-full h-full">
                 <Character mode={themeMode} state={characterState} showBackdrop={isMultipleSelected} />
                 {git.isProcessing && (
