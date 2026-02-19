@@ -100,7 +100,7 @@ export function useGitState(): UseGitStateReturn {
         } catch (err) {
             console.error('Failed to refresh git state:', err);
         }
-    }, []);
+    }, [comparisonBranch]);
 
     const loadRecentRepos = useCallback(async () => {
         try {
@@ -166,6 +166,7 @@ export function useGitState(): UseGitStateReturn {
         // @ts-ignore
         const result = await window.electronAPI.switchRepo(repoPath);
         if (result.success) {
+            setComparisonBranch(''); // Reset for new repo
             await refreshGitState();
             await loadRecentRepos();
         }
