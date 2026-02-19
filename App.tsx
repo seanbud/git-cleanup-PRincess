@@ -46,7 +46,7 @@ const App: React.FC = () => {
   const { sidebarWidth, isResizing, sidebarRef, startResizing } = useResizableSidebar(320);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const handleDiscardChanges = async (files: GitFile[]) => {
+  const handleDiscardChanges = React.useCallback(async (files: GitFile[]) => {
     if (files.length === 0) return;
 
     const confirmMessage = files.length === 1
@@ -69,7 +69,7 @@ const App: React.FC = () => {
       alert('Failed to discard changes.');
       setCharacterState(CharacterState.IDLE);
     }
-  };
+  }, [git.refreshGitState, setCharacterState]);
 
   const { contextMenu, handleContextMenu, closeContextMenu } = useContextMenu({
     currentBranch: git.gitState.currentBranch,
