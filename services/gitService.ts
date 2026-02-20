@@ -28,12 +28,10 @@ function isTextFile(filePath: string): boolean {
 export class GitService {
     static async getRepoName(): Promise<string> {
         try {
-            // @ts-ignore
-            const res = await window.electronAPI.gitCmd('git remote get-url origin');
+            const res = await window.electronAPI.gitCmd('remote', 'get-url', 'origin');
             if (!res.success) {
                 // Fallback: use directory name
-                // @ts-ignore
-                const dirRes = await window.electronAPI.gitCmd('git rev-parse --show-toplevel');
+                const dirRes = await window.electronAPI.gitCmd('rev-parse', '--show-toplevel');
                 if (dirRes.success) {
                     const parts = dirRes.stdout.trim().replace(/\\/g, '/').split('/');
                     return parts[parts.length - 1];
@@ -48,14 +46,12 @@ export class GitService {
     }
 
     static async getCurrentBranch(): Promise<string> {
-        // @ts-ignore
-        const res = await window.electronAPI.gitCmd('git rev-parse --abbrev-ref HEAD');
+        const res = await window.electronAPI.gitCmd('rev-parse', '--abbrev-ref', 'HEAD');
         return res.success ? res.stdout.trim() : 'main';
     }
 
     static async getUpstreamBranch(): Promise<string> {
-        // @ts-ignore
-        const res = await window.electronAPI.gitCmd('git rev-parse --abbrev-ref --symbolic-full-name @{u}');
+        const res = await window.electronAPI.gitCmd('rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}');
         return res.success ? res.stdout.trim() : '';
     }
 
@@ -77,8 +73,7 @@ export class GitService {
         }
 
         // 3. Check for remote versions of common branches
-        // @ts-ignore
-        const remoteRes = await window.electronAPI.gitCmd('git branch -r');
+        const remoteRes = await window.electronAPI.gitCmd('branch', '-r');
         if (remoteRes.success) {
             const remoteBranches = remoteRes.stdout.split('\n').map((b: string) => b.trim());
             for (const target of common) {
@@ -95,8 +90,7 @@ export class GitService {
     }
 
     static async getBranches(): Promise<string[]> {
-        // @ts-ignore
-        const res = await window.electronAPI.gitCmd('git branch --list --no-color');
+        const res = await window.electronAPI.gitCmd('branch', '--list', '--no-color');
         if (!res.success) return ['main'];
         return res.stdout
             .split('\n')
@@ -109,8 +103,7 @@ export class GitService {
         const seenPaths = new Set<string>();
 
         // 1. Get uncommitted files (Status)
-        // @ts-ignore
-        const res = await window.electronAPI.gitCmd('git status --porcelain');
+        const res = await window.electronAPI.gitCmd('status', '--porcelain');
         if (res.success && res.stdout.trim()) {
             const lines = res.stdout.split('\n').filter(Boolean);
             lines.forEach((line: string, index: number) => {
@@ -140,8 +133,7 @@ export class GitService {
         // 2. Get committed differences if comparing to another branch
         const currentBranch = await this.getCurrentBranch();
         if (comparisonBranch && comparisonBranch !== currentBranch) {
-            // @ts-ignore
-            const diffRes = await window.electronAPI.gitCmd(`git diff --name-status ${comparisonBranch}...HEAD`);
+            const diffRes = await window.electronAPI.gitCmd('diff', '--name-status', `${comparisonBranch}...HEAD`);
             if (diffRes.success && diffRes.stdout.trim()) {
                 const lines = diffRes.stdout.split('\n').filter(Boolean);
                 lines.forEach((line: string, index: number) => {
@@ -190,17 +182,14 @@ export class GitService {
 
         // 1. Get uncommitted stats (staged + unstaged)
         // Use separate commands for staged and unstaged to avoid issues with empty repos (no HEAD)
-        // @ts-ignore
-        const localStats = await window.electronAPI.gitCmd('git diff --numstat --text');
+        const localStats = await window.electronAPI.gitCmd('diff', '--numstat', '--text');
         if (localStats.success) addStats(localStats.stdout);
-        // @ts-ignore
-        const stagedStats = await window.electronAPI.gitCmd('git diff --numstat --text --cached');
+        const stagedStats = await window.electronAPI.gitCmd('diff', '--numstat', '--text', '--cached');
         if (stagedStats.success) addStats(stagedStats.stdout);
 
         // 2. Get committed stats for the branch comparison
         if (comparisonBranch && comparisonBranch !== currentBranch) {
-            // @ts-ignore
-            const branchStats = await window.electronAPI.gitCmd(`git diff --numstat --text ${comparisonBranch}...HEAD`);
+            const branchStats = await window.electronAPI.gitCmd('diff', '--numstat', '--text', `${comparisonBranch}...HEAD`);
             if (branchStats.success) addStats(branchStats.stdout);
         }
 
@@ -223,50 +212,51 @@ export class GitService {
         // If comparing to another branch, we want the total diff (committed + uncommitted)
         // relative to the merge-base, to match the summed statistics shown in the sidebar.
         if (comparisonBranch && comparisonBranch !== currentBranch) {
-            // @ts-ignore
-            const mbRes = await window.electronAPI.gitCmd(`git merge-base "${comparisonBranch}" HEAD`);
+            const mbRes = await window.electronAPI.gitCmd('merge-base', comparisonBranch, 'HEAD');
             if (mbRes.success && mbRes.stdout.trim()) {
                 const mergeBase = mbRes.stdout.trim();
-                // @ts-ignore
-                const res = await window.electronAPI.gitCmd(`git diff ${textFlag} ${mergeBase} -- "${filePath}"`);
+                const diffArgs = ['diff'];
+                if (textFlag) diffArgs.push(textFlag);
+                diffArgs.push(mergeBase, '--', filePath);
+                const res = await window.electronAPI.gitCmd(...diffArgs);
                 if (res.success && res.stdout.trim()) return res.stdout;
             }
         }
 
         // Fallback or normal local diff (unstaged + staged)
-        // @ts-ignore
-        const res = await window.electronAPI.gitCmd(`git diff ${textFlag} HEAD -- "${filePath}"`);
+        const localArgs = ['diff'];
+        if (textFlag) localArgs.push(textFlag);
+        localArgs.push('HEAD', '--', filePath);
+        const res = await window.electronAPI.gitCmd(...localArgs);
         if (res.success && res.stdout.trim()) return res.stdout;
 
         // Try staged diff separately if HEAD didn't work (e.g. initial commit)
-        // @ts-ignore
-        const stagedRes = await window.electronAPI.gitCmd(`git diff ${textFlag} --cached -- "${filePath}"`);
+        const stagedArgs = ['diff'];
+        if (textFlag) stagedArgs.push(textFlag);
+        stagedArgs.push('--cached', '--', filePath);
+        const stagedRes = await window.electronAPI.gitCmd(...stagedArgs);
         if (stagedRes.success && stagedRes.stdout.trim()) return stagedRes.stdout;
 
         // Final fallback: try to show the file content itself if it's untracked
-        // git diff --no-index returns 1 when there are differences, so success will be false,
-        // but stdout will contain the diff.
-        // @ts-ignore
-        const untrackedRes = await window.electronAPI.gitCmd(`git diff --no-index ${textFlag} -- /dev/null "${filePath}"`);
+        const untrackedArgs = ['diff', '--no-index'];
+        if (textFlag) untrackedArgs.push(textFlag);
+        untrackedArgs.push('--', '/dev/null', filePath);
+        const untrackedRes = await window.electronAPI.gitCmd(...untrackedArgs);
         if (untrackedRes.stdout.trim()) return untrackedRes.stdout;
 
         return 'No diff available';
     }
 
     static async getGitConfig(): Promise<GitConfig> {
-        // @ts-ignore
         const name = await window.electronAPI.gitConfigGet('user.name');
-        // @ts-ignore
         const email = await window.electronAPI.gitConfigGet('user.email');
-        // @ts-ignore
         const defaultBranch = await window.electronAPI.gitConfigGet('init.defaultBranch') || 'main';
 
         return { name, email, defaultBranch };
     }
 
     static async setGitConfig(key: string, value: string): Promise<boolean> {
-        // @ts-ignore
-        const res = await window.electronAPI.gitCmd(`git config "${key}" "${value}"`);
+        const res = await window.electronAPI.gitCmd('config', key, value);
         return res.success;
     }
 
@@ -275,32 +265,24 @@ export class GitService {
 
         // If restoring FROM a base branch (making it match the base)
         if (comparisonBranch && comparisonBranch !== currentBranch) {
-            // @ts-ignore
-            const res = await window.electronAPI.gitCmd(`git checkout ${comparisonBranch} -- "${filePath}"`);
+            const res = await window.electronAPI.gitCmd('checkout', comparisonBranch, '--', filePath);
             return res.success;
         }
 
         // Normal unstage + restore
-        // @ts-ignore
-        await window.electronAPI.gitCmd(`git reset HEAD -- "${filePath}"`);
-        // @ts-ignore
-        const res = await window.electronAPI.gitCmd(`git checkout -- "${filePath}"`);
+        await window.electronAPI.gitCmd('reset', 'HEAD', '--', filePath);
+        const res = await window.electronAPI.gitCmd('checkout', '--', filePath);
         return res.success;
     }
 
     static async discardChanges(filePaths: string[]): Promise<boolean> {
         if (filePaths.length === 0) return true;
 
-        // Wrap in quotes for safety
-        const quotedPaths = filePaths.map(p => `"${p}"`).join(' ');
-
         // 1. Unstage everything in the list
-        // @ts-ignore
-        await window.electronAPI.gitCmd(`git reset HEAD -- ${quotedPaths}`);
+        await window.electronAPI.gitCmd('reset', 'HEAD', '--', ...filePaths);
 
         // 2. Restore working tree for tracked files (Modified/Deleted)
-        // @ts-ignore
-        const restoreRes = await window.electronAPI.gitCmd(`git checkout -- ${quotedPaths}`);
+        const restoreRes = await window.electronAPI.gitCmd('checkout', '--', ...filePaths);
 
         // 3. Optional: Remove untracked files (Added/Untracked)
         // Only if they are actually untracked (not just staged).
@@ -313,19 +295,16 @@ export class GitService {
     static async removeFile(filePath: string): Promise<boolean> {
         // 1. Remove from git index first (keep on disk)
         // Use --ignore-unmatch so it doesn't fail if the file is untracked
-        // @ts-ignore
-        await window.electronAPI.gitCmd(`git rm --cached -f --ignore-unmatch "${filePath}"`);
+        await window.electronAPI.gitCmd('rm', '--cached', '-f', '--ignore-unmatch', filePath);
 
         // 2. Move the local file to trash/recycle bin
-        // @ts-ignore
         const res = await window.electronAPI.trashFile(filePath);
         return res.success;
     }
 
     static async getCommitGraph(): Promise<CommitNode[]> {
         // Fetch more commits to build a better graph and include parent hashes (%p) and author (%an)
-        // @ts-ignore
-        const res = await window.electronAPI.gitCmd('git log --all --date-order --format="%h|%p|%s|%D|%an" -n 50');
+        const res = await window.electronAPI.gitCmd('log', '--all', '--date-order', '--format=%h|%p|%s|%D|%an', '-n', '50');
         if (!res.success) return [];
 
         return res.stdout
@@ -351,55 +330,46 @@ export class GitService {
     }
 
     static async fetch(): Promise<boolean> {
-        // @ts-ignore
-        const res = await window.electronAPI.gitCmd('git fetch --all');
+        const res = await window.electronAPI.gitCmd('fetch', '--all');
         return res.success;
     }
 
     static async pull(): Promise<{ success: boolean; message: string }> {
-        // @ts-ignore
-        const res = await window.electronAPI.gitCmd('git pull');
+        const res = await window.electronAPI.gitCmd('pull');
         return { success: res.success, message: res.success ? res.stdout : res.stderr };
     }
 
     static async push(): Promise<{ success: boolean; message: string }> {
-        // @ts-ignore
-        const res = await window.electronAPI.gitCmd('git push');
+        const res = await window.electronAPI.gitCmd('push');
         return { success: res.success, message: res.success ? res.stdout : res.stderr };
     }
 
     static async checkoutBranch(branchName: string): Promise<boolean> {
-        // @ts-ignore
-        const res = await window.electronAPI.gitCmd(`git checkout "${branchName}"`);
+        const res = await window.electronAPI.gitCmd('checkout', branchName);
         return res.success;
     }
 
     static async createBranch(branchName: string): Promise<boolean> {
-        // @ts-ignore
-        const res = await window.electronAPI.gitCmd(`git checkout -b "${branchName}"`);
+        const res = await window.electronAPI.gitCmd('checkout', '-b', branchName);
         return res.success;
     }
 
     static async deleteBranch(branchName: string): Promise<boolean> {
-        // @ts-ignore
-        const res = await window.electronAPI.gitCmd(`git branch -d "${branchName}"`);
+        const res = await window.electronAPI.gitCmd('branch', '-d', branchName);
         return res.success;
     }
 
     static async getRemoteUrl(): Promise<string> {
-        // @ts-ignore
-        const res = await window.electronAPI.gitCmd('git remote get-url origin');
+        const res = await window.electronAPI.gitCmd('remote', 'get-url', 'origin');
         if (!res.success) return '';
         return res.stdout.trim().replace('git@github.com:', 'https://github.com/').replace('.git', '');
     }
 
     static async getAppSettings(): Promise<any> {
-        // @ts-ignore
         return await window.electronAPI.getAppSettings();
     }
 
     static async saveAppSettings(settings: any): Promise<void> {
-        // @ts-ignore
         await window.electronAPI.saveAppSettings(settings);
     }
 }

@@ -18,14 +18,12 @@ export interface AuthTokenResponse {
 
 export class GitHubAuthClient {
     static async requestDeviceCode(): Promise<DeviceCodeResponse> {
-        // @ts-ignore
         return window.electronAPI.githubStartAuth();
     }
 
     static async pollForToken(deviceCode: string, interval: number): Promise<string | null> {
         return new Promise((resolve) => {
             const poll = async () => {
-                // @ts-ignore
                 const token = await window.electronAPI.githubPollToken(deviceCode);
                 if (token) {
                     resolve(token);

@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell, ipcMain, safeStorage, dialog, Menu } from 'electron';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { execSync } from 'child_process';
+import { execSync, execFileSync, execFile } from 'child_process';
 import fs from 'fs';
 import { autoUpdater } from 'electron-updater';
 const __filename = fileURLToPath(import.meta.url);
@@ -301,13 +301,13 @@ app.whenReady().then(() => {
     });
 
     // ─── Git CLI IPC ──────────────────────────────────────────────
-    ipcMain.handle('git:cmd', async (_, cmd) => {
+    ipcMain.handle('git:cmd', async (_, args: string[]) => {
         try {
-            const output = execSync(cmd, {
+            const output = execFileSync('git', args, {
                 encoding: 'utf-8',
                 cwd: currentCwd,
                 timeout: 15000,
-                stdio: ['pipe', 'pipe', 'pipe'] // Suppress stderr from leaking to console
+                stdio: ['pipe', 'pipe', 'pipe']
             });
             return { stdout: output, success: true };
         } catch (error: any) {
@@ -315,9 +315,9 @@ app.whenReady().then(() => {
         }
     });
 
-    ipcMain.handle('git:config-get', async (_, key) => {
+    ipcMain.handle('git:config-get', async (_, key: string) => {
         try {
-            return execSync(`git config --get ${key}`, {
+            return execFileSync('git', ['config', '--get', key], {
                 encoding: 'utf-8',
                 cwd: currentCwd,
                 stdio: ['pipe', 'pipe', 'pipe']
@@ -378,7 +378,9 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-external', (_, url: string) => {
-        shell.openExternal(url);
+        if (url.startsWith('https:') || url.startsWith('mailto:')) {
+            shell.openExternal(url);
+        }
     });
 
     ipcMain.handle('shell:open-path', (_, filePath: string) => {
@@ -387,6 +389,42 @@ app.whenReady().then(() => {
 
     ipcMain.handle('shell:open-directory', (_, dirPath: string) => {
         shell.openPath(dirPath);
+    });
+
+    ipcMain.handle('shell:open-editor', async (_, filePath: string) => {
+        const { externalEditor } = getSettings();
+        const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
+        execFile(externalEditor || 'code', [fullPath], (error) => {
+            if (error) console.error('Failed to open editor:', error);
+        });
+        return { success: true };
+    });
+
+    ipcMain.handle('shell:open-terminal', async () => {
+        const { shell: shellSetting } = getSettings();
+        const cmd = shellSetting === 'powershell' ? 'powershell' : (shellSetting === 'cmd' ? 'cmd' : shellSetting);
+        const args = shellSetting === 'powershell' ? [] : (shellSetting === 'cmd' ? ['/c', 'start', 'cmd'] : []);
+
+        if (process.platform === 'win32') {
+            if (shellSetting === 'powershell') {
+                execFile('powershell', ['-Command', 'Start-Process', 'powershell', '-WorkingDirectory', `"${currentCwd}"`], (err) => {
+                    if (err) console.error('Failed to open powershell:', err);
+                });
+            } else if (shellSetting === 'cmd') {
+                execFile('cmd', ['/c', 'start', 'cmd'], { cwd: currentCwd }, (err) => {
+                    if (err) console.error('Failed to open cmd:', err);
+                });
+            } else {
+                execFile(cmd, [], { cwd: currentCwd }, (err) => {
+                    if (err) console.error('Failed to open shell:', err);
+                });
+            }
+        } else {
+            execFile(cmd, [], { cwd: currentCwd }, (err) => {
+                if (err) console.error('Failed to open shell:', err);
+            });
+        }
+        return { success: true };
     });
 
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
@@ -423,7 +461,7 @@ app.whenReady().then(() => {
     // File Preview: read file from git HEAD as base64 data URI
     ipcMain.handle('git:show-file-base64', (_, relativePath: string) => {
         try {
-            const result = execSync(`git show HEAD:"${relativePath}"`, {
+            const result = execFileSync('git', ['show', `HEAD:${relativePath}`], {
                 cwd: currentCwd,
                 encoding: 'buffer',
                 maxBuffer: 10 * 1024 * 1024,
