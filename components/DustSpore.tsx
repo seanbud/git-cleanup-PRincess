@@ -46,7 +46,7 @@ const VARIANTS = [
   }
 ];
 
-const DustSpore: React.FC<DustSporeProps> = ({ fileName, linesAdded, linesRemoved, isScared, mode, delay }) => {
+const DustSpore: React.FC<DustSporeProps> = React.memo(({ fileName, linesAdded, linesRemoved, isScared, mode, delay }) => {
   const isPrincess = mode === ThemeMode.PRINCESS;
   
   // Randomly assign a variant based on filename hash or similar to keep it consistent per file
@@ -59,31 +59,16 @@ const DustSpore: React.FC<DustSporeProps> = ({ fileName, linesAdded, linesRemove
   const variant = VARIANTS[variantIndex];
 
   // State
-  const [floatOffset, setFloatOffset] = useState({ x: 0, y: 0 });
   const [hopOffset, setHopOffset] = useState(0);
-  const [eyePos, setEyePos] = useState({ x: 0, y: 0 });
   const [isLooking, setIsLooking] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
   // Refs for tracking animation frames and intervals
   const eyesRef = useRef<SVGGElement>(null);
+  const pupilsRef = useRef<SVGGElement>(null);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
-  // 1. Floating Animation
-  useEffect(() => {
-    // Random offset for phase
-    const phase = delay * 1000; 
-    const interval = setInterval(() => {
-      const time = Date.now() + phase;
-      setFloatOffset({
-        x: Math.sin(time / 1500) * 1.5,
-        y: Math.cos(time / 1200) * 2.5
-      });
-    }, 50);
-    return () => clearInterval(interval);
-  }, [delay]);
-
-  // 2. Random Hopping (Desynchronized)
+  // 1. Random Hopping (Desynchronized)
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
     const hop = () => {
@@ -103,53 +88,52 @@ const DustSpore: React.FC<DustSporeProps> = ({ fileName, linesAdded, linesRemove
     return () => clearTimeout(timeoutId);
   }, []);
 
-  // 3. Eye Movement (Desynchronized & Random Attention)
+  // 2. Eye Movement (Desynchronized & Random Attention)
   useEffect(() => {
     // Decide if this mite wants to look at the mouse
     const toggleAttention = () => {
-       const payingAttention = Math.random() > 0.4; // 60% chance to look at mouse
-       setIsLooking(payingAttention);
+      const payingAttention = Math.random() > 0.4; // 60% chance to look at mouse
+      setIsLooking(payingAttention);
     };
-    
+
     const attentionInterval = setInterval(toggleAttention, 2000 + Math.random() * 3000);
+    return () => clearInterval(attentionInterval);
+  }, []);
+
+  useEffect(() => {
+    // Only attach listener if we are actually tracking the mouse
+    if (!isLooking && !isScared && !isHovered) {
+      // Clear any manual transform when not tracking
+      if (pupilsRef.current) pupilsRef.current.style.transform = '';
+      return;
+    }
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!eyesRef.current) return;
-      
-      // If idle (not looking at mouse AND not hovered), drift slowly
-      if (!isLooking && !isScared && !isHovered) {
-         const time = Date.now() / 2000 + delay;
-         setEyePos({
-           x: Math.sin(time) * 2,
-           y: Math.cos(time) * 1
-         });
-         return;
-      }
+      if (!eyesRef.current || !pupilsRef.current) return;
 
       // If looking at mouse (or scared or hovered), track strictly
+      // Optimization: use getBoundingClientRect sparingly if possible, but for individual mites it's necessary
       const rect = eyesRef.current.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
-      
+
       const dx = e.clientX - centerX;
       const dy = e.clientY - centerY;
-      
+
       // Normalize and limit movement radius (pupils inside eyes)
       const angle = Math.atan2(dy, dx);
       const distance = Math.min(3, Math.sqrt(dx * dx + dy * dy) / 20); // Limit pupil movement
-      
-      setEyePos({
-        x: Math.cos(angle) * distance,
-        y: Math.sin(angle) * distance
-      });
+
+      const x = Math.cos(angle) * distance;
+      const y = Math.sin(angle) * distance;
+
+      // Direct DOM manipulation to bypass React re-renders for high-frequency mouse moves
+      pupilsRef.current.style.transform = `translate(${x}px, ${y}px)`;
     };
 
     window.addEventListener('mousemove', handleMouseMove);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      clearInterval(attentionInterval);
-    };
-  }, [delay, isLooking, isScared, isHovered]);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [isLooking, isScared, isHovered]);
 
   // Clean up debounce timeout
   useEffect(() => {
@@ -187,8 +171,24 @@ const DustSpore: React.FC<DustSporeProps> = ({ fileName, linesAdded, linesRemove
           80% { transform: translate(2px, -2px); }
           100% { transform: translate(0); }
         }
+        @keyframes float {
+          0%, 100% { transform: translate(0, 0); }
+          25% { transform: translate(1.5px, -2.5px); }
+          50% { transform: translate(-1.5px, 2.5px); }
+          75% { transform: translate(1.5px, 2.5px); }
+        }
+        @keyframes eyeDrift {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(2px, 1px); }
+        }
         .animate-vibrate {
           animation: vibration 0.15s linear infinite;
+        }
+        .animate-float {
+          animation: float 3s ease-in-out infinite;
+        }
+        .animate-eye-drift {
+          animation: eyeDrift 4s ease-in-out infinite;
         }
       `}</style>
       
@@ -197,85 +197,94 @@ const DustSpore: React.FC<DustSporeProps> = ({ fileName, linesAdded, linesRemove
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         style={{
-          // Combined transform: Center in anchor (-50%) + Float/Hop + Scale
-          transform: `translate(calc(-50% + ${floatOffset.x}px), calc(-50% + ${floatOffset.y + hopOffset}px)) scale(${isScared ? 0.95 : (isHovered ? 1.15 : 1)})`
+          // Combined transform: Center in anchor (-50%) + Hop + Scale
+          transform: `translate(-50%, calc(-50% + ${hopOffset}px)) scale(${isScared ? 0.95 : (isHovered ? 1.15 : 1)})`
         }}
       >
-        {/* Nameplate */}
-        <div 
-          className={`
-            mb-2 px-2 py-1 bg-white border border-gray-400 rounded-sm text-[10px] font-mono font-bold text-gray-800
-            flex items-center gap-2
-            ${isScared ? 'rotate-12 translate-y-2' : (isHovered ? 'scale-110 -rotate-1' : '-rotate-3')} 
-            transition-all duration-300 origin-bottom
-            whitespace-nowrap
-          `}
-          style={{ boxShadow: nametagShadow }}
-        >
-          <span className={`transition-all duration-300 ${isHovered ? '' : 'truncate max-w-[80px]'}`}>
-            {shortName}
-          </span>
-          <div className="flex space-x-1 text-[9px] border-l border-gray-200 pl-1 shrink-0">
-            <span className="text-green-600">+{linesAdded}</span>
-            <span className="text-red-500">-{linesRemoved}</span>
+        <div className="animate-float flex flex-col items-center" style={{ animationDelay: `${-delay}s` }}>
+          {/* Nameplate */}
+          <div
+            className={`
+              mb-2 px-2 py-1 bg-white border border-gray-400 rounded-sm text-[10px] font-mono font-bold text-gray-800
+              flex items-center gap-2
+              ${isScared ? 'rotate-12 translate-y-2' : (isHovered ? 'scale-110 -rotate-1' : '-rotate-3')}
+              transition-all duration-300 origin-bottom
+              whitespace-nowrap
+            `}
+            style={{ boxShadow: nametagShadow }}
+          >
+            <span className={`transition-all duration-300 ${isHovered ? '' : 'truncate max-w-[80px]'}`}>
+              {shortName}
+            </span>
+            <div className="flex space-x-1 text-[9px] border-l border-gray-200 pl-1 shrink-0">
+              <span className="text-green-600">+{linesAdded}</span>
+              <span className="text-red-500">-{linesRemoved}</span>
+            </div>
           </div>
-        </div>
 
-        {/* The Spore Body */}
-        <div 
-          className={`relative w-16 h-16 ${isScared ? 'animate-vibrate' : ''}`}
-          style={{ filter: miteShadow }}
-        >
-          <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible">
-            {/* Variant Body Path */}
-            <path 
-              d={variant.path} 
-              fill={variant.color} 
-            />
-            
-            {/* Eyes Container */}
-            <g ref={eyesRef} transform={isScared ? "scale(1.1) translate(-4, -2)" : ""}>
-              {/* Left Eye */}
-              <circle cx={variant.leftEye.cx} cy={variant.leftEye.cy} r="10" fill="white" />
-              <circle 
-                  cx={variant.leftEye.cx + eyePos.x} 
-                  cy={variant.leftEye.cy + eyePos.y} 
-                  r={isScared ? "1.5" : "3"} 
-                  fill="black" 
-                  className="transition-all duration-100 ease-linear"
+          {/* The Spore Body */}
+          <div
+            className={`relative w-16 h-16 ${isScared ? 'animate-vibrate' : ''}`}
+            style={{ filter: miteShadow }}
+          >
+            <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible">
+              {/* Variant Body Path */}
+              <path
+                d={variant.path}
+                fill={variant.color}
               />
               
-              {/* Right Eye */}
-              <circle cx={variant.rightEye.cx} cy={variant.rightEye.cy} r="10" fill="white" />
-              <circle 
-                  cx={variant.rightEye.cx + eyePos.x} 
-                  cy={variant.rightEye.cy + eyePos.y} 
-                  r={isScared ? "1.5" : "3"} 
-                  fill="black"
-                  className="transition-all duration-100 ease-linear" 
-              />
-            </g>
+              {/* Eyes Container */}
+              <g ref={eyesRef} transform={isScared ? "scale(1.1) translate(-4, -2)" : ""}>
+                {/* Left Eye */}
+                <circle cx={variant.leftEye.cx} cy={variant.leftEye.cy} r="10" fill="white" />
+                {/* Right Eye */}
+                <circle cx={variant.rightEye.cx} cy={variant.rightEye.cy} r="10" fill="white" />
 
-            {/* Blush */}
-            <g opacity="0.6">
-                <ellipse cx={variant.leftEye.cx - 10} cy={variant.leftEye.cy + 12} rx="4" ry="2" fill={blushColor} />
-                <ellipse cx={variant.rightEye.cx + 10} cy={variant.rightEye.cy + 12} rx="4" ry="2" fill={blushColor} />
-            </g>
+                {/* Pupils Group - Offload idle drift to CSS, track mouse via Ref */}
+                <g
+                  ref={pupilsRef}
+                  className={(!isLooking && !isScared && !isHovered) ? 'animate-eye-drift' : ''}
+                  style={{ animationDelay: `${-delay}s` }}
+                >
+                  <circle
+                    cx={variant.leftEye.cx}
+                    cy={variant.leftEye.cy}
+                    r={isScared ? "1.5" : "3"}
+                    fill="black"
+                    className="transition-all duration-100 ease-linear"
+                  />
+                  <circle
+                    cx={variant.rightEye.cx}
+                    cy={variant.rightEye.cy}
+                    r={isScared ? "1.5" : "3"}
+                    fill="black"
+                    className="transition-all duration-100 ease-linear"
+                  />
+                </g>
+              </g>
 
-            {/* Sweat Drop if Scared */}
-            {isScared && (
-              <path 
-                  d="M85,30 Q85,25 82,25 Q79,25 79,30 Q79,38 85,38 Q85,38 85,30" 
-                  fill="#3b82f6" 
-                  className="animate-bounce"
-                  style={{ animationDuration: '0.8s' }}
-              />
-            )}
-          </svg>
+              {/* Blush */}
+              <g opacity="0.6">
+                  <ellipse cx={variant.leftEye.cx - 10} cy={variant.leftEye.cy + 12} rx="4" ry="2" fill={blushColor} />
+                  <ellipse cx={variant.rightEye.cx + 10} cy={variant.rightEye.cy + 12} rx="4" ry="2" fill={blushColor} />
+              </g>
+
+              {/* Sweat Drop if Scared */}
+              {isScared && (
+                <path
+                    d="M85,30 Q85,25 82,25 Q79,25 79,30 Q79,38 85,38 Q85,38 85,30"
+                    fill="#3b82f6"
+                    className="animate-bounce"
+                    style={{ animationDuration: '0.8s' }}
+                />
+              )}
+            </svg>
+          </div>
         </div>
       </div>
     </div>
   );
-};
+});
 
 export default DustSpore;
