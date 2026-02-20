@@ -261,6 +261,8 @@ export function useGitState(): UseGitStateReturn {
                 if (file) {
                     const diff = await GitService.getDiff(file.path, comparisonBranch);
                     if (isMounted) setSelectedDiff(diff);
+                } else {
+                    if (isMounted) setSelectedDiff('');
                 }
             } else if (gitState.selectedFileIds.size === 0) {
                 if (isMounted) setSelectedDiff('');

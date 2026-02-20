@@ -136,6 +136,7 @@ const FileList: React.FC<FileListProps> = ({
           stashed.push(f);
           break;
         case ChangeType.UNPUSHED:
+        case ChangeType.COMMITTED:
           unpushed.push(f);
           break;
       }
@@ -232,7 +233,7 @@ const FileList: React.FC<FileListProps> = ({
         ) : (
           <>
             {renderGroup("Staged Changes", uncommitted)}
-            {renderGroup("Committed On This Branch", unpushed)}
+            {renderGroup("Changes On This Branch", unpushed)}
             {renderGroup("Stashed Changes", stashed)}
           </>
         )}

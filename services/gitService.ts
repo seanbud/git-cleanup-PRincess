@@ -126,7 +126,7 @@ export class GitService {
                 if (code.includes('R')) status = FileStatus.RENAMED;
 
                 files.push({
-                    id: `status-${index}`,
+                    id: `status:${filePath}`,
                     path: filePath,
                     status,
                     changeType: ChangeType.UNCOMMITTED,
@@ -158,7 +158,7 @@ export class GitService {
                     if (code.startsWith('R')) status = FileStatus.RENAMED;
 
                     files.push({
-                        id: `diff-${index}`,
+                        id: `diff:${filePath}`,
                         path: filePath,
                         status,
                         changeType: ChangeType.COMMITTED,

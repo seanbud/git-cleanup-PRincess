@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { GitFile, ThemeMode } from '../types';
 import ImagePreview from './ImagePreview';
 import BinaryPreview from './BinaryPreview';
@@ -20,9 +20,8 @@ const BINARY_EXTENSIONS = new Set([
   '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.psd', '.ai',
 ]);
 
-// Folding configuration
-const FOLD_THRESHOLD = 12; // If more than 12 lines unchanged, fold them
-const CONTEXT_LINES = 4;    // Number of lines to keep visible around a fold
+const FOLD_THRESHOLD = 15;
+const CONTEXT_LINES = 5;
 
 function getFileExtension(filePath: string): string {
   const dot = filePath.lastIndexOf('.');
@@ -35,20 +34,21 @@ function isImageFile(filePath: string): boolean {
 
 function isBinaryFile(filePath: string, diffContent?: string): boolean {
   if (BINARY_EXTENSIONS.has(getFileExtension(filePath))) return true;
-  // Git's diff output for binary files
   if (diffContent && (diffContent.includes('Binary files') || diffContent.includes('GIT binary patch'))) return true;
   return false;
 }
 
 type DiffLine = {
   text: string;
-  type: 'added' | 'removed' | 'context' | 'header';
-  originalIndex: number;
+  type: 'added' | 'removed' | 'context';
+  oldLineNumber?: number;
+  newLineNumber?: number;
 };
 
 type DiffSection =
-  | { type: 'lines'; lines: DiffLine[] }
-  | { type: 'folded'; lineCount: number; startLineIndex: number; lines: DiffLine[] };
+  | { type: 'chunk-header'; text: string; id: string }
+  | { type: 'lines'; lines: DiffLine[]; chunkId: string }
+  | { type: 'folded'; lineCount: number; id: string; lines: DiffLine[]; chunkId: string };
 
 interface DiffLineItemProps {
   line: DiffLine;
@@ -58,29 +58,39 @@ interface DiffLineItemProps {
 }
 
 const DiffLineItem = React.memo<DiffLineItemProps>(({ line, isPrincess, filePath, mode }) => {
-  let lineBgClass = '';
-  let textClass = 'text-gray-600';
+  let lineBgClass = 'bg-white';
+  let textClass = 'text-gray-700';
+  let indicatorColor = 'text-gray-400';
 
   if (line.type === 'added') {
-    lineBgClass = isPrincess ? 'bg-green-100/40' : 'bg-green-100/30';
-    textClass = isPrincess ? 'text-green-900 font-medium' : 'text-green-900';
+    lineBgClass = isPrincess ? 'bg-emerald-50/70' : 'bg-emerald-50/50';
+    textClass = 'text-emerald-900 font-medium';
+    indicatorColor = 'text-emerald-500';
   } else if (line.type === 'removed') {
-    lineBgClass = isPrincess ? 'bg-red-100/40' : 'bg-red-100/30';
-    textClass = isPrincess ? 'text-red-900 font-medium' : 'text-red-900';
-  } else if (line.type === 'header') {
-    lineBgClass = isPrincess ? 'bg-pink-50 text-pink-400' : 'bg-blue-50 text-blue-400';
-    textClass = 'font-bold opacity-80';
+    lineBgClass = isPrincess ? 'bg-rose-50/70' : 'bg-rose-50/50';
+    textClass = 'text-rose-900 font-medium';
+    indicatorColor = 'text-rose-500';
   }
 
+  const oldNum = line.oldLineNumber?.toString() || '';
+  const newNum = line.newLineNumber?.toString() || '';
+
   return (
-    <div className={`${lineBgClass} flex hover:opacity-100 transition-opacity`}>
-      {/* Line Number */}
-      <div className="w-10 shrink-0 select-none text-right pr-3 py-[1px] text-[10px] text-gray-300 border-r border-gray-100 bg-white/30 font-mono">
-        {line.originalIndex + 1}
+    <div className={`${lineBgClass} flex hover:brightness-[0.98] transition-all group border-l-2 ${line.type === 'added' ? 'border-emerald-400' : line.type === 'removed' ? 'border-rose-400' : 'border-transparent'}`}>
+      {/* Line Numbers */}
+      <div className="flex shrink-0 select-none bg-gray-50/80 border-r border-gray-200/50 font-mono text-[10px]">
+        <div className="w-10 text-right pr-2 py-[2px] text-gray-400 opacity-70 group-hover:opacity-100">{oldNum}</div>
+        <div className="w-10 text-right pr-2 py-[2px] text-gray-400 opacity-70 group-hover:opacity-100 border-l border-gray-200/30">{newNum}</div>
       </div>
+
       {/* Code Content */}
-      <div className={`px-3 py-[1px] whitespace-pre-wrap break-all ${textClass} font-mono leading-relaxed w-full`}>
-        {line.type === 'header' ? line.text : highlightCode(line.text, filePath, mode)}
+      <div className={`px-4 py-[2px] whitespace-pre-wrap break-all ${textClass} font-mono leading-relaxed w-full min-w-0 flex items-start`}>
+        <span className={`w-4 shrink-0 select-none font-bold ${indicatorColor}`}>
+          {line.text.charAt(0) === '+' ? '+' : line.text.charAt(0) === '-' ? '-' : ' '}
+        </span>
+        <span className="flex-1">
+          {highlightCode(line.text.slice(1), filePath, mode)}
+        </span>
       </div>
     </div>
   );
@@ -93,92 +103,125 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
   const bgClass = isPrincess ? 'bg-[#fffbfc]' : 'bg-[#f8fbff]';
   const headerBgClass = isPrincess ? 'bg-[#fff0f6]' : 'bg-[#f0f7ff]';
 
-  // State to track which folded sections are expanded
-  const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
+  const [collapsedChunks, setCollapsedChunks] = useState<Set<string>>(new Set());
+  const [expandedAutoFolds, setExpandedAutoFolds] = useState<Set<string>>(new Set());
 
-  // Parse diff into fold-able structure
-  const sections: DiffSection[] = useMemo(() => {
+  useEffect(() => {
+    setCollapsedChunks(new Set());
+    setExpandedAutoFolds(new Set());
+  }, [file?.id]);
+
+  const toggleChunk = useCallback((id: string) => {
+    setCollapsedChunks(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleAutoFold = useCallback((id: string) => {
+    setExpandedAutoFolds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const sections = useMemo(() => {
     if (!file || !file.diffContent) return [];
 
     const rawLines = file.diffContent.split('\n');
     const result: DiffSection[] = [];
-    let currentBuffer: DiffLine[] = [];
-    let unchangedCount = 0;
+
+    let currentOldLine = 0;
+    let currentNewLine = 0;
+    let currentChunkId = '';
+
+    let lineBuffer: DiffLine[] = [];
+
+    const flushBuffer = () => {
+      if (lineBuffer.length === 0 || !currentChunkId) return;
+
+      let subBuffer: DiffLine[] = [];
+      let unchangedCount = 0;
+
+      for (let i = 0; i < lineBuffer.length; i++) {
+        const line = lineBuffer[i];
+        if (line.type === 'context') {
+          unchangedCount++;
+          subBuffer.push(line);
+        } else {
+          if (unchangedCount > FOLD_THRESHOLD) {
+            result.push({ type: 'lines', lines: subBuffer.slice(0, CONTEXT_LINES), chunkId: currentChunkId });
+            const folded = subBuffer.slice(CONTEXT_LINES, -CONTEXT_LINES);
+            const id = `fold-${currentChunkId}-${i}`;
+            result.push({ type: 'folded', lineCount: folded.length, id, lines: folded, chunkId: currentChunkId });
+            result.push({ type: 'lines', lines: subBuffer.slice(-CONTEXT_LINES), chunkId: currentChunkId });
+          } else if (subBuffer.length > 0) {
+            result.push({ type: 'lines', lines: subBuffer, chunkId: currentChunkId });
+          }
+
+          result.push({ type: 'lines', lines: [line], chunkId: currentChunkId });
+          subBuffer = [];
+          unchangedCount = 0;
+        }
+      }
+
+      if (subBuffer.length > 0) {
+        if (unchangedCount > FOLD_THRESHOLD) {
+          result.push({ type: 'lines', lines: subBuffer.slice(0, CONTEXT_LINES), chunkId: currentChunkId });
+          const folded = subBuffer.slice(CONTEXT_LINES);
+          const id = `fold-${currentChunkId}-final`;
+          result.push({ type: 'folded', lineCount: folded.length, id, lines: folded, chunkId: currentChunkId });
+        } else {
+          result.push({ type: 'lines', lines: subBuffer, chunkId: currentChunkId });
+        }
+      }
+
+      lineBuffer = [];
+    };
 
     rawLines.forEach((line, idx) => {
-      let type: DiffLine['type'] = 'context';
-      if (line.startsWith('+')) type = 'added';
-      else if (line.startsWith('-')) type = 'removed';
-      else if (line.startsWith('@@')) type = 'header';
-
-      // Always keep headers visible, flush buffer
-      if (type === 'header') {
-        if (currentBuffer.length > 0) {
-          result.push({ type: 'lines', lines: [...currentBuffer] });
-          currentBuffer = [];
+      if (line.startsWith('@@')) {
+        flushBuffer();
+        const match = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+        if (match) {
+          currentOldLine = parseInt(match[1], 10);
+          currentNewLine = parseInt(match[2], 10);
+          currentChunkId = `chunk-${idx}`;
+          result.push({ type: 'chunk-header', text: line, id: currentChunkId });
         }
-        unchangedCount = 0;
-        result.push({ type: 'lines', lines: [{ text: line, type: 'header', originalIndex: idx }] });
         return;
       }
 
-      if (type === 'context') {
-        unchangedCount++;
-        currentBuffer.push({ text: line, type, originalIndex: idx });
-      } else {
-        // We hit a change. 
-        // If we have a massive buffer of unchanged code, split it.
-        if (unchangedCount > FOLD_THRESHOLD) {
-          if (currentBuffer.length > (CONTEXT_LINES * 2)) {
-            // Push the start context
-            result.push({ type: 'lines', lines: currentBuffer.slice(0, CONTEXT_LINES) });
-
-            // Push the fold
-            const foldedLines = currentBuffer.slice(CONTEXT_LINES, currentBuffer.length - CONTEXT_LINES);
-            const foldedCount = foldedLines.length;
-            const foldKey = currentBuffer[CONTEXT_LINES].originalIndex;
-            result.push({ type: 'folded', lineCount: foldedCount, startLineIndex: foldKey, lines: foldedLines });
-
-            // Push the end context
-            result.push({ type: 'lines', lines: currentBuffer.slice(currentBuffer.length - CONTEXT_LINES) });
-          } else {
-            result.push({ type: 'lines', lines: [...currentBuffer] });
-          }
-        } else {
-          if (currentBuffer.length > 0) {
-            result.push({ type: 'lines', lines: [...currentBuffer] });
-          }
-        }
-        currentBuffer = [];
-        unchangedCount = 0;
-
-        // Push the changed line immediately
-        result.push({ type: 'lines', lines: [{ text: line, type, originalIndex: idx }] });
+      if (line.startsWith('---') || line.startsWith('+++') || line.startsWith('diff') || line.startsWith('index')) {
+        return;
       }
+
+      let type: DiffLine['type'] = 'context';
+      let oldNum: number | undefined;
+      let newNum: number | undefined;
+
+      if (line.startsWith('+')) {
+        type = 'added';
+        newNum = currentNewLine++;
+      } else if (line.startsWith('-')) {
+        type = 'removed';
+        oldNum = currentOldLine++;
+      } else {
+        type = 'context';
+        oldNum = currentOldLine++;
+        newNum = currentNewLine++;
+      }
+
+      lineBuffer.push({ text: line, type, oldLineNumber: oldNum, newLineNumber: newNum });
     });
 
-    // Flush remaining
-    if (currentBuffer.length > 0) {
-      // If trailing context is huge
-      if (currentBuffer.length > FOLD_THRESHOLD && currentBuffer.length > CONTEXT_LINES) {
-        result.push({ type: 'lines', lines: currentBuffer.slice(0, CONTEXT_LINES) });
-        const foldedLines = currentBuffer.slice(CONTEXT_LINES);
-        const foldKey = currentBuffer[CONTEXT_LINES].originalIndex;
-        result.push({ type: 'folded', lineCount: foldedLines.length, startLineIndex: foldKey, lines: foldedLines });
-      } else {
-        result.push({ type: 'lines', lines: currentBuffer });
-      }
-    }
-
+    flushBuffer();
     return result;
   }, [file]);
-
-  const toggleFold = (key: number) => {
-    const newSet = new Set(expandedSections);
-    if (newSet.has(key)) newSet.delete(key);
-    else newSet.add(key);
-    setExpandedSections(newSet);
-  };
 
   if (!file) {
     return (
@@ -187,17 +230,15 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-50">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
-            <line x1="16" y1="13" x2="8" y2="13"></line>
-            <line x1="16" y1="17" x2="8" y2="17"></line>
-            <polyline points="10 9 9 9 8 9"></polyline>
+            <circle cx="12" cy="14" r="3"></circle>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
           </svg>
         </div>
-        <p className="font-chewy text-lg tracking-wide opacity-60">Select a file to inspect</p>
+        <p className="font-chewy text-lg tracking-wide opacity-60 text-center px-10">Select a file to witness the magical transformations</p>
       </div>
     );
   }
 
-  // Route to specialized preview for non-text files
   if (isImageFile(file.path)) {
     return <ImagePreview filePath={file.path} fileStatus={file.status} mode={mode} />;
   }
@@ -207,82 +248,87 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
   }
 
   return (
-    <div className={`flex flex-col h-full ${bgClass} font-mono text-xs md:text-sm transition-colors duration-300 relative`}>
-      <div className={`p-3 border-b border-gray-200/80 ${headerBgClass} flex items-center justify-between sticky top-0 z-10 shadow-sm backdrop-blur-sm bg-opacity-90`}>
-        <div className="flex items-center space-x-2 overflow-hidden">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 shrink-0">
-            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-            <polyline points="13 2 13 9 20 9"></polyline>
-          </svg>
-          <span className="font-semibold text-gray-700 truncate">{file.path}</span>
+    <div className={`flex flex-col h-full ${bgClass} font-mono text-xs transition-colors duration-300 relative overflow-hidden`}>
+      {/* Top Header */}
+      <div className={`px-4 py-3 border-b border-black/10 ${headerBgClass} flex items-center justify-between sticky top-0 z-20 backdrop-blur-md bg-opacity-90 shadow-md`}>
+        <div className="flex items-center space-x-3 overflow-hidden">
+          <div className={`p-1.5 rounded-lg ${isPrincess ? 'bg-pink-200 text-pink-700' : 'bg-blue-200 text-blue-700'}`}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+          </div>
+          <span className="font-bold text-gray-900 tracking-tight truncate">{file.path}</span>
         </div>
-        <div className="flex space-x-3 text-xs font-medium shrink-0">
-          <span className="text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-100">+{file.linesAdded} lines</span>
-          <span className="text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100">-{file.linesRemoved} lines</span>
+        <div className="flex space-x-2 shrink-0">
+          <div className="flex items-center px-2 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-[10px] font-bold text-emerald-800 shadow-sm">
+            <span className="mr-1 opacity-70">+</span>{file.linesAdded}
+          </div>
+          <div className="flex items-center px-2 py-0.5 rounded-full bg-rose-100 border border-rose-300 text-[10px] font-bold text-rose-800 shadow-sm">
+            <span className="mr-1 opacity-70">-</span>{file.linesRemoved}
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-0 pb-10">
-        <div className="min-h-full">
-          {sections.map((section, idx) => {
-            if (section.type === 'folded') {
-              const isExpanded = expandedSections.has(section.startLineIndex);
-
-              if (isExpanded) {
+      <div className="flex-1 overflow-auto bg-white/40 custom-scrollbar">
+        <div className="flex flex-col min-w-max min-h-full pb-32">
+          {sections.map((section, index) => {
+            switch (section.type) {
+              case 'chunk-header': {
+                const isCollapsed = collapsedChunks.has(section.id);
                 return (
-                  <React.Fragment key={`fold-${idx}`}>
-                    <div className={`${isPrincess ? 'bg-pink-50/30' : 'bg-blue-50/30'} py-1 px-4 border-y ${isPrincess ? 'border-pink-100' : 'border-blue-100'} text-center text-gray-400 text-xs flex justify-center items-center`}>
-                      <button
-                        onClick={() => toggleFold(section.startLineIndex)}
-                        className={`${isPrincess ? 'text-pink-500 hover:text-pink-600' : 'text-blue-500 hover:text-blue-600'} hover:underline flex items-center gap-1 transition-colors`}
-                      >
-                        Collapse {section.lineCount} lines
-                      </button>
-                    </div>
-                    {section.lines.map((line, lineIdx) => {
-                      const uniqueKey = `${idx}-${lineIdx}-${line.originalIndex}`;
-                      return <DiffLineItem key={uniqueKey} line={line} isPrincess={isPrincess} filePath={file.path} mode={mode} />;
-                    })}
-                    <div className={`${isPrincess ? 'bg-pink-50/20' : 'bg-blue-50/20'} py-1 px-4 border-t ${isPrincess ? 'border-pink-50' : 'border-blue-50'} text-center text-gray-400 text-xs flex justify-center items-center`}>
-                      <button
-                        onClick={() => toggleFold(section.startLineIndex)}
-                        className={`${isPrincess ? 'text-pink-400 hover:text-pink-500' : 'text-blue-400 hover:text-blue-500'} hover:underline flex items-center gap-1 transition-colors`}
-                      >
-                        Collapse section
-                      </button>
-                    </div>
-                  </React.Fragment>
+                  <div
+                    key={section.id}
+                    onClick={() => toggleChunk(section.id)}
+                    className={`
+                      flex items-center px-4 py-2 cursor-pointer select-none transition-all
+                      ${isPrincess ? 'bg-pink-50/80 hover:bg-pink-100 text-pink-800' : 'bg-blue-50/80 hover:bg-blue-100 text-blue-800'}
+                      border-y border-black/10 font-mono text-[10px] font-bold
+                    `}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={`mr-3 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}>
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                    <span className="opacity-80 font-mono mr-2">@@</span>
+                    <span className="truncate">{section.text.replace('@@ ', '').replace(' @@', '')}</span>
+                    {isCollapsed && <span className="ml-auto bg-white/40 px-2 py-0.5 rounded text-[8px] uppercase tracking-widest text-gray-500">Collapsed</span>}
+                  </div>
                 );
               }
-
-              return (
-                <button
-                  type="button"
-                  key={`fold-${idx}`}
-                  className={`w-full group relative h-8 ${isPrincess ? 'bg-pink-50/50' : 'bg-blue-50/50'} border-y ${isPrincess ? 'border-pink-100' : 'border-blue-100'} flex items-center justify-center cursor-pointer hover:bg-opacity-100 transition-colors focus:outline-none focus:ring-2 focus:ring-inset ${isPrincess ? 'focus:ring-pink-400' : 'focus:ring-blue-400'}`}
-                  onClick={() => toggleFold(section.startLineIndex)}
-                  aria-label={`Expand ${section.lineCount} lines of context`}
-                >
-                  <div className={`absolute left-0 w-1 h-full ${isPrincess ? 'bg-pink-300' : 'bg-blue-300'} opacity-0 group-hover:opacity-100 transition-opacity`} />
-                  <div className="flex items-center space-x-2 text-xs opacity-60 group-hover:opacity-100 transition-opacity select-none">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="17 11 12 6 7 11"></polyline>
-                      <polyline points="17 18 12 13 7 18"></polyline>
-                    </svg>
-                    <span>Expand {section.lineCount} lines of context</span>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="7 13 12 18 17 13"></polyline>
-                      <polyline points="7 6 12 11 17 6"></polyline>
-                    </svg>
+              case 'lines': {
+                if (collapsedChunks.has(section.chunkId)) return null;
+                return section.lines.map((line, lidx) => (
+                  <DiffLineItem key={`L-${index}-${lidx}`} line={line} isPrincess={isPrincess} filePath={file.path} mode={mode} />
+                ));
+              }
+              case 'folded': {
+                const isExpanded = expandedAutoFolds.has(section.id);
+                if (collapsedChunks.has(section.chunkId)) return null;
+                if (isExpanded) {
+                  return (
+                    <div key={section.id} className="relative">
+                      <div onClick={() => toggleAutoFold(section.id)} className="bg-gray-100/80 hover:bg-gray-200 flex items-center justify-center py-2 text-[10px] text-gray-500 cursor-pointer border-y border-gray-200 transition-colors uppercase tracking-widest font-bold">
+                        Hide context
+                      </div>
+                      {section.lines.map((line, lidx) => (
+                        <DiffLineItem key={`F-${section.id}-${lidx}`} line={line} isPrincess={isPrincess} filePath={file.path} mode={mode} />
+                      ))}
+                    </div>
+                  );
+                }
+                return (
+                  <div key={section.id} onClick={() => toggleAutoFold(section.id)} className={`w-full py-3 flex items-center justify-center cursor-pointer group transition-all ${isPrincess ? 'bg-pink-50/40 hover:bg-pink-100/60' : 'bg-blue-50/40 hover:bg-blue-100/60'} border-y border-black/5`}>
+                    <div className="flex items-center space-x-3 text-[10px] text-gray-500 group-hover:text-gray-800 transition-colors font-bold uppercase tracking-wider">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="m3 16 4 4 4-4" /><path d="m7 20V4" /><path d="m21 8-4-4-4 4" /><path d="m17 4v16" />
+                      </svg>
+                      <span>Expand {section.lineCount} hidden lines</span>
+                    </div>
                   </div>
-                </button>
-              );
+                );
+              }
+              default: return null;
             }
-
-            return section.lines.map((line, lineIdx) => {
-              const uniqueKey = `${idx}-${lineIdx}-${line.originalIndex}`;
-              return <DiffLineItem key={uniqueKey} line={line} isPrincess={isPrincess} filePath={file.path} mode={mode} />;
-            });
           })}
         </div>
       </div>

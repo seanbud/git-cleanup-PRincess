@@ -11,13 +11,13 @@ export function highlightCode(code: string, filePath: string, mode: ThemeMode): 
 
     // Define color palettes
     const colors = {
-        keyword: isPrincess ? 'text-pink-600 font-bold' : 'text-blue-400 font-bold',
-        string: isPrincess ? 'text-purple-500' : 'text-cyan-400',
+        keyword: isPrincess ? 'text-pink-600 font-bold' : 'text-blue-500 font-bold',
+        string: isPrincess ? 'text-purple-600' : 'text-cyan-600',
         comment: isPrincess ? 'text-gray-400 italic' : 'text-slate-500 italic',
-        number: isPrincess ? 'text-orange-500' : 'text-amber-400',
-        type: isPrincess ? 'text-rose-500' : 'text-indigo-400',
-        function: isPrincess ? 'text-pink-700' : 'text-blue-300',
-        key: isPrincess ? 'text-pink-800 font-semibold' : 'text-slate-300 font-semibold',
+        number: isPrincess ? 'text-orange-600' : 'text-amber-600',
+        type: isPrincess ? 'text-rose-600' : 'text-indigo-600',
+        function: isPrincess ? 'text-pink-800 font-semibold' : 'text-blue-700 font-semibold',
+        key: isPrincess ? 'text-pink-900 font-bold' : 'text-slate-800 font-bold',
     };
 
     // Skip if we don't recognize the extension or it's empty
