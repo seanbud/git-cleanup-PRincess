@@ -20,6 +20,10 @@ const BINARY_EXTENSIONS = new Set([
   '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.psd', '.ai',
 ]);
 
+// Folding configuration
+const FOLD_THRESHOLD = 12; // If more than 12 lines unchanged, fold them
+const CONTEXT_LINES = 4;    // Number of lines to keep visible around a fold
+
 function getFileExtension(filePath: string): string {
   const dot = filePath.lastIndexOf('.');
   return dot >= 0 ? filePath.substring(dot).toLowerCase() : '';
@@ -53,7 +57,7 @@ interface DiffLineItemProps {
   mode: ThemeMode;
 }
 
-const DiffLineItem: React.FC<DiffLineItemProps> = ({ line, isPrincess, filePath, mode }) => {
+const DiffLineItem = React.memo<DiffLineItemProps>(({ line, isPrincess, filePath, mode }) => {
   let lineBgClass = '';
   let textClass = 'text-gray-600';
 
@@ -80,7 +84,9 @@ const DiffLineItem: React.FC<DiffLineItemProps> = ({ line, isPrincess, filePath,
       </div>
     </div>
   );
-};
+});
+
+DiffLineItem.displayName = 'DiffLineItem';
 
 const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
   const isPrincess = mode === ThemeMode.PRINCESS;
@@ -98,7 +104,6 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
     const result: DiffSection[] = [];
     let currentBuffer: DiffLine[] = [];
     let unchangedCount = 0;
-    const FOLD_THRESHOLD = 12; // If more than 12 lines unchanged, fold them
 
     rawLines.forEach((line, idx) => {
       let type: DiffLine['type'] = 'context';
@@ -123,30 +128,19 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
       } else {
         // We hit a change. 
         // If we have a massive buffer of unchanged code, split it.
-        // We want to keep ~3 lines of context before the change.
         if (unchangedCount > FOLD_THRESHOLD) {
-          // We have [Context... (Big Gap) ... Context]
-          // However, since we iterate linearly, `currentBuffer` currently holds 
-          // [Line 1 ... Line N]. 
-          // We want to keep first 3 lines (after previous change) and last 3 lines (before current change).
-          // BUT logic is simpler: If buffer > threshold, fold the MIDDLE.
-
-          const keepStart = 4;
-          const keepEnd = 4;
-
-          if (currentBuffer.length > (keepStart + keepEnd)) {
+          if (currentBuffer.length > (CONTEXT_LINES * 2)) {
             // Push the start context
-            result.push({ type: 'lines', lines: currentBuffer.slice(0, keepStart) });
+            result.push({ type: 'lines', lines: currentBuffer.slice(0, CONTEXT_LINES) });
 
             // Push the fold
-            const foldedCount = currentBuffer.length - keepStart - keepEnd;
-            // Use the index of the first folded line as the key
-            const foldKey = currentBuffer[keepStart].originalIndex;
-            const foldedLines = currentBuffer.slice(keepStart, currentBuffer.length - keepEnd);
+            const foldedLines = currentBuffer.slice(CONTEXT_LINES, currentBuffer.length - CONTEXT_LINES);
+            const foldedCount = foldedLines.length;
+            const foldKey = currentBuffer[CONTEXT_LINES].originalIndex;
             result.push({ type: 'folded', lineCount: foldedCount, startLineIndex: foldKey, lines: foldedLines });
 
             // Push the end context
-            result.push({ type: 'lines', lines: currentBuffer.slice(currentBuffer.length - keepEnd) });
+            result.push({ type: 'lines', lines: currentBuffer.slice(currentBuffer.length - CONTEXT_LINES) });
           } else {
             result.push({ type: 'lines', lines: [...currentBuffer] });
           }
@@ -166,12 +160,11 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
     // Flush remaining
     if (currentBuffer.length > 0) {
       // If trailing context is huge
-      if (currentBuffer.length > FOLD_THRESHOLD) {
-        const keepStart = 4;
-        result.push({ type: 'lines', lines: currentBuffer.slice(0, keepStart) });
-        const foldKey = currentBuffer[keepStart].originalIndex;
-        const foldedLines = currentBuffer.slice(keepStart);
-        result.push({ type: 'folded', lineCount: currentBuffer.length - keepStart, startLineIndex: foldKey, lines: foldedLines });
+      if (currentBuffer.length > FOLD_THRESHOLD && currentBuffer.length > CONTEXT_LINES) {
+        result.push({ type: 'lines', lines: currentBuffer.slice(0, CONTEXT_LINES) });
+        const foldedLines = currentBuffer.slice(CONTEXT_LINES);
+        const foldKey = currentBuffer[CONTEXT_LINES].originalIndex;
+        result.push({ type: 'folded', lineCount: foldedLines.length, startLineIndex: foldKey, lines: foldedLines });
       } else {
         result.push({ type: 'lines', lines: currentBuffer });
       }
@@ -237,11 +230,11 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
 
               if (isExpanded) {
                 return (
-                  <div key={`fold-${idx}`}>
-                    <div className="bg-gray-100/50 py-1 px-4 border-y border-gray-200 text-center text-gray-400 text-xs flex justify-center items-center">
+                  <React.Fragment key={`fold-${idx}`}>
+                    <div className={`${isPrincess ? 'bg-pink-50/30' : 'bg-blue-50/30'} py-1 px-4 border-y ${isPrincess ? 'border-pink-100' : 'border-blue-100'} text-center text-gray-400 text-xs flex justify-center items-center`}>
                       <button
                         onClick={() => toggleFold(section.startLineIndex)}
-                        className="text-blue-500 hover:underline flex items-center gap-1"
+                        className={`${isPrincess ? 'text-pink-500 hover:text-pink-600' : 'text-blue-500 hover:text-blue-600'} hover:underline flex items-center gap-1 transition-colors`}
                       >
                         Collapse {section.lineCount} lines
                       </button>
@@ -250,7 +243,15 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
                       const uniqueKey = `${idx}-${lineIdx}-${line.originalIndex}`;
                       return <DiffLineItem key={uniqueKey} line={line} isPrincess={isPrincess} filePath={file.path} mode={mode} />;
                     })}
-                  </div>
+                    <div className={`${isPrincess ? 'bg-pink-50/20' : 'bg-blue-50/20'} py-1 px-4 border-t ${isPrincess ? 'border-pink-50' : 'border-blue-50'} text-center text-gray-400 text-xs flex justify-center items-center`}>
+                      <button
+                        onClick={() => toggleFold(section.startLineIndex)}
+                        className={`${isPrincess ? 'text-pink-400 hover:text-pink-500' : 'text-blue-400 hover:text-blue-500'} hover:underline flex items-center gap-1 transition-colors`}
+                      >
+                        Collapse section
+                      </button>
+                    </div>
+                  </React.Fragment>
                 );
               }
 
@@ -258,7 +259,7 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
                 <button
                   type="button"
                   key={`fold-${idx}`}
-                  className={`w-full group relative h-8 ${isPrincess ? 'bg-pink-50/50' : 'bg-blue-50/50'} border-y ${isPrincess ? 'border-pink-100' : 'border-blue-100'} flex items-center justify-center cursor-pointer hover:bg-opacity-100 transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400`}
+                  className={`w-full group relative h-8 ${isPrincess ? 'bg-pink-50/50' : 'bg-blue-50/50'} border-y ${isPrincess ? 'border-pink-100' : 'border-blue-100'} flex items-center justify-center cursor-pointer hover:bg-opacity-100 transition-colors focus:outline-none focus:ring-2 focus:ring-inset ${isPrincess ? 'focus:ring-pink-400' : 'focus:ring-blue-400'}`}
                   onClick={() => toggleFold(section.startLineIndex)}
                   aria-label={`Expand ${section.lineCount} lines of context`}
                 >
