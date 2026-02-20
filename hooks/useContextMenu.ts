@@ -47,8 +47,7 @@ export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges, 
             items.push({
                 label: 'Open with External Editor',
                 action: () => {
-                    // @ts-ignore
-                    window.electronAPI.gitCmd(`${appSettings.externalEditor || 'code'} "${payload.path}"`);
+                    window.electronAPI.openEditor(payload.path);
                 }
             });
             items.push({
@@ -92,10 +91,7 @@ export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges, 
             items.push({
                 label: 'Open in Terminal',
                 action: () => {
-                    const shellCmd = appSettings.shell || 'powershell';
-                    const fullCmd = shellCmd === 'powershell' ? 'start powershell' : (shellCmd === 'cmd' ? 'start cmd' : shellCmd);
-                    // @ts-ignore
-                    window.electronAPI.gitCmd(fullCmd);
+                    window.electronAPI.openTerminal();
                 }
             });
         } else if (type === 'BRANCH') {

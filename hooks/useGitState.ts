@@ -104,7 +104,6 @@ export function useGitState(): UseGitStateReturn {
 
     const loadRecentRepos = useCallback(async () => {
         try {
-            // @ts-ignore
             const repos = await window.electronAPI.getRecentRepos();
             setRecentRepos(repos || []);
         } catch { }
@@ -163,7 +162,6 @@ export function useGitState(): UseGitStateReturn {
     }, []);
 
     const handleChangeRepo = useCallback(async (repoPath: string) => {
-        // @ts-ignore
         const result = await window.electronAPI.switchRepo(repoPath);
         if (result.success) {
             setComparisonBranch(''); // Reset for new repo
@@ -173,9 +171,8 @@ export function useGitState(): UseGitStateReturn {
     }, [refreshGitState, loadRecentRepos]);
 
     const handleOpenRepo = useCallback(async () => {
-        // @ts-ignore
         const result = await window.electronAPI.openDirectory();
-        if (result && !result.error) {
+        if (result && !('error' in result) && result !== null) {
             await refreshGitState();
             await loadRecentRepos();
         }
@@ -184,7 +181,6 @@ export function useGitState(): UseGitStateReturn {
     const handleOpenGithub = useCallback(async () => {
         const url = await GitService.getRemoteUrl();
         if (url) {
-            // @ts-ignore
             window.electronAPI.openExternal(url);
         }
     }, []);

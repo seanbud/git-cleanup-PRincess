@@ -78,7 +78,6 @@ const SignInModal: React.FC<SignInModalProps> = ({ isOpen, mode, onSuccess }) =>
                 launchConfetti(isPrincess);
 
                 // Now fetch user info
-                // @ts-ignore
                 const user = await window.electronAPI.githubGetUser(token);
                 onSuccess(user);
             }

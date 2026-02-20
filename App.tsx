@@ -109,10 +109,8 @@ const App: React.FC = () => {
   // ─── Auth Init ─────────────────────────────────────────────────
   useEffect(() => {
     const initAuth = async () => {
-      // @ts-ignore
       const isAuthenticated = await window.electronAPI.githubIsAuthenticated();
       if (isAuthenticated) {
-        // @ts-ignore
         const user = await window.electronAPI.githubGetUser();
         git.setGithubUser(user);
       } else {
@@ -132,7 +130,6 @@ const App: React.FC = () => {
       ? { color: '#fff0f6', symbolColor: '#742a2a' }
       : { color: '#eef5ff', symbolColor: '#1e293b' };
 
-    // @ts-ignore
     window.electronAPI.setTitleBarOverlay?.(overlayOptions);
   };
 
@@ -375,7 +372,6 @@ const App: React.FC = () => {
           }
         }}
         onSignOut={async () => {
-          // @ts-ignore
           await window.electronAPI.githubSignOut();
           git.setGithubUser(null);
           setIsSignInOpen(true);
