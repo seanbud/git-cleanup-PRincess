@@ -232,7 +232,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
 
     const SvgFilters = () => (
         <defs>
-            <filter id="lineShadow" x="-50%" y="-50%" width="200%" height="200%">
+            <filter id="lineShadow" filterUnits="userSpaceOnUse" x="-50%" y="-50%" width="200%" height="200%">
                 <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
                 <feOffset dx="0" dy="4" result="offsetblur" />
                 <feComponentTransfer><feFuncA type="linear" slope="0.4" /></feComponentTransfer>
