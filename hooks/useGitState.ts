@@ -33,7 +33,7 @@ export interface UseGitStateReturn {
     handleNewBranch: () => Promise<void>;
     handleAction: (actionType: 'RESTORE' | 'REMOVE', setCharacterState: (state: CharacterState) => void) => Promise<void>;
     handleFileSelect: (file: GitFile) => Promise<void>;
-    handleSelectionChange: (newSet: Set<string>) => void;
+    handleSelectionChange: (updater: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
 }
 
 export function useGitState(): UseGitStateReturn {
@@ -104,7 +104,6 @@ export function useGitState(): UseGitStateReturn {
 
     const loadRecentRepos = useCallback(async () => {
         try {
-            // @ts-ignore
             const repos = await window.electronAPI.getRecentRepos();
             setRecentRepos(repos || []);
         } catch { }
@@ -163,7 +162,6 @@ export function useGitState(): UseGitStateReturn {
     }, []);
 
     const handleChangeRepo = useCallback(async (repoPath: string) => {
-        // @ts-ignore
         const result = await window.electronAPI.switchRepo(repoPath);
         if (result.success) {
             setComparisonBranch(''); // Reset for new repo
@@ -173,7 +171,6 @@ export function useGitState(): UseGitStateReturn {
     }, [refreshGitState, loadRecentRepos]);
 
     const handleOpenRepo = useCallback(async () => {
-        // @ts-ignore
         const result = await window.electronAPI.openDirectory();
         if (result && !result.error) {
             await refreshGitState();
@@ -184,7 +181,6 @@ export function useGitState(): UseGitStateReturn {
     const handleOpenGithub = useCallback(async () => {
         const url = await GitService.getRemoteUrl();
         if (url) {
-            // @ts-ignore
             window.electronAPI.openExternal(url);
         }
     }, []);
@@ -236,30 +232,39 @@ export function useGitState(): UseGitStateReturn {
         }
     }, [gitState.files, gitState.selectedFileIds, refreshGitState]);
 
-    const handleFileSelect = useCallback(async (file: GitFile) => {
-        const newSet = new Set<string>();
-        newSet.add(file.id);
-        setGitState(prev => ({ ...prev, selectedFileIds: newSet }));
+    const handleFileSelect = useCallback((file: GitFile) => {
+        setGitState(prev => {
+            const newSet = new Set<string>();
+            newSet.add(file.id);
+            return { ...prev, selectedFileIds: newSet };
+        });
+    }, []);
 
-        const diff = await GitService.getDiff(file.path, comparisonBranch);
-        setSelectedDiff(diff);
-    }, [comparisonBranch]);
+    const handleSelectionChange = useCallback((updater: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+        setGitState(prev => ({
+            ...prev,
+            selectedFileIds: typeof updater === 'function' ? updater(prev.selectedFileIds) : updater
+        }));
+    }, []);
 
-    const handleSelectionChange = useCallback(async (newSet: Set<string>) => {
-        setGitState(prev => ({ ...prev, selectedFileIds: newSet }));
-
-        // Automatically fetch diff when exactly one file is selected
-        if (newSet.size === 1) {
-            const id = Array.from(newSet)[0];
-            const file = filesRef.current.find(f => f.id === id);
-            if (file) {
-                const diff = await GitService.getDiff(file.path, comparisonBranch);
-                setSelectedDiff(diff);
+    // Automatically fetch diff when selection changes to exactly one file
+    useEffect(() => {
+        let isMounted = true;
+        const fetchDiff = async () => {
+            if (gitState.selectedFileIds.size === 1) {
+                const id = Array.from(gitState.selectedFileIds)[0];
+                const file = gitState.files.find(f => f.id === id);
+                if (file) {
+                    const diff = await GitService.getDiff(file.path, comparisonBranch);
+                    if (isMounted) setSelectedDiff(diff);
+                }
+            } else if (gitState.selectedFileIds.size === 0) {
+                if (isMounted) setSelectedDiff('');
             }
-        } else if (newSet.size === 0) {
-            setSelectedDiff('');
-        }
-    }, [comparisonBranch]);
+        };
+        fetchDiff();
+        return () => { isMounted = false; };
+    }, [gitState.selectedFileIds, comparisonBranch, gitState.files]);
 
     return {
         gitState,

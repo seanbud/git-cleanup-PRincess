@@ -47,16 +47,13 @@ export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges, 
             items.push({
                 label: 'Open with External Editor',
                 action: () => {
-                    // @ts-ignore
-                    window.electronAPI.gitCmd(`${appSettings.externalEditor || 'code'} "${payload.path}"`);
+                    window.electronAPI.openEditor(payload.path, appSettings.externalEditor || 'code');
                 }
             });
             items.push({
                 label: 'Open in File Explorer',
                 action: async () => {
-                    // @ts-ignore
                     const cwd = await window.electronAPI.getCwd();
-                    // @ts-ignore
                     window.electronAPI.showItemInFolder(`${cwd}/${payload.path}`);
                 }
             });
@@ -69,7 +66,6 @@ export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges, 
             items.push({
                 label: 'Copy Absolute Path',
                 action: async () => {
-                    // @ts-ignore
                     const cwd = await window.electronAPI.getCwd();
                     navigator.clipboard.writeText(`${cwd}/${payload.path}`);
                 }
@@ -78,9 +74,7 @@ export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges, 
             items.push({
                 label: 'Open in File Explorer',
                 action: async () => {
-                    // @ts-ignore
                     const cwd = await window.electronAPI.getCwd();
-                    // @ts-ignore
                     window.electronAPI.openDirectoryPath(cwd);
                 }
             });
@@ -93,9 +87,7 @@ export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges, 
                 label: 'Open in Terminal',
                 action: () => {
                     const shellCmd = appSettings.shell || 'powershell';
-                    const fullCmd = shellCmd === 'powershell' ? 'start powershell' : (shellCmd === 'cmd' ? 'start cmd' : shellCmd);
-                    // @ts-ignore
-                    window.electronAPI.gitCmd(fullCmd);
+                    window.electronAPI.openTerminal(shellCmd);
                 }
             });
         } else if (type === 'BRANCH') {

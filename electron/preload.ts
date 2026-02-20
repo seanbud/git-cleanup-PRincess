@@ -5,13 +5,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.on(channel, (_, data) => callback(data));
     },
     // GitHub Auth
-    githubStartAuth: (clientId: string) => ipcRenderer.invoke('github:start-auth', clientId),
-    githubPollToken: (clientId: string, deviceCode: string) => ipcRenderer.invoke('github:poll-token', clientId, deviceCode),
+    githubStartAuth: () => ipcRenderer.invoke('github:start-auth'),
+    githubPollToken: (deviceCode: string) => ipcRenderer.invoke('github:poll-token', deviceCode),
     githubGetUser: (token?: string) => ipcRenderer.invoke('github:get-user', token),
     githubIsAuthenticated: () => ipcRenderer.invoke('github:is-authenticated'),
     githubSignOut: () => ipcRenderer.invoke('github:sign-out'),
     // Git CLI
-    gitCmd: (cmd: string) => ipcRenderer.invoke('git:cmd', cmd),
+    gitCmd: (args: string[]) => ipcRenderer.invoke('git:cmd', args),
     gitConfigGet: (key: string) => ipcRenderer.invoke('git:config-get', key),
     // Repository Management
     openDirectory: () => ipcRenderer.invoke('dialog:open-directory'),
@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
     showItemInFolder: (path: string) => ipcRenderer.invoke('shell:open-path', path),
     openDirectoryPath: (path: string) => ipcRenderer.invoke('shell:open-directory', path),
+    openEditor: (path: string, editor: string) => ipcRenderer.invoke('shell:open-editor', path, editor),
+    openTerminal: (shell: string) => ipcRenderer.invoke('shell:open-terminal', shell),
     trashFile: (path: string) => ipcRenderer.invoke('shell:trash-item', path),
     getCwd: () => ipcRenderer.invoke('app:get-cwd'),
     // File Preview

@@ -1,7 +1,8 @@
 import { app, BrowserWindow, shell, ipcMain, safeStorage, dialog, Menu } from 'electron';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { execSync } from 'child_process';
+import { execFile, execFileSync } from 'child_process';
+import { promisify } from 'node:util';
 import fs from 'fs';
 import { autoUpdater } from 'electron-updater';
 const __filename = fileURLToPath(import.meta.url);
@@ -9,6 +10,8 @@ const __dirname = path.dirname(__filename);
 
 let win: BrowserWindow | null;
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
+
+const GITHUB_CLIENT_ID = 'Ov23lil6obiLhsHkt1R2';
 
 const TOKEN_PATH = path.join(app.getPath('userData'), 'github-token.bin');
 const RECENT_REPOS_PATH = path.join(app.getPath('userData'), 'recent-repos.json');
@@ -20,7 +23,7 @@ let currentCwd = process.cwd();
 function initializeCwd() {
     try {
         // 1. Try launch directory
-        const gitRoot = execSync('git rev-parse --show-toplevel', {
+        const gitRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], {
             encoding: 'utf-8',
             cwd: process.cwd(),
             stdio: ['pipe', 'pipe', 'pipe']
@@ -37,7 +40,7 @@ function initializeCwd() {
         if (recent.length > 0) {
             const lastRepo = recent[0];
             // Verify it still exists and is a repo
-            execSync('git rev-parse --is-inside-work-tree', {
+            execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
                 cwd: lastRepo,
                 encoding: 'utf-8',
                 stdio: ['pipe', 'pipe', 'pipe']
@@ -254,21 +257,21 @@ app.whenReady().then(() => {
     }
 
     // ─── GitHub Auth IPC ──────────────────────────────────────────
-    ipcMain.handle('github:start-auth', async (_, clientId) => {
+    ipcMain.handle('github:start-auth', async () => {
         const response = await fetch('https://github.com/login/device/code', {
             method: 'POST',
             headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ client_id: clientId, scope: 'repo,user' })
+            body: JSON.stringify({ client_id: GITHUB_CLIENT_ID, scope: 'repo,user' })
         });
         return response.json();
     });
 
-    ipcMain.handle('github:poll-token', async (_, clientId, deviceCode) => {
+    ipcMain.handle('github:poll-token', async (_, deviceCode) => {
         const response = await fetch('https://github.com/login/oauth/access_token', {
             method: 'POST',
             headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                client_id: clientId,
+                client_id: GITHUB_CLIENT_ID,
                 device_code: deviceCode,
                 grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
             })
@@ -299,27 +302,31 @@ app.whenReady().then(() => {
     });
 
     // ─── Git CLI IPC ──────────────────────────────────────────────
-    ipcMain.handle('git:cmd', async (_, cmd) => {
+    ipcMain.handle('git:cmd', async (_, args: string[]) => {
         try {
-            const output = execSync(cmd, {
+            const { stdout } = await promisify(execFile)('git', args, {
                 encoding: 'utf-8',
                 cwd: currentCwd,
                 timeout: 15000,
-                stdio: ['pipe', 'pipe', 'pipe'] // Suppress stderr from leaking to console
+                maxBuffer: 10 * 1024 * 1024,
             });
-            return { stdout: output, success: true };
+            return { stdout, success: true };
         } catch (error: any) {
-            return { stderr: error.stderr || error.message, stdout: error.stdout || '', success: false };
+            return {
+                stderr: error.stderr || error.message,
+                stdout: error.stdout || '',
+                success: false
+            };
         }
     });
 
     ipcMain.handle('git:config-get', async (_, key) => {
         try {
-            return execSync(`git config --get ${key}`, {
+            const { stdout } = await promisify(execFile)('git', ['config', '--get', key], {
                 encoding: 'utf-8',
                 cwd: currentCwd,
-                stdio: ['pipe', 'pipe', 'pipe']
-            }).trim();
+            });
+            return stdout.trim();
         } catch {
             return '';
         }
@@ -338,7 +345,7 @@ app.whenReady().then(() => {
 
         // Verify it's a git repo
         try {
-            execSync('git rev-parse --is-inside-work-tree', {
+            execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
                 cwd: selectedDir,
                 encoding: 'utf-8',
                 stdio: ['pipe', 'pipe', 'pipe']
@@ -362,7 +369,7 @@ app.whenReady().then(() => {
 
     ipcMain.handle('repos:switch', (_, repoPath: string) => {
         try {
-            execSync('git rev-parse --is-inside-work-tree', {
+            execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
                 cwd: repoPath,
                 encoding: 'utf-8',
                 stdio: ['pipe', 'pipe', 'pipe']
@@ -385,6 +392,38 @@ app.whenReady().then(() => {
 
     ipcMain.handle('shell:open-directory', (_, dirPath: string) => {
         shell.openPath(dirPath);
+    });
+
+    ipcMain.handle('shell:open-editor', async (_, filePath: string, editor: string) => {
+        try {
+            const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
+            // editor is a command like 'code', 'subl', etc.
+            await promisify(execFile)(editor, [fullPath], {
+                cwd: currentCwd,
+            });
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('shell:open-terminal', async (_, shellCmd: string) => {
+        try {
+            if (process.platform === 'win32') {
+                const cmd = shellCmd === 'powershell' ? 'powershell' : 'cmd';
+                // Use spawn to launch a detached terminal window
+                const { spawn } = await import('child_process');
+                spawn('start', [cmd], { shell: true, detached: true, cwd: currentCwd });
+            } else if (process.platform === 'darwin') {
+                await promisify(execFile)('open', ['-a', 'Terminal', currentCwd]);
+            } else {
+                // Linux fallback
+                await promisify(execFile)('x-terminal-emulator', [], { cwd: currentCwd });
+            }
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
     });
 
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
@@ -419,13 +458,12 @@ app.whenReady().then(() => {
     });
 
     // File Preview: read file from git HEAD as base64 data URI
-    ipcMain.handle('git:show-file-base64', (_, relativePath: string) => {
+    ipcMain.handle('git:show-file-base64', async (_, relativePath: string) => {
         try {
-            const result = execSync(`git show HEAD:"${relativePath}"`, {
+            const { stdout: result } = await promisify(execFile)('git', ['show', `HEAD:${relativePath}`], {
                 cwd: currentCwd,
                 encoding: 'buffer',
                 maxBuffer: 10 * 1024 * 1024,
-                stdio: ['pipe', 'pipe', 'pipe']
             });
             const ext = path.extname(relativePath).toLowerCase();
             const mimeMap: Record<string, string> = {
