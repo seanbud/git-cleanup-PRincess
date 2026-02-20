@@ -24,26 +24,22 @@ Git Cleanup PRincess is a lightweight desktop utility designed to handle the "me
 - Real-time Git status tracking with line-level statistics.
 - Seamless GitHub authentication and repository management.
 
+
 ## ⬇️ Download
 
 Git Cleanup PRincess is free and available for Windows, macOS, and Linux.
 
-### 🪟 Windows
-[Download .exe installer](https://github.com/seanbud/git-cleanup-PRincess/releases/download/v1.2.1/Git-Cleanup-PRincess-Setup-1.2.1.exe)
-*Standard installer for Windows users.*
-
-### 🍎 macOS
-[Download .dmg](https://github.com/seanbud/git-cleanup-PRincess/releases/download/v1.2.1/Git-Cleanup-PRincess-1.2.1.dmg)
-*Note: Right-click > Open on the first launch as this is a community-driven tool.*
-
-### 🐧 Linux
-[Download .AppImage](https://github.com/seanbud/git-cleanup-PRincess/releases/download/v1.2.1/Git-Cleanup-PRincess-1.2.1.AppImage) | [Download .deb](https://github.com/seanbud/git-cleanup-PRincess/releases/download/v1.2.1/Git-Cleanup-PRincess-1.2.1.deb)
-
----
+Check out the Releases page download the installer for your platform,
 
 View all releases and architectures on the [Releases Page](https://github.com/seanbud/git-cleanup-PRincess/releases/latest).
 
-### Build from Source
+
+## Video Demo 
+
+https://github.com/user-attachments/assets/bdfd76ed-9a15-4c48-aa4a-cf00ca219217
+
+
+## Build from Source
 If you prefer to build it yourself:
 ```bash
 git clone https://github.com/seanbud/git-cleanup-PRincess.git
