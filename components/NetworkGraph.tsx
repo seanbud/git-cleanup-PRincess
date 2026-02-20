@@ -33,7 +33,7 @@ const BRANCH_COLORS = [
     '#8b5cf6', '#ef4444', '#14b8a6', '#f97316',
 ];
 
-const ROW_HEIGHT = 40;
+const ROW_HEIGHT = 42;
 const COL_WIDTH = 28;
 const DOT_RADIUS = 7;
 const MERGE_RADIUS = 10;
@@ -62,20 +62,25 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
     const scrollRef = useRef<HTMLDivElement>(null);
     const [showReturnToLatest, setShowReturnToLatest] = useState(false);
 
-    // Vertical layout logic
+    // Vertical logic
     const verticalLayout = useMemo(() => {
         if (!commits || commits.length === 0) return { nodes: [], paths: [], maxColumns: 1 };
+
+        const nodesList: ProcessedNode[] = [];
         const nodesMap = new Map<string, ProcessedNode>();
-        const nodeList: ProcessedNode[] = [];
         const pathsList: ProcessedPath[] = [];
+
+        // tracks tracks the parent hash for each column
         let tracks: (string | null)[] = [];
         let trackColors: number[] = [];
         let nextColorIndex = 0;
 
+        // First pass: Assign coordinates and track colors
         commits.forEach((commit, rowIndex) => {
             let colIndex = tracks.indexOf(commit.hash);
+
             if (colIndex === -1) {
-                colIndex = tracks.findIndex(t => t === null);
+                colIndex = tracks.indexOf(null);
                 if (colIndex === -1) {
                     colIndex = tracks.length;
                     tracks.push(commit.hash);
@@ -87,27 +92,30 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
                     nextColorIndex++;
                 }
             }
+
             const colorIndex = trackColors[colIndex];
+            const x = colIndex * COL_WIDTH + COL_WIDTH * 2.5; // Extra left breathing room
             const y = rowIndex * ROW_HEIGHT + ROW_HEIGHT;
-            const x = colIndex * COL_WIDTH + COL_WIDTH * 2;
+
             const node: ProcessedNode = { ...commit, x, y, colorIndex };
             nodesMap.set(commit.hash, node);
-            nodeList.push(node);
+            nodesList.push(node);
 
+            // Reserve next slots
             const parents = commit.parents;
             if (parents.length > 0) {
                 tracks[colIndex] = parents[0];
                 for (let i = 1; i < parents.length; i++) {
                     const parentHash = parents[i];
-                    let emptyCol = tracks.findIndex(t => t === null);
-                    if (emptyCol === -1) {
-                        emptyCol = tracks.length;
+                    let empty = tracks.indexOf(null);
+                    if (empty === -1) {
+                        empty = tracks.length;
                         tracks.push(parentHash);
                         trackColors.push(nextColorIndex % BRANCH_COLORS.length);
                         nextColorIndex++;
                     } else {
-                        tracks[emptyCol] = parentHash;
-                        trackColors[emptyCol] = nextColorIndex % BRANCH_COLORS.length;
+                        tracks[empty] = parentHash;
+                        trackColors[empty] = nextColorIndex % BRANCH_COLORS.length;
                         nextColorIndex++;
                     }
                 }
@@ -116,30 +124,33 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
             }
         });
 
-        nodeList.forEach((node) => {
+        // Second pass: Create paths
+        nodesList.forEach((node) => {
             node.parents.forEach((parentHash, i) => {
                 const parentNode = nodesMap.get(parentHash);
-                const colorIndex = i === 0 ? node.colorIndex : (parentNode?.colorIndex ?? node.colorIndex);
+                const colorIdx = i === 0 ? node.colorIndex : (parentNode?.colorIndex ?? (node.colorIndex + 1) % BRANCH_COLORS.length);
+
                 if (parentNode) {
                     pathsList.push({
                         source: node.hash, target: parentHash,
                         sourceX: node.x, sourceY: node.y,
                         targetX: parentNode.x, targetY: parentNode.y,
-                        colorIndex
+                        colorIndex: colorIdx
                     });
                 } else {
-                    // Parent is beyond the current fetch window
+                    // Parent outside window
                     pathsList.push({
                         source: node.hash, target: parentHash,
                         sourceX: node.x, sourceY: node.y,
                         targetX: node.x, targetY: node.y + ROW_HEIGHT,
-                        colorIndex
+                        colorIndex: colorIdx
                     });
                 }
             });
         });
-        const maxColumns = Math.max(1, ...nodeList.map(n => n.x / COL_WIDTH));
-        return { nodes: nodeList, paths: pathsList, maxColumns };
+
+        const maxColumns = Math.max(1, ...nodesList.map(n => (n.x / COL_WIDTH)));
+        return { nodes: nodesList, paths: pathsList, maxColumns };
     }, [commits]);
 
     // Horizontal filtered logic
@@ -176,7 +187,6 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
         return result.reverse();
     }, [commits, currentBranch, comparisonBranch]);
 
-    // Viewport/Scroll Management
     useEffect(() => {
         if (!isExpanded && scrollRef.current && filteredCommits.length > 0) {
             scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
@@ -202,34 +212,14 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
         }
     };
 
-    /**
-     * Generates a "Railroad" style path with 90-degree beveled corners.
-     */
     const generatePath = (p: ProcessedPath) => {
         const { sourceX, sourceY, targetX, targetY } = p;
-
-        // Vertical line on the same track
         if (sourceX === targetX) {
             return `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
         }
-
-        // Branching line: Straight vertical, then a turn, then across, then a turn, then vertical
-        // For Git graphs, we typically go: Down -> Curve -> Across -> Curve -> Down
-        const midY = sourceY + (targetY - sourceY) / 2;
-
-        // If it's a tight squeeze, reduce radius
+        const midY = (sourceY + targetY) / 2;
         const r = Math.min(CORNER_RADIUS, Math.abs(midY - sourceY) - 2, Math.abs(targetX - sourceX) / 2);
-
         const isRight = targetX > sourceX;
-
-        // Path: 
-        // 1. Move to source
-        // 2. Line down to just before turn
-        // 3. Quadratic curve for corner
-        // 4. Line across to just before next turn
-        // 5. Quadratic curve for second corner
-        // 6. Line down to target
-
         return [
             `M ${sourceX} ${sourceY}`,
             `L ${sourceX} ${midY - r}`,
@@ -242,7 +232,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
 
     const SvgFilters = () => (
         <defs>
-            <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+            <filter id="lineShadow" x="-50%" y="-50%" width="200%" height="200%">
                 <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
                 <feOffset dx="0" dy="4" result="offsetblur" />
                 <feComponentTransfer><feFuncA type="linear" slope="0.4" /></feComponentTransfer>
@@ -253,60 +243,34 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
 
     if (commits.length === 0) return <div className={`p-4 h-full flex items-center justify-center ${bgClass} text-xs text-gray-400`}>No commits found.</div>;
 
-    // ─── Horizontal (Collapsed) ───
     if (!isExpanded) {
         const nodeSpacing = 110;
         const leftPadding = 160;
         const horizontalSvgWidth = Math.max(leftPadding + 200, (filteredCommits.length - 1) * nodeSpacing + leftPadding + 200);
         const y = 35;
-
         return (
             <div className="relative h-24 flex-shrink-0">
-                <div
-                    ref={scrollRef}
-                    onScroll={handleScroll}
-                    onWheel={handleWheel}
-                    onClick={() => onToggleExpand?.()}
-                    className={`p-0 border-t ${borderClass} flex flex-col justify-center ${bgClass} overflow-x-auto overflow-y-hidden h-full scrollbar-hide relative transition-colors cursor-pointer ${hoverClass}`}
-                >
+                <div ref={scrollRef} onScroll={handleScroll} onWheel={handleWheel} onClick={() => onToggleExpand?.()} className={`p-0 border-t ${borderClass} flex flex-col justify-center ${bgClass} overflow-x-auto overflow-y-hidden h-full scrollbar-hide relative transition-colors cursor-pointer ${hoverClass}`}>
                     <svg width={horizontalSvgWidth} height="70" className="pointer-events-none overflow-visible">
                         <SvgFilters />
-
                         <path d={`M0,${y} L${horizontalSvgWidth},${y}`} stroke={lineColor} strokeWidth="5" className="opacity-20" strokeLinecap="round" />
-
                         {filteredCommits.length > 1 && (
-                            <path d={`M${leftPadding},${y} L${(filteredCommits.length - 1) * nodeSpacing + leftPadding},${y}`} stroke={lineColor} strokeWidth="6" filter="url(#shadow)" strokeLinecap="round" />
+                            <path d={`M${leftPadding},${y} L${(filteredCommits.length - 1) * nodeSpacing + leftPadding},${y}`} stroke={lineColor} strokeWidth="6" filter="url(#lineShadow)" strokeLinecap="round" />
                         )}
-
                         {filteredCommits.map((commit, i) => {
                             const x = leftPadding + i * nodeSpacing;
                             const isHead = commit.branch?.includes('HEAD ->') || (i === filteredCommits.length - 1 && currentBranch);
-
-                            // ONLY show actual tags. Hide feature/main branch names.
-                            // Logic: Look for "tag: " or common tag patterns like v1.2.3
                             const allRefs = commit.branch?.split(',').map(r => r.trim()) || [];
                             const rawRef = allRefs.find(r => r.startsWith('tag: ') || /v\d+\.\d+/.test(r)) || '';
                             const tagName = rawRef.replace('tag: ', '');
-
                             const labelWidth = Math.max(64, tagName.length * 8.5 + 24);
-
                             return (
                                 <g key={commit.hash}>
-                                    <circle cx={x} cy={y} r={isHead ? 12 : 9} fill={isHead ? color1 : dotColor} stroke="#fff" strokeWidth={4} filter="url(#shadow)" />
+                                    <circle cx={x} cy={y} r={isHead ? 12 : 9} fill={isHead ? color1 : dotColor} stroke="#fff" strokeWidth={4} filter="url(#lineShadow)" />
                                     {tagName && (
                                         <g transform={`translate(${x}, ${y - 25})`}>
-                                            <rect
-                                                x={-(labelWidth / 2)} y={-11}
-                                                width={labelWidth} height={22} rx={6}
-                                                fill={isHead ? color1 : (isPrincess ? '#fce7f3' : '#dbeafe')}
-                                                filter="url(#shadow)"
-                                            />
-                                            <text
-                                                x="0" y="5" textAnchor="middle"
-                                                className={`text-[11px] font-black uppercase tracking-widest ${isHead ? 'fill-white' : (isPrincess ? 'fill-pink-800' : 'fill-blue-800')}`}
-                                            >
-                                                {tagName}
-                                            </text>
+                                            <rect x={-(labelWidth / 2)} y={-11} width={labelWidth} height={22} rx={6} fill={isHead ? color1 : (isPrincess ? '#fce7f3' : '#dbeafe')} filter="url(#lineShadow)" />
+                                            <text x="0" y="5" textAnchor="middle" className={`text-[11px] font-black uppercase tracking-widest ${isHead ? 'fill-white' : (isPrincess ? 'fill-pink-800' : 'fill-blue-800')}`}>{tagName}</text>
                                         </g>
                                     )}
                                 </g>
@@ -314,12 +278,8 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
                         })}
                     </svg>
                 </div>
-
                 {showReturnToLatest && (
-                    <button
-                        onClick={scrollToLatest}
-                        className={`absolute right-6 top-1/2 -translate-y-1/2 z-30 px-4 py-2 rounded-full shadow-2xl ${color1} text-white hover:scale-105 transition-all flex items-center gap-2 border-2 border-white/50`}
-                    >
+                    <button onClick={scrollToLatest} className={`absolute right-6 top-1/2 -translate-y-1/2 z-30 px-4 py-2 rounded-full shadow-2xl ${color1} text-white hover:scale-105 transition-all flex items-center gap-2 border-2 border-white/50`}>
                         <span className="text-[10px] font-black tracking-widest uppercase">Latest</span>
                         <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                     </button>
@@ -328,53 +288,32 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
         );
     }
 
-    // ─── Vertical (Expanded) ───
     const { nodes, paths, maxColumns } = verticalLayout;
-    const totalHeight = nodes.length * ROW_HEIGHT + 100;
+    const totalHeight = nodes.length * ROW_HEIGHT + 150;
     const totalWidth = (maxColumns + 1) * COL_WIDTH + 140;
 
     return (
         <div className={`flex flex-col h-full border-t ${borderClass} ${bgClass} relative`}>
-            <div
-                className={`px-4 py-2 flex justify-between items-center text-[10px] uppercase font-black tracking-[0.3em] border-b ${borderClass} opacity-60 cursor-pointer ${hoverClass}`}
-                onClick={onToggleExpand}
-            >
+            <div className={`px-4 py-2 flex justify-between items-center text-[10px] uppercase font-black tracking-[0.3em] border-b ${borderClass} opacity-60 cursor-pointer ${hoverClass}`} onClick={onToggleExpand}>
                 <span>Network Topology</span>
                 <span className="text-xl">⇣</span>
             </div>
-
             <div className="flex-1 overflow-auto scrollbar-thin">
                 <div className="relative" style={{ height: `${totalHeight}px`, minWidth: '100%' }}>
-                    <svg className="absolute top-0 left-0 h-full w-full pointer-events-none overflow-visible" style={{ width: totalWidth }}>
+                    <svg className="absolute top-0 left-0 pointer-events-none overflow-visible w-full h-full" style={{ width: totalWidth, height: totalHeight }}>
                         <SvgFilters />
                         {paths.map((p, i) => (
-                            <path
-                                key={`${p.source}-${p.target}-${i}`}
-                                d={generatePath(p)}
-                                fill="none"
-                                stroke={BRANCH_COLORS[p.colorIndex % BRANCH_COLORS.length]}
-                                strokeWidth="5"
-                                opacity={1}
-                                filter="url(#shadow)"
-                                strokeLinecap="round"
-                            />
+                            <path key={`${p.source}-${p.target}-${i}`} d={generatePath(p)} fill="none" stroke={BRANCH_COLORS[p.colorIndex % BRANCH_COLORS.length]} strokeWidth="5" filter="url(#lineShadow)" strokeLinecap="round" />
                         ))}
                     </svg>
-
                     <div className="absolute top-0 left-0 w-full h-full">
                         {nodes.map((node) => {
                             const nodeColor = BRANCH_COLORS[node.colorIndex % BRANCH_COLORS.length];
                             return (
-                                <div
-                                    key={node.hash}
-                                    className={`absolute w-full flex items-center group cursor-pointer ${hoverClass} transition-colors px-2`}
-                                    style={{ top: node.y - ROW_HEIGHT / 2, height: ROW_HEIGHT }}
-                                    onClick={() => onCommitSelect?.(node.hash)}
-                                >
+                                <div key={node.hash} className={`absolute w-full flex items-center group cursor-pointer ${hoverClass} transition-colors px-2`} style={{ top: node.y - ROW_HEIGHT / 2, height: ROW_HEIGHT }} onClick={() => onCommitSelect?.(node.hash)}>
                                     <div className="absolute flex items-center justify-center" style={{ left: node.x - (node.isMerge ? MERGE_RADIUS : DOT_RADIUS), top: ROW_HEIGHT / 2 - (node.isMerge ? MERGE_RADIUS : DOT_RADIUS) }}>
                                         <div className="rounded-full border-4 shadow-xl transition-transform group-hover:scale-110" style={{ width: (node.isMerge ? MERGE_RADIUS : DOT_RADIUS) * 2, height: (node.isMerge ? MERGE_RADIUS : DOT_RADIUS) * 2, backgroundColor: nodeColor, borderColor: '#fff' }} />
                                     </div>
-
                                     <div className="flex text-[13px] items-center whitespace-nowrap overflow-hidden pr-20" style={{ marginLeft: totalWidth - 40 }}>
                                         <span className={`font-mono text-[11px] ${mutedTextClass} w-20 shrink-0 opacity-40`}>{node.hash.substring(0, 7)}</span>
                                         {node.branch && (
