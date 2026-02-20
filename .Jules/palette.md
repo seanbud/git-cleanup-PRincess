@@ -13,3 +13,7 @@
 ## 2025-05-23 - [Semantic Checkboxes vs Custom Divs]
 **Learning:** Replacing custom `div`-based checkboxes with real semantic `<input type="checkbox">` elements, even when they need custom styling, is crucial for accessibility (ARIA) and keyboard navigation.
 **Action:** Always prefer semantic input elements for selection states and use refs to manage indeterminate states if needed.
+
+## 2026-02-20 - [Keyboard Navigation for List Items]
+**Learning:** For interactive lists, adding keyboard support (Enter/Space) and visible focus states (`focus-visible`) is essential for accessibility. Using a shared handler that accepts both `MouseEvent` and `KeyboardEvent` allows for clean, typed multi-select logic (using meta/shift keys) without type casting.
+**Action:** Implement `role="button"`, `tabIndex={0}`, and an `onKeyDown` handler for all interactive list items, and ensure focus styles are visually distinct.

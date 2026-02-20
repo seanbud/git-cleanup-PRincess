@@ -26,7 +26,7 @@ interface FileListItemProps {
   isSelected: boolean;
   isPrincess: boolean;
   hoverBg: string;
-  onSelect: (e: React.MouseEvent, file: GitFile) => void;
+  onSelect: (e: React.MouseEvent | React.KeyboardEvent, file: GitFile) => void;
   onSelectionChange: (updater: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
   onContextMenu: (e: React.MouseEvent, type: 'FILE', payload?: GitFile) => void;
 }
@@ -52,12 +52,24 @@ const FileListItem: React.FC<FileListItemProps> = React.memo(({
     onContextMenu(e, 'FILE', file);
   }, [isSelected, file, onSelectionChange, onContextMenu]);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelect(e, file);
+    }
+  }, [onSelect, file]);
+
   return (
     <div
       onClick={handleClick}
       onContextMenu={handleContextMenu}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-selected={isSelected}
       className={`
         flex items-center px-3 py-2 text-sm border-b border-gray-100/50 cursor-pointer select-none transition-colors group relative
+        focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-none focus-visible:z-10
         ${isSelected ? (isPrincess ? 'bg-pink-500 text-white' : 'bg-blue-600 text-white') : `${hoverBg} text-gray-700`}
       `}
     >
@@ -151,7 +163,7 @@ const FileList: React.FC<FileListProps> = ({
   }, [files]);
 
   // Optimization: Stable selection handler using functional updates
-  const handleSelect = useCallback((e: React.MouseEvent, file: GitFile) => {
+  const handleSelect = useCallback((e: React.MouseEvent | React.KeyboardEvent, file: GitFile) => {
     const currentId = file.id;
 
     onSelectionChange((prevSelectedIds) => {
