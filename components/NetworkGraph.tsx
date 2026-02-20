@@ -37,6 +37,7 @@ const ROW_HEIGHT = 40;
 const COL_WIDTH = 28;
 const DOT_RADIUS = 7;
 const MERGE_RADIUS = 10;
+const CORNER_RADIUS = 12;
 
 const NetworkGraph: React.FC<NetworkGraphProps> = ({
     mode,
@@ -127,6 +128,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
                         colorIndex
                     });
                 } else {
+                    // Parent is beyond the current fetch window
                     pathsList.push({
                         source: node.hash, target: parentHash,
                         sourceX: node.x, sourceY: node.y,
@@ -200,8 +202,42 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
         }
     };
 
+    /**
+     * Generates a "Railroad" style path with 90-degree beveled corners.
+     */
     const generatePath = (p: ProcessedPath) => {
-        return `M ${p.sourceX} ${p.sourceY} C ${p.sourceX} ${p.sourceY + ROW_HEIGHT / 2}, ${p.targetX} ${p.targetY - ROW_HEIGHT / 2}, ${p.targetX} ${p.targetY}`;
+        const { sourceX, sourceY, targetX, targetY } = p;
+
+        // Vertical line on the same track
+        if (sourceX === targetX) {
+            return `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
+        }
+
+        // Branching line: Straight vertical, then a turn, then across, then a turn, then vertical
+        // For Git graphs, we typically go: Down -> Curve -> Across -> Curve -> Down
+        const midY = sourceY + (targetY - sourceY) / 2;
+
+        // If it's a tight squeeze, reduce radius
+        const r = Math.min(CORNER_RADIUS, Math.abs(midY - sourceY) - 2, Math.abs(targetX - sourceX) / 2);
+
+        const isRight = targetX > sourceX;
+
+        // Path: 
+        // 1. Move to source
+        // 2. Line down to just before turn
+        // 3. Quadratic curve for corner
+        // 4. Line across to just before next turn
+        // 5. Quadratic curve for second corner
+        // 6. Line down to target
+
+        return [
+            `M ${sourceX} ${sourceY}`,
+            `L ${sourceX} ${midY - r}`,
+            `Q ${sourceX} ${midY} ${sourceX + (isRight ? r : -r)} ${midY}`,
+            `L ${targetX + (isRight ? -r : r)} ${midY}`,
+            `Q ${targetX} ${midY} ${targetX} ${midY + r}`,
+            `L ${targetX} ${targetY}`
+        ].join(' ');
     };
 
     const SvgFilters = () => (
@@ -246,13 +282,18 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
                             const x = leftPadding + i * nodeSpacing;
                             const isHead = commit.branch?.includes('HEAD ->') || (i === filteredCommits.length - 1 && currentBranch);
 
-                            const branchName = commit.branch?.split(',')[0].trim().replace('HEAD -> ', '') || '';
-                            const labelWidth = Math.max(64, branchName.length * 8.5 + 24);
+                            // ONLY show actual tags. Hide feature/main branch names.
+                            // Logic: Look for "tag: " or common tag patterns like v1.2.3
+                            const allRefs = commit.branch?.split(',').map(r => r.trim()) || [];
+                            const rawRef = allRefs.find(r => r.startsWith('tag: ') || /v\d+\.\d+/.test(r)) || '';
+                            const tagName = rawRef.replace('tag: ', '');
+
+                            const labelWidth = Math.max(64, tagName.length * 8.5 + 24);
 
                             return (
                                 <g key={commit.hash}>
                                     <circle cx={x} cy={y} r={isHead ? 12 : 9} fill={isHead ? color1 : dotColor} stroke="#fff" strokeWidth={4} filter="url(#shadow)" />
-                                    {branchName && (
+                                    {tagName && (
                                         <g transform={`translate(${x}, ${y - 25})`}>
                                             <rect
                                                 x={-(labelWidth / 2)} y={-11}
@@ -264,7 +305,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
                                                 x="0" y="5" textAnchor="middle"
                                                 className={`text-[11px] font-black uppercase tracking-widest ${isHead ? 'fill-white' : (isPrincess ? 'fill-pink-800' : 'fill-blue-800')}`}
                                             >
-                                                {branchName}
+                                                {tagName}
                                             </text>
                                         </g>
                                     )}
