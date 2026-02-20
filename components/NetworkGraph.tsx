@@ -251,7 +251,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
                     onScroll={handleScroll}
                     onWheel={handleWheel}
                     onClick={() => onToggleExpand?.()}
-                    className={`p-0 border-t ${borderClass} flex flex-col justify-center ${bgClass} overflow-x-auto overflow-y-hidden h-full scrollbar-hide relative transition-colors cursor-pointer hover:bg-black/5 dark:hover:bg-white/5`}
+                    className={`p-0 border-t ${borderClass} flex flex-col justify-center ${bgClass} overflow-x-auto overflow-y-hidden h-full scrollbar-hide relative transition-colors cursor-pointer`}
                 >
                     <svg width={horizontalSvgWidth} height="70" className="pointer-events-none overflow-visible">
                         <SvgFilters />
