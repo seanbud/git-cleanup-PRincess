@@ -4,7 +4,7 @@ import { GitService } from './services/gitService';
 import TopMenuBar from './components/TopMenuBar';
 import ProductTitleBar from './components/ProductTitleBar';
 import RepoHeader from './components/RepoHeader';
-import BranchGraph from './components/BranchGraph';
+import NetworkGraph from './components/NetworkGraph';
 import FileList from './components/FileList';
 import DiffView from './components/DiffView';
 import Character from './components/Character';
@@ -27,6 +27,7 @@ const App: React.FC = () => {
   // ─── Theme ─────────────────────────────────────────────────────
   const [themeMode, setThemeMode] = useState<ThemeMode>(ThemeMode.PRINCESS);
   const [actionHover, setActionHover] = useState<'REMOVE' | 'RESTORE' | null>(null);
+  const [isGraphExpanded, setIsGraphExpanded] = useState(false);
 
   // ─── Modal State ───────────────────────────────────────────────
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
@@ -267,7 +268,6 @@ const App: React.FC = () => {
             />
           </div>
 
-          {/* Right Panel: Content */}
           <div className={`flex-1 flex flex-col min-w-0 ${isPrincess ? 'bg-[#fffbfc]' : 'bg-[#f8fbff]'} ${isResizing ? 'pointer-events-none select-none' : ''}`}>
 
             {/* Diff Viewer Area */}
@@ -312,9 +312,15 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* Branch Tree Visualization (Bottom) */}
-            <div className="h-24 shrink-0 bg-white border-t border-gray-200">
-              <BranchGraph mode={themeMode} commits={git.commitGraph} />
+            <div className={`shrink-0 bg-white ${isGraphExpanded ? 'h-[32rem]' : 'h-24'} transition-all duration-300 ease-in-out`}>
+              <NetworkGraph
+                mode={themeMode}
+                commits={git.commitGraph}
+                isExpanded={isGraphExpanded}
+                onToggleExpand={() => setIsGraphExpanded(prev => !prev)}
+                currentBranch={git.gitState.currentBranch}
+                comparisonBranch={git.comparisonBranch}
+              />
             </div>
 
             {/* Floating Character — positioned over all right panel content, sitting above the bottom edge */}

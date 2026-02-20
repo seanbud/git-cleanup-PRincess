@@ -2,6 +2,8 @@ import { GitFile, FileStatus, ChangeType, GitConfig } from '../types';
 
 export interface CommitNode {
     hash: string;
+    parents: string[];
+    author: string;
     message: string;
     branch?: string;
     isMerge: boolean;
@@ -321,20 +323,29 @@ export class GitService {
     }
 
     static async getCommitGraph(): Promise<CommitNode[]> {
+        // Fetch more commits to build a better graph and include parent hashes (%p) and author (%an)
         // @ts-ignore
-        const res = await window.electronAPI.gitCmd('git log --oneline --all -n 20 --format="%h|%s|%D"');
+        const res = await window.electronAPI.gitCmd('git log --all --date-order --format="%h|%p|%s|%D|%an" -n 50');
         if (!res.success) return [];
 
         return res.stdout
             .split('\n')
             .filter(Boolean)
             .map((line: string) => {
-                const [hash, message, refs] = line.split('|');
+                const parts = line.split('|');
+                const hash = parts[0]?.trim() || '';
+                const parentsStr = parts[1]?.trim() || '';
+                const message = parts[2]?.trim() || '';
+                const refs = parts[3]?.trim() || '';
+                const author = parts[4]?.trim() || '';
+
                 return {
-                    hash: hash.trim(),
-                    message: message?.trim() || '',
-                    branch: refs?.trim() || undefined,
-                    isMerge: (message || '').toLowerCase().startsWith('merge')
+                    hash,
+                    parents: parentsStr ? parentsStr.split(' ') : [],
+                    author,
+                    message,
+                    branch: refs || undefined,
+                    isMerge: parentsStr.split(' ').length > 1 || message.toLowerCase().startsWith('merge')
                 };
             });
     }
