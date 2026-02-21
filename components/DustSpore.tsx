@@ -46,7 +46,7 @@ const VARIANTS = [
   }
 ];
 
-const DustSpore: React.FC<DustSporeProps> = ({ fileName, linesAdded, linesRemoved, isScared, mode, delay }) => {
+const DustSpore: React.FC<DustSporeProps> = React.memo(({ fileName, linesAdded, linesRemoved, isScared, mode, delay }) => {
   const isPrincess = mode === ThemeMode.PRINCESS;
   
   // Randomly assign a variant based on filename hash or similar to keep it consistent per file
@@ -59,29 +59,17 @@ const DustSpore: React.FC<DustSporeProps> = ({ fileName, linesAdded, linesRemove
   const variant = VARIANTS[variantIndex];
 
   // State
-  const [floatOffset, setFloatOffset] = useState({ x: 0, y: 0 });
   const [hopOffset, setHopOffset] = useState(0);
-  const [eyePos, setEyePos] = useState({ x: 0, y: 0 });
   const [isLooking, setIsLooking] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
   // Refs for tracking animation frames and intervals
   const eyesRef = useRef<SVGGElement>(null);
+  const leftPupilRef = useRef<SVGCircleElement>(null);
+  const rightPupilRef = useRef<SVGCircleElement>(null);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
-  // 1. Floating Animation
-  useEffect(() => {
-    // Random offset for phase
-    const phase = delay * 1000; 
-    const interval = setInterval(() => {
-      const time = Date.now() + phase;
-      setFloatOffset({
-        x: Math.sin(time / 1500) * 1.5,
-        y: Math.cos(time / 1200) * 2.5
-      });
-    }, 50);
-    return () => clearInterval(interval);
-  }, [delay]);
+  // 1. Floating Animation moved to CSS keyframes to offload to compositor
 
   // 2. Random Hopping (Desynchronized)
   useEffect(() => {
@@ -104,6 +92,7 @@ const DustSpore: React.FC<DustSporeProps> = ({ fileName, linesAdded, linesRemove
   }, []);
 
   // 3. Eye Movement (Desynchronized & Random Attention)
+  // Optimization: Use direct DOM manipulation via refs to avoid React re-renders on every mouse move
   useEffect(() => {
     // Decide if this mite wants to look at the mouse
     const toggleAttention = () => {
@@ -116,32 +105,39 @@ const DustSpore: React.FC<DustSporeProps> = ({ fileName, linesAdded, linesRemove
     const handleMouseMove = (e: MouseEvent) => {
       if (!eyesRef.current) return;
       
+      let x = 0;
+      let y = 0;
+
       // If idle (not looking at mouse AND not hovered), drift slowly
       if (!isLooking && !isScared && !isHovered) {
          const time = Date.now() / 2000 + delay;
-         setEyePos({
-           x: Math.sin(time) * 2,
-           y: Math.cos(time) * 1
-         });
-         return;
+         x = Math.sin(time) * 2;
+         y = Math.cos(time) * 1;
+      } else {
+        // If looking at mouse (or scared or hovered), track strictly
+        const rect = eyesRef.current.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        const dx = e.clientX - centerX;
+        const dy = e.clientY - centerY;
+
+        // Normalize and limit movement radius (pupils inside eyes)
+        const angle = Math.atan2(dy, dx);
+        const distance = Math.min(3, Math.sqrt(dx * dx + dy * dy) / 20); // Limit pupil movement
+
+        x = Math.cos(angle) * distance;
+        y = Math.sin(angle) * distance;
       }
 
-      // If looking at mouse (or scared or hovered), track strictly
-      const rect = eyesRef.current.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      
-      const dx = e.clientX - centerX;
-      const dy = e.clientY - centerY;
-      
-      // Normalize and limit movement radius (pupils inside eyes)
-      const angle = Math.atan2(dy, dx);
-      const distance = Math.min(3, Math.sqrt(dx * dx + dy * dy) / 20); // Limit pupil movement
-      
-      setEyePos({
-        x: Math.cos(angle) * distance,
-        y: Math.sin(angle) * distance
-      });
+      if (leftPupilRef.current) {
+        leftPupilRef.current.setAttribute('cx', (variant.leftEye.cx + x).toString());
+        leftPupilRef.current.setAttribute('cy', (variant.leftEye.cy + y).toString());
+      }
+      if (rightPupilRef.current) {
+        rightPupilRef.current.setAttribute('cx', (variant.rightEye.cx + x).toString());
+        rightPupilRef.current.setAttribute('cy', (variant.rightEye.cy + y).toString());
+      }
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -149,7 +145,7 @@ const DustSpore: React.FC<DustSporeProps> = ({ fileName, linesAdded, linesRemove
       window.removeEventListener('mousemove', handleMouseMove);
       clearInterval(attentionInterval);
     };
-  }, [delay, isLooking, isScared, isHovered]);
+  }, [delay, isLooking, isScared, isHovered, variant]);
 
   // Clean up debounce timeout
   useEffect(() => {
@@ -187,20 +183,43 @@ const DustSpore: React.FC<DustSporeProps> = ({ fileName, linesAdded, linesRemove
           80% { transform: translate(2px, -2px); }
           100% { transform: translate(0); }
         }
+        @keyframes floatX {
+          from { transform: translateX(-1.5px); }
+          to { transform: translateX(1.5px); }
+        }
+        @keyframes floatY {
+          from { transform: translateY(-2.5px); }
+          to { transform: translateY(2.5px); }
+        }
         .animate-vibrate {
           animation: vibration 0.15s linear infinite;
         }
+        .animate-float-x {
+          animation: floatX 9.42s ease-in-out infinite alternate;
+        }
+        .animate-float-y {
+          animation: floatY 7.54s ease-in-out infinite alternate;
+        }
       `}</style>
       
+      {/* Floating Wrappers (Nested to allow multi-axis animation without transform conflicts) */}
       <div 
-        className={`absolute left-1/2 top-1/2 flex flex-col items-center justify-center p-4 transition-all duration-300 ease-out ${isHovered ? 'z-50' : 'z-10'}`}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        style={{
-          // Combined transform: Center in anchor (-50%) + Float/Hop + Scale
-          transform: `translate(calc(-50% + ${floatOffset.x}px), calc(-50% + ${floatOffset.y + hopOffset}px)) scale(${isScared ? 0.95 : (isHovered ? 1.15 : 1)})`
-        }}
+        className={`absolute left-1/2 top-1/2 animate-float-x ${isHovered ? 'z-50' : 'z-10'}`}
+        style={{ animationDelay: `${-delay}s` }}
       >
+        <div
+          className="animate-float-y"
+          style={{ animationDelay: `${-delay}s` }}
+        >
+          <div
+            className="flex flex-col items-center justify-center p-4 transition-all duration-300 ease-out"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            style={{
+              // Center the content relative to the floating wrappers, then apply Hop + Scale
+              transform: `translate(-50%, calc(-50% + ${hopOffset}px)) scale(${isScared ? 0.95 : (isHovered ? 1.15 : 1)})`
+            }}
+          >
         {/* Nameplate */}
         <div 
           className={`
@@ -238,8 +257,9 @@ const DustSpore: React.FC<DustSporeProps> = ({ fileName, linesAdded, linesRemove
               {/* Left Eye */}
               <circle cx={variant.leftEye.cx} cy={variant.leftEye.cy} r="10" fill="white" />
               <circle 
-                  cx={variant.leftEye.cx + eyePos.x} 
-                  cy={variant.leftEye.cy + eyePos.y} 
+                  ref={leftPupilRef}
+                  cx={variant.leftEye.cx}
+                  cy={variant.leftEye.cy}
                   r={isScared ? "1.5" : "3"} 
                   fill="black" 
                   className="transition-all duration-100 ease-linear"
@@ -248,8 +268,9 @@ const DustSpore: React.FC<DustSporeProps> = ({ fileName, linesAdded, linesRemove
               {/* Right Eye */}
               <circle cx={variant.rightEye.cx} cy={variant.rightEye.cy} r="10" fill="white" />
               <circle 
-                  cx={variant.rightEye.cx + eyePos.x} 
-                  cy={variant.rightEye.cy + eyePos.y} 
+                  ref={rightPupilRef}
+                  cx={variant.rightEye.cx}
+                  cy={variant.rightEye.cy}
                   r={isScared ? "1.5" : "3"} 
                   fill="black"
                   className="transition-all duration-100 ease-linear" 
@@ -272,10 +293,12 @@ const DustSpore: React.FC<DustSporeProps> = ({ fileName, linesAdded, linesRemove
               />
             )}
           </svg>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
-};
+});
 
 export default DustSpore;

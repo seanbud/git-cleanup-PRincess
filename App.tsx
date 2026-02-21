@@ -148,6 +148,11 @@ const App: React.FC = () => {
   const appBgClass = isPrincess ? 'bg-[#fff5f9]' : 'bg-[#f4faff]';
   const sidebarHeaderBg = isPrincess ? 'bg-[#fff0f6]' : 'bg-[#e0efff]/50';
 
+  // Optimization: Memoize selected files to avoid O(N) lookup in the render loop
+  const selectedFiles = React.useMemo(() => {
+    return git.gitState.files.filter(f => git.gitState.selectedFileIds.has(f.id));
+  }, [git.gitState.files, git.gitState.selectedFileIds]);
+
   // ─── Render ────────────────────────────────────────────────────
   return (
     <div className={`flex flex-col h-screen w-screen overflow-hidden text-sm ${appBgClass} font-sans transition-colors duration-300 rounded-[2px] border border-black/10 shadow-inner`}>
@@ -264,7 +269,7 @@ const App: React.FC = () => {
 
             <ActionPanel
               selectedCount={git.gitState.selectedFileIds.size}
-              selectedPaths={git.gitState.files.filter(f => git.gitState.selectedFileIds.has(f.id)).map(f => f.path)}
+              selectedPaths={selectedFiles.map(f => f.path)}
               mode={themeMode}
               onRemove={() => handleAction('REMOVE')}
               onRestore={() => handleAction('RESTORE')}
@@ -282,16 +287,13 @@ const App: React.FC = () => {
                 {isMultipleSelected ? (
                   /* Multi-Select "Dust Spores" View */
                   <div className="h-full w-full overflow-y-auto overflow-x-hidden p-10 flex flex-wrap content-start items-start justify-center gap-4 bg-opacity-50">
-                    {Array.from(git.gitState.selectedFileIds).map((id, index) => {
-                      const file = git.gitState.files.find(f => f.id === id);
-                      if (!file) return null;
-
+                    {selectedFiles.map((file, index) => {
                       const verticalOffset = (index % 3) * 20;
                       const horizontalOffset = ((index * 7) % 3) * 15;
 
                       return (
                         <div
-                          key={id}
+                          key={file.id}
                           style={{
                             marginTop: `${verticalOffset}px`,
                             marginLeft: `${horizontalOffset}px`,
