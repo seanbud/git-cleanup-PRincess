@@ -236,15 +236,15 @@ const OptionsModal: React.FC<OptionsModalProps> = ({
                                 // Persist to git config
                                 if (localGitConfig.name !== gitConfig.name) {
                                     // @ts-ignore
-                                    await window.electronAPI.gitCmd(`git config user.name "${localGitConfig.name}"`);
+                                    await window.electronAPI.gitCmd(['config', 'user.name', localGitConfig.name]);
                                 }
                                 if (localGitConfig.email !== gitConfig.email) {
                                     // @ts-ignore
-                                    await window.electronAPI.gitCmd(`git config user.email "${localGitConfig.email}"`);
+                                    await window.electronAPI.gitCmd(['config', 'user.email', localGitConfig.email]);
                                 }
                                 if (localGitConfig.defaultBranch !== gitConfig.defaultBranch) {
                                     // @ts-ignore
-                                    await window.electronAPI.gitCmd(`git config init.defaultBranch "${localGitConfig.defaultBranch}"`);
+                                    await window.electronAPI.gitCmd(['config', 'init.defaultBranch', localGitConfig.defaultBranch]);
                                 }
                                 onSave(localGitConfig, localAppSettings);
                                 setShowSaved(true);

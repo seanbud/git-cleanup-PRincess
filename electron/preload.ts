@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     githubIsAuthenticated: () => ipcRenderer.invoke('github:is-authenticated'),
     githubSignOut: () => ipcRenderer.invoke('github:sign-out'),
     // Git CLI
-    gitCmd: (cmd: string) => ipcRenderer.invoke('git:cmd', cmd),
+    gitCmd: (args: string[]) => ipcRenderer.invoke('git:cmd', args),
     gitConfigGet: (key: string) => ipcRenderer.invoke('git:config-get', key),
     // Repository Management
     openDirectory: () => ipcRenderer.invoke('dialog:open-directory'),
@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     switchRepo: (path: string) => ipcRenderer.invoke('repos:switch', path),
     // Shell
     openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
+    openEditor: (path: string) => ipcRenderer.invoke('shell:open-editor', path),
+    openTerminal: () => ipcRenderer.invoke('shell:open-terminal'),
     showItemInFolder: (path: string) => ipcRenderer.invoke('shell:open-path', path),
     openDirectoryPath: (path: string) => ipcRenderer.invoke('shell:open-directory', path),
     trashFile: (path: string) => ipcRenderer.invoke('shell:trash-item', path),

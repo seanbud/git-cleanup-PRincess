@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell, ipcMain, safeStorage, dialog, Menu } from 'electron';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { execSync } from 'child_process';
+import { execSync, execFileSync, execFile } from 'child_process';
 import fs from 'fs';
 import { autoUpdater } from 'electron-updater';
 const __filename = fileURLToPath(import.meta.url);
@@ -301,9 +301,11 @@ app.whenReady().then(() => {
     });
 
     // ─── Git CLI IPC ──────────────────────────────────────────────
-    ipcMain.handle('git:cmd', async (_, cmd) => {
+    ipcMain.handle('git:cmd', async (_, args: string[]) => {
         try {
-            const output = execSync(cmd, {
+            // Security: Use execFileSync with argument array to prevent command injection
+            // and restrict execution to the 'git' binary only.
+            const output = execFileSync('git', args, {
                 encoding: 'utf-8',
                 cwd: currentCwd,
                 timeout: 15000,
@@ -317,7 +319,7 @@ app.whenReady().then(() => {
 
     ipcMain.handle('git:config-get', async (_, key) => {
         try {
-            return execSync(`git config --get ${key}`, {
+            return execFileSync('git', ['config', '--get', key], {
                 encoding: 'utf-8',
                 cwd: currentCwd,
                 stdio: ['pipe', 'pipe', 'pipe']
@@ -378,7 +380,37 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-external', (_, url: string) => {
-        shell.openExternal(url);
+        // Security: Validate protocol to prevent opening local files or other dangerous schemes
+        if (url.startsWith('https:') || url.startsWith('http:')) {
+            shell.openExternal(url);
+        }
+    });
+
+    ipcMain.handle('shell:open-editor', async (_, filePath: string) => {
+        const settings = getSettings();
+        const editor = settings.externalEditor || 'code';
+        try {
+            // Security: Use execFile with argument array
+            execFile(editor, [filePath], { cwd: currentCwd });
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('shell:open-terminal', async () => {
+        const settings = getSettings();
+        const shellCmd = settings.shell || (process.platform === 'win32' ? 'powershell' : 'bash');
+        try {
+            if (process.platform === 'win32') {
+                execFile('cmd.exe', ['/c', 'start', shellCmd], { cwd: currentCwd });
+            } else {
+                execFile(shellCmd, [], { cwd: currentCwd });
+            }
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
     });
 
     ipcMain.handle('shell:open-path', (_, filePath: string) => {
@@ -402,7 +434,12 @@ app.whenReady().then(() => {
     // File Preview: read file from disk as base64 data URI
     ipcMain.handle('file:read-base64', (_, relativePath: string) => {
         try {
-            const fullPath = path.isAbsolute(relativePath) ? relativePath : path.join(currentCwd, relativePath);
+            const fullPath = path.resolve(currentCwd, relativePath);
+            // Security: Prevent path traversal by ensuring the file is within the repository
+            const relative = path.relative(currentCwd, fullPath);
+            if (relative.startsWith('..') || path.isAbsolute(relative)) {
+                return { success: false, error: 'Access denied: Path outside of repository' };
+            }
             if (!fs.existsSync(fullPath)) return { success: false, error: 'File not found' };
             const buffer = fs.readFileSync(fullPath);
             const ext = path.extname(fullPath).toLowerCase();
@@ -423,7 +460,8 @@ app.whenReady().then(() => {
     // File Preview: read file from git HEAD as base64 data URI
     ipcMain.handle('git:show-file-base64', (_, relativePath: string) => {
         try {
-            const result = execSync(`git show HEAD:"${relativePath}"`, {
+            // Security: Use execFileSync with argument array to prevent command injection
+            const result = execFileSync('git', ['show', `HEAD:${relativePath}`], {
                 cwd: currentCwd,
                 encoding: 'buffer',
                 maxBuffer: 10 * 1024 * 1024,
