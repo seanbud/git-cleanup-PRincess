@@ -26,7 +26,7 @@ interface FileListItemProps {
   isSelected: boolean;
   isPrincess: boolean;
   hoverBg: string;
-  onSelect: (e: React.MouseEvent, file: GitFile) => void;
+  onSelect: (e: React.MouseEvent | React.KeyboardEvent, file: GitFile) => void;
   onSelectionChange: (updater: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
   onContextMenu: (e: React.MouseEvent, type: 'FILE', payload?: GitFile) => void;
 }
@@ -44,6 +44,13 @@ const FileListItem: React.FC<FileListItemProps> = React.memo(({
     onSelect(e, file);
   }, [onSelect, file]);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelect(e, file);
+    }
+  }, [onSelect, file]);
+
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     if (!isSelected) {
@@ -55,9 +62,14 @@ const FileListItem: React.FC<FileListItemProps> = React.memo(({
   return (
     <div
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       onContextMenu={handleContextMenu}
+      tabIndex={0}
+      role="button"
+      aria-selected={isSelected}
       className={`
         flex items-center px-3 py-2 text-sm border-b border-gray-100/50 cursor-pointer select-none transition-colors group relative
+        focus:outline-none focus:ring-2 focus:ring-inset ${isPrincess ? 'focus:ring-pink-300' : 'focus:ring-blue-400'}
         ${isSelected ? (isPrincess ? 'bg-pink-500 text-white' : 'bg-blue-600 text-white') : `${hoverBg} text-gray-700`}
       `}
     >
@@ -66,16 +78,15 @@ const FileListItem: React.FC<FileListItemProps> = React.memo(({
 
       {/* Checkbox */}
       <div className="mr-3 flex items-center justify-center">
-        {isSelected ? (
-          <input
-            type="checkbox"
-            checked={true}
-            readOnly
-            className="pointer-events-none accent-white h-3.5 w-3.5 opacity-80"
-          />
-        ) : (
-          <div className="w-3.5 h-3.5 rounded-[3px] border border-gray-400/60 bg-white/40 group-hover:bg-white transition-colors" />
-        )}
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={(e) => onSelect(e as any, file)}
+          onClick={(e) => e.stopPropagation()}
+          tabIndex={-1}
+          aria-label={`Select ${file.path}`}
+          className={`h-3.5 w-3.5 rounded focus:ring-blue-500 cursor-pointer ${isSelected ? 'accent-white opacity-80' : 'border-gray-400/60 bg-white/40 group-hover:bg-white'}`}
+        />
       </div>
 
       <div className="flex-1 min-w-0 mr-2">
@@ -151,7 +162,7 @@ const FileList: React.FC<FileListProps> = ({
   }, [files]);
 
   // Optimization: Stable selection handler using functional updates
-  const handleSelect = useCallback((e: React.MouseEvent, file: GitFile) => {
+  const handleSelect = useCallback((e: React.MouseEvent | React.KeyboardEvent, file: GitFile) => {
     const currentId = file.id;
 
     onSelectionChange((prevSelectedIds) => {

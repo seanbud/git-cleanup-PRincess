@@ -13,3 +13,7 @@
 ## 2025-05-23 - [Semantic Checkboxes vs Custom Divs]
 **Learning:** Replacing custom `div`-based checkboxes with real semantic `<input type="checkbox">` elements, even when they need custom styling, is crucial for accessibility (ARIA) and keyboard navigation.
 **Action:** Always prefer semantic input elements for selection states and use refs to manage indeterminate states if needed.
+
+## 2025-05-24 - [Keyboard Navigation for List Items]
+**Learning:** Making list items keyboard-focusable (`tabIndex={0}`, `role="button"`) and handling `Enter`/`Space` keys is essential for accessibility. When doing so, nested interactive elements like checkboxes should have `tabIndex={-1}` to avoid redundant tab stops for keyboard users.
+**Action:** Implement robust keyboard navigation for interactive lists by making the container focusable and managing nested interactive elements' tab order.
