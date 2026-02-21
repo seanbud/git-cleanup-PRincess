@@ -218,6 +218,7 @@ const App: React.FC = () => {
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
+                    aria-label="Clear filter"
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 rounded-full p-0.5 hover:bg-gray-100 transition-colors"
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -232,6 +233,7 @@ const App: React.FC = () => {
                 <div className="mr-2 flex items-center justify-center">
                   <input
                     ref={selectAllRef}
+                    id="select-all-checkbox"
                     type="checkbox"
                     checked={allFilteredSelected}
                     onChange={toggleSelectAll}
@@ -240,11 +242,14 @@ const App: React.FC = () => {
                   />
                 </div>
 
-                <div onClick={toggleSelectAll} className="cursor-pointer flex items-baseline truncate">
+                <label
+                  htmlFor="select-all-checkbox"
+                  className="cursor-pointer flex items-baseline truncate"
+                >
                   <span className="text-xs font-semibold text-gray-700 mr-1.5">
                     {filteredFiles.length} diff files
                   </span>
-                </div>
+                </label>
               </div>
             </div>
 
