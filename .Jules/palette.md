@@ -17,3 +17,7 @@
 ## 2025-05-24 - [Keyboard Navigation for List Items]
 **Learning:** Making list items keyboard-focusable (`tabIndex={0}`, `role="button"`) and handling `Enter`/`Space` keys is essential for accessibility. When doing so, nested interactive elements like checkboxes should have `tabIndex={-1}` to avoid redundant tab stops for keyboard users.
 **Action:** Implement robust keyboard navigation for interactive lists by making the container focusable and managing nested interactive elements' tab order.
+
+## 2025-05-25 - [Accessibility for Toggle Buttons in Diff View]
+**Learning:** Using semantic `<button type="button">` with `aria-expanded` and `aria-label` for chunk headers and context expansion in diff views ensures that complex code-viewing interfaces are navigable for screen reader and keyboard users.
+**Action:** Always use buttons for toggles in the diff view and include `focus:ring-inset` to provide clear focus indicators without layout shifts.
