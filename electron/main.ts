@@ -7,6 +7,20 @@ import { autoUpdater } from 'electron-updater';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// 🛡️ Sentinel: Security validation helpers
+function isValidSettingValue(value: any): boolean {
+    if (typeof value !== 'string') return false;
+    // Disallow common shell injection/command separator characters.
+    // We allow () to support paths like "Program Files (x86)".
+    return !/[&|;<>$`]/.test(value);
+}
+
+function isValidGitKey(key: any): boolean {
+    if (typeof key !== 'string') return false;
+    // Git config keys are alphanumeric with dots and hyphens.
+    return /^[a-zA-Z0-9.-]+$/.test(key);
+}
+
 let win: BrowserWindow | null;
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
 
@@ -318,6 +332,9 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('git:config-get', async (_, key) => {
+        // 🛡️ Sentinel: Validate git config key to prevent argument injection
+        if (!isValidGitKey(key)) return '';
+
         try {
             return execFileSync('git', ['config', '--get', key], {
                 encoding: 'utf-8',
@@ -380,8 +397,8 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-external', (_, url: string) => {
-        // Security: Validate protocol to prevent opening local files or other dangerous schemes
-        if (url.startsWith('https:') || url.startsWith('http:')) {
+        // 🛡️ Sentinel: Restrict to https for better security
+        if (url.startsWith('https:')) {
             shell.openExternal(url);
         }
     });
@@ -401,9 +418,18 @@ app.whenReady().then(() => {
     ipcMain.handle('shell:open-terminal', async () => {
         const settings = getSettings();
         const shellCmd = settings.shell || (process.platform === 'win32' ? 'powershell' : 'bash');
+
+        // 🛡️ Sentinel: Double check shell command validity
+        if (!isValidSettingValue(shellCmd)) {
+            return { success: false, error: 'Invalid shell command' };
+        }
+
         try {
             if (process.platform === 'win32') {
-                execFile('cmd.exe', ['/c', 'start', shellCmd], { cwd: currentCwd });
+                // 🛡️ Sentinel: Use empty title '""' to ensure shellCmd is treated as the command,
+                // and pass as separate argument. cmd /c start is still a bit risky but
+                // this is the standard way to launch a new terminal window on Windows.
+                execFile('cmd.exe', ['/c', 'start', '""', shellCmd], { cwd: currentCwd });
             } else {
                 execFile(shellCmd, [], { cwd: currentCwd });
             }
@@ -513,6 +539,19 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('app:save-settings', (_, settings) => {
-        saveSettings(settings);
+        if (typeof settings !== 'object' || settings === null) return;
+
+        const current = getSettings();
+        const validated: any = { ...current };
+
+        // 🛡️ Sentinel: Only allow known settings and validate their values
+        if (isValidSettingValue(settings.externalEditor)) {
+            validated.externalEditor = settings.externalEditor;
+        }
+        if (isValidSettingValue(settings.shell)) {
+            validated.shell = settings.shell;
+        }
+
+        saveSettings(validated);
     });
 });
