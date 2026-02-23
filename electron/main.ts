@@ -16,6 +16,15 @@ const TOKEN_PATH = path.join(app.getPath('userData'), 'github-token.bin');
 const RECENT_REPOS_PATH = path.join(app.getPath('userData'), 'recent-repos.json');
 const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
 
+function isValidGitKey(key: any): boolean {
+    return typeof key === 'string' && /^[a-z0-9.-]+$/i.test(key);
+}
+
+function isValidSettingValue(value: any): boolean {
+    // Block common shell injection characters, allow space and () for paths
+    return typeof value === 'string' && !/[&|;<>$]/.test(value);
+}
+
 // Track the current working directory for git commands
 let currentCwd = process.cwd();
 
@@ -302,6 +311,9 @@ app.whenReady().then(() => {
 
     // ─── Git CLI IPC ──────────────────────────────────────────────
     ipcMain.handle('git:cmd', async (_, args: string[]) => {
+        if (!Array.isArray(args) || !args.every(arg => typeof arg === 'string')) {
+            return { success: false, error: 'Invalid arguments: args must be an array of strings' };
+        }
         try {
             // Security: Use execFileSync with argument array to prevent command injection
             // and restrict execution to the 'git' binary only.
@@ -318,6 +330,7 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('git:config-get', async (_, key) => {
+        if (!isValidGitKey(key)) return '';
         try {
             return execFileSync('git', ['config', '--get', key], {
                 encoding: 'utf-8',
@@ -389,6 +402,9 @@ app.whenReady().then(() => {
     ipcMain.handle('shell:open-editor', async (_, filePath: string) => {
         const settings = getSettings();
         const editor = settings.externalEditor || 'code';
+        if (!isValidSettingValue(editor)) {
+            return { success: false, error: 'Invalid editor command' };
+        }
         try {
             // Security: Use execFile with argument array
             execFile(editor, [filePath], { cwd: currentCwd });
@@ -401,6 +417,9 @@ app.whenReady().then(() => {
     ipcMain.handle('shell:open-terminal', async () => {
         const settings = getSettings();
         const shellCmd = settings.shell || (process.platform === 'win32' ? 'powershell' : 'bash');
+        if (!isValidSettingValue(shellCmd)) {
+            return { success: false, error: 'Invalid shell command' };
+        }
         try {
             if (process.platform === 'win32') {
                 execFile('cmd.exe', ['/c', 'start', shellCmd], { cwd: currentCwd });
@@ -513,6 +532,14 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('app:save-settings', (_, settings) => {
+        if (settings) {
+            if (settings.externalEditor && !isValidSettingValue(settings.externalEditor)) {
+                return { success: false, error: 'Invalid external editor' };
+            }
+            if (settings.shell && !isValidSettingValue(settings.shell)) {
+                return { success: false, error: 'Invalid shell' };
+            }
+        }
         saveSettings(settings);
     });
 });
