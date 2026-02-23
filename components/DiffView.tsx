@@ -277,13 +277,17 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
               case 'chunk-header': {
                 const isCollapsed = collapsedChunks.has(section.id);
                 return (
-                  <div
+                  <button
                     key={section.id}
+                    type="button"
                     onClick={() => toggleChunk(section.id)}
+                    aria-expanded={!isCollapsed}
+                    aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} chunk: ${section.text.replace('@@ ', '').replace(' @@', '')}`}
                     className={`
-                      flex items-center px-4 py-2 cursor-pointer select-none transition-all
+                      w-full flex items-center px-4 py-2 cursor-pointer select-none transition-all
                       ${isPrincess ? 'bg-pink-50/80 hover:bg-pink-100 text-pink-800' : 'bg-blue-50/80 hover:bg-blue-100 text-blue-800'}
                       border-y border-black/10 font-mono text-[10px] font-bold
+                      focus:outline-none focus:ring-2 focus:ring-inset ${isPrincess ? 'focus:ring-pink-300' : 'focus:ring-blue-400'}
                     `}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={`mr-3 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}>
@@ -292,7 +296,7 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
                     <span className="opacity-80 font-mono mr-2">@@</span>
                     <span className="truncate">{section.text.replace('@@ ', '').replace(' @@', '')}</span>
                     {isCollapsed && <span className="ml-auto bg-white/40 px-2 py-0.5 rounded text-[8px] uppercase tracking-widest text-gray-500">Collapsed</span>}
-                  </div>
+                  </button>
                 );
               }
               case 'lines': {
@@ -307,9 +311,14 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
                 if (isExpanded) {
                   return (
                     <div key={section.id} className="relative">
-                      <div onClick={() => toggleAutoFold(section.id)} className="bg-gray-100/80 hover:bg-gray-200 flex items-center justify-center py-2 text-[10px] text-gray-500 cursor-pointer border-y border-gray-200 transition-colors uppercase tracking-widest font-bold">
+                      <button
+                        type="button"
+                        onClick={() => toggleAutoFold(section.id)}
+                        aria-label="Hide context"
+                        className="w-full bg-gray-100/80 hover:bg-gray-200 flex items-center justify-center py-2 text-[10px] text-gray-500 cursor-pointer border-y border-gray-200 transition-colors uppercase tracking-widest font-bold focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gray-300"
+                      >
                         Hide context
-                      </div>
+                      </button>
                       {section.lines.map((line, lidx) => (
                         <DiffLineItem key={`F-${section.id}-${lidx}`} line={line} isPrincess={isPrincess} filePath={file.path} mode={mode} />
                       ))}
@@ -317,14 +326,20 @@ const DiffView: React.FC<DiffViewProps> = ({ file, mode }) => {
                   );
                 }
                 return (
-                  <div key={section.id} onClick={() => toggleAutoFold(section.id)} className={`w-full py-3 flex items-center justify-center cursor-pointer group transition-all ${isPrincess ? 'bg-pink-50/40 hover:bg-pink-100/60' : 'bg-blue-50/40 hover:bg-blue-100/60'} border-y border-black/5`}>
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => toggleAutoFold(section.id)}
+                    aria-label={`Expand ${section.lineCount} hidden lines`}
+                    className={`w-full py-3 flex items-center justify-center cursor-pointer group transition-all ${isPrincess ? 'bg-pink-50/40 hover:bg-pink-100/60' : 'bg-blue-50/40 hover:bg-blue-100/60'} border-y border-black/5 focus:outline-none focus:ring-2 focus:ring-inset ${isPrincess ? 'focus:ring-pink-300' : 'focus:ring-blue-400'}`}
+                  >
                     <div className="flex items-center space-x-3 text-[10px] text-gray-500 group-hover:text-gray-800 transition-colors font-bold uppercase tracking-wider">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <path d="m3 16 4 4 4-4" /><path d="m7 20V4" /><path d="m21 8-4-4-4 4" /><path d="m17 4v16" />
                       </svg>
                       <span>Expand {section.lineCount} hidden lines</span>
                     </div>
-                  </div>
+                  </button>
                 );
               }
               default: return null;
