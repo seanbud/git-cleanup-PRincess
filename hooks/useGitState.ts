@@ -251,26 +251,29 @@ export function useGitState(): UseGitStateReturn {
         }));
     }, []);
 
+    // Optimization: Identify the selected file for diff fetching.
+    // We use the file object from the state as a dependency to ensure we re-fetch
+    // if the state is refreshed (e.g. via auto-refresh).
+    const selectedFile = React.useMemo(() => {
+        if (gitState.selectedFileIds.size !== 1) return null;
+        const id = Array.from(gitState.selectedFileIds)[0];
+        return gitState.files.find(f => f.id === id) || null;
+    }, [gitState.selectedFileIds, gitState.files]);
+
     // Automatically fetch diff when selection changes to exactly one file
     useEffect(() => {
         let isMounted = true;
         const fetchDiff = async () => {
-            if (gitState.selectedFileIds.size === 1) {
-                const id = Array.from(gitState.selectedFileIds)[0];
-                const file = gitState.files.find(f => f.id === id);
-                if (file) {
-                    const diff = await GitService.getDiff(file.path, comparisonBranch);
-                    if (isMounted) setSelectedDiff(diff);
-                } else {
-                    if (isMounted) setSelectedDiff('');
-                }
-            } else if (gitState.selectedFileIds.size === 0) {
-                if (isMounted) setSelectedDiff('');
+            if (selectedFile) {
+                const diff = await GitService.getDiff(selectedFile.path, comparisonBranch);
+                if (isMounted) setSelectedDiff(diff);
+            } else {
+                setSelectedDiff('');
             }
         };
         fetchDiff();
         return () => { isMounted = false; };
-    }, [gitState.selectedFileIds, comparisonBranch, gitState.files]);
+    }, [selectedFile, comparisonBranch]);
 
     return {
         gitState,

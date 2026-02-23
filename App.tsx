@@ -140,10 +140,6 @@ const App: React.FC = () => {
     await git.handleAction(actionType, setCharacterState);
   };
 
-  const selectedFileId = Array.from(git.gitState.selectedFileIds)[0];
-  const selectedFile = git.gitState.files.find(f => f.id === selectedFileId) || null;
-  const isMultipleSelected = git.gitState.selectedFileIds.size > 1;
-
   const isPrincess = themeMode === ThemeMode.PRINCESS;
   const appBgClass = isPrincess ? 'bg-[#fff5f9]' : 'bg-[#f4faff]';
   const sidebarHeaderBg = isPrincess ? 'bg-[#fff0f6]' : 'bg-[#e0efff]/50';
@@ -152,6 +148,15 @@ const App: React.FC = () => {
   const selectedFiles = React.useMemo(() => {
     return git.gitState.files.filter(f => git.gitState.selectedFileIds.has(f.id));
   }, [git.gitState.files, git.gitState.selectedFileIds]);
+
+  const selectedFile = selectedFiles.length === 1 ? selectedFiles[0] : null;
+  const isMultipleSelected = selectedFiles.length > 1;
+
+  // Optimization: Memoize the file object passed to DiffView to prevent redundant re-parsing of large diffs
+  // when unrelated state (like theme or hover) changes.
+  const diffViewFile = React.useMemo(() => {
+    return selectedFile ? { ...selectedFile, diffContent: git.selectedDiff } : null;
+  }, [selectedFile, git.selectedDiff]);
 
   // ─── Render ────────────────────────────────────────────────────
   return (
@@ -313,7 +318,7 @@ const App: React.FC = () => {
                   </div>
                 ) : (
                   /* Single File Diff View */
-                  <DiffView file={selectedFile ? { ...selectedFile, diffContent: git.selectedDiff } : null} mode={themeMode} />
+                  <DiffView file={diffViewFile} mode={themeMode} />
                 )}
 
               </div>
