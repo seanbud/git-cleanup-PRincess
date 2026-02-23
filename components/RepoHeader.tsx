@@ -101,6 +101,8 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
       >
         <button
           onClick={(e) => handleDropdownClick(e, 'REPO')}
+          aria-label="Select repository"
+          title="Select repository"
           className={`flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border shadow-sm active:scale-95 ${repoButtonBg}`}
         >
           <Icons.GitCommit className="w-3.5 h-3.5 opacity-70" />
@@ -137,13 +139,16 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
           onContextMenu={(e) => { e.stopPropagation(); onContextMenu(e, 'BRANCH'); }}
         >
           {/* Branch Name Dropdown Trigger */}
-          <div
+          <button
+            type="button"
             onClick={(e) => handleDropdownClick(e, 'BRANCH')}
-            className={`text-lg md:text-xl font-bold cursor-pointer hover:underline decoration-2 decoration-dotted underline-offset-4 flex items-center ${branchText}`}
+            aria-label="Change current branch"
+            title="Change current branch"
+            className={`text-lg md:text-xl font-bold cursor-pointer hover:underline decoration-2 decoration-dotted underline-offset-4 flex items-center ${branchText} bg-transparent border-none p-0 font-sans`}
           >
             <Icons.GitBranch className="w-5 h-5 mr-2 opacity-80" />
             <span className="truncate">{state.currentBranch}</span>
-          </div>
+          </button>
 
           {activeDropdown === 'BRANCH' && (
             <div className="absolute top-full left-0 z-50">
@@ -159,6 +164,8 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
         <div className="relative">
           <button
             onClick={(e) => handleDropdownClick(e, 'COMPARE')}
+            aria-label="Select comparison branch"
+            title="Select comparison branch"
             className={`bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-0.5 rounded text-sm font-mono flex items-center transition-colors border border-transparent hover:border-gray-400 active:scale-95`}
           >
             {comparisonBranch}

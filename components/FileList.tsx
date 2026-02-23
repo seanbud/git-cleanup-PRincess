@@ -90,7 +90,13 @@ const FileListItem: React.FC<FileListItemProps> = React.memo(({
       </div>
 
       <div className="flex-1 min-w-0 mr-2">
-        {renderPath(file.path)}
+        <div className="flex items-center gap-2">
+          {renderPath(file.path)}
+          <div className={`flex space-x-1 text-[9px] font-bold shrink-0 ${isSelected ? 'text-white/80' : ''}`}>
+            <span className={isSelected ? '' : 'text-green-600'}>+{file.linesAdded}</span>
+            <span className={isSelected ? '' : 'text-red-500'}>-{file.linesRemoved}</span>
+          </div>
+        </div>
         {file.commitMessage && (
           <div className={`text-[10px] truncate mt-0.5 ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
             {file.commitMessage}

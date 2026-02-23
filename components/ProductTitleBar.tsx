@@ -58,6 +58,7 @@ const ProductTitleBar: React.FC<ProductTitleBarProps> = ({ mode, onToggleTheme }
         <button
           onClick={() => { onToggleTheme(); audioService.play('sparkle'); }}
           className={`px-3 py-1 rounded-full text-xs font-bold transition-all active:scale-95 shadow-sm border ${isPrincess ? 'bg-pink-100 hover:bg-pink-200 text-pink-700 border-pink-200' : 'bg-blue-100 hover:bg-blue-200 text-blue-700 border-blue-200'}`}
+          aria-label={isPrincess ? 'Switch to Prince Mode' : 'Switch to Princess Mode'}
           title={isPrincess ? 'Switch to Prince Mode' : 'Switch to Princess Mode'}
         >
           {isPrincess ? '👑 Princess' : '⚔️ Prince'}

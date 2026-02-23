@@ -21,3 +21,7 @@
 ## 2025-05-25 - [Accessibility for Toggle Buttons in Diff View]
 **Learning:** Using semantic `<button type="button">` with `aria-expanded` and `aria-label` for chunk headers and context expansion in diff views ensures that complex code-viewing interfaces are navigable for screen reader and keyboard users.
 **Action:** Always use buttons for toggles in the diff view and include `focus:ring-inset` to provide clear focus indicators without layout shifts.
+
+## 2025-05-26 - [Line Change Metadata for Informed Auditing]
+**Learning:** Displaying line addition and removal counts directly in the file list provides immediate context for the magnitude of changes, allowing users to prioritize their audit. This metadata should be styled for high contrast in both selected and unselected states.
+**Action:** Include summarized change statistics (e.g., `+10 -5`) in file list items when available to improve information density and decision-making speed.
