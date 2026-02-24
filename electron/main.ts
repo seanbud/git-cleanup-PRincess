@@ -19,6 +19,14 @@ const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
 // Track the current working directory for git commands
 let currentCwd = process.cwd();
 
+function isValidSettingValue(val: any): val is string {
+    return typeof val === 'string' && !/[&|;<>$`]/.test(val);
+}
+
+function isValidGitKey(key: any): key is string {
+    return typeof key === 'string' && /^[a-z0-9.-]+$/i.test(key);
+}
+
 function initializeCwd() {
     try {
         // 1. Try launch directory
@@ -302,6 +310,9 @@ app.whenReady().then(() => {
 
     // ─── Git CLI IPC ──────────────────────────────────────────────
     ipcMain.handle('git:cmd', async (_, args: string[]) => {
+        if (!Array.isArray(args) || !args.every(arg => typeof arg === 'string')) {
+            return { success: false, error: 'Invalid arguments' };
+        }
         try {
             // Security: Use execFileSync with argument array to prevent command injection
             // and restrict execution to the 'git' binary only.
@@ -318,6 +329,7 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('git:config-get', async (_, key) => {
+        if (!isValidGitKey(key)) return '';
         try {
             return execFileSync('git', ['config', '--get', key], {
                 encoding: 'utf-8',
@@ -401,9 +413,10 @@ app.whenReady().then(() => {
     ipcMain.handle('shell:open-terminal', async () => {
         const settings = getSettings();
         const shellCmd = settings.shell || (process.platform === 'win32' ? 'powershell' : 'bash');
+        if (!isValidSettingValue(shellCmd)) return { success: false, error: 'Invalid shell configuration' };
         try {
             if (process.platform === 'win32') {
-                execFile('cmd.exe', ['/c', 'start', shellCmd], { cwd: currentCwd });
+                execFile('cmd.exe', ['/c', 'start', '""', shellCmd], { cwd: currentCwd });
             } else {
                 execFile(shellCmd, [], { cwd: currentCwd });
             }
@@ -513,6 +526,10 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('app:save-settings', (_, settings) => {
-        saveSettings(settings);
+        if (typeof settings !== 'object' || settings === null) return;
+        const safeSettings: any = {};
+        if (isValidSettingValue(settings.externalEditor)) safeSettings.externalEditor = settings.externalEditor;
+        if (isValidSettingValue(settings.shell)) safeSettings.shell = settings.shell;
+        saveSettings(safeSettings);
     });
 });
