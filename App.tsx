@@ -60,7 +60,7 @@ const App: React.FC = () => {
     setCharacterState(CharacterState.ACTION_GOOD);
 
     const paths = files.map(f => f.path);
-    const success = await GitService.discardChanges(paths);
+    const success = await GitService.restoreFiles(paths);
 
     if (success) {
       git.refreshGitState();
