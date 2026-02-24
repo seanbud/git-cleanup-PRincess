@@ -59,6 +59,7 @@ const Modal: React.FC<ModalProps> = ({
                         <button
                             onClick={onClose}
                             className={`p-1 rounded-lg hover:bg-black/5 transition-colors ${textClass}`}
+                            aria-label="Close modal"
                         >
                             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

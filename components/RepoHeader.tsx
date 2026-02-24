@@ -62,16 +62,19 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
 
   const renderDropdownList = (items: string[], onSelect: (item: string) => void, selectedItem: string, extraItems?: React.ReactNode) => (
     <div className="absolute top-full mt-2 left-0 w-[280px] bg-white rounded-lg shadow-xl border border-gray-200 ring-1 ring-black/5 z-50 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-1 duration-100">
-      <div className="max-h-[300px] overflow-y-auto py-1">
+      <div className="max-h-[300px] overflow-y-auto py-1" role="listbox">
         {items.map((item) => {
           const isSelected = item === selectedItem;
           const displayName = item.includes('/') || item.includes('\\')
             ? item.replace(/\\/g, '/').split('/').pop() || item
             : item;
           return (
-            <div
+            <button
               key={item}
-              className={`px-4 py-2.5 text-xs font-medium cursor-pointer flex items-center justify-between ${isSelected ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50 text-gray-600'}`}
+              type="button"
+              role="option"
+              aria-selected={isSelected}
+              className={`w-full text-left px-4 py-2.5 text-xs font-medium cursor-pointer flex items-center justify-between border-none bg-transparent focus:outline-none focus:bg-blue-50 focus:text-blue-700 transition-colors ${isSelected ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50 text-gray-600'}`}
               onClick={(e) => {
                 e.stopPropagation();
                 onSelect(item);
@@ -80,7 +83,7 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
             >
               <span className="truncate">{displayName}</span>
               {isSelected && <Icons.Check />}
-            </div>
+            </button>
           );
         })}
         {extraItems}
@@ -100,8 +103,12 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
         onContextMenu={(e) => { e.stopPropagation(); onContextMenu(e, 'REPO'); }}
       >
         <button
+          type="button"
           onClick={(e) => handleDropdownClick(e, 'REPO')}
-          className={`flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border shadow-sm active:scale-95 ${repoButtonBg}`}
+          className={`flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border shadow-sm active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 ${repoButtonBg}`}
+          aria-haspopup="listbox"
+          aria-expanded={activeDropdown === 'REPO'}
+          aria-label={`Select repository, current repository is ${state.repoName}`}
         >
           <Icons.GitCommit className="w-3.5 h-3.5 opacity-70" />
           <span className="max-w-[140px] truncate">{state.repoName}</span>
@@ -113,8 +120,9 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
           state.repoName,
           <>
             <div className="border-t border-gray-100 my-1" />
-            <div
-              className="px-4 py-2.5 text-xs font-medium cursor-pointer hover:bg-gray-50 text-blue-600 flex items-center gap-2"
+            <button
+              type="button"
+              className="w-full text-left px-4 py-2.5 text-xs font-medium cursor-pointer hover:bg-gray-50 text-blue-600 flex items-center gap-2 border-none bg-transparent focus:outline-none focus:bg-blue-50 transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenRepo?.();
@@ -125,7 +133,7 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
               </svg>
               Open Local Repository...
-            </div>
+            </button>
           </>
         )}
       </div>
@@ -137,13 +145,17 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
           onContextMenu={(e) => { e.stopPropagation(); onContextMenu(e, 'BRANCH'); }}
         >
           {/* Branch Name Dropdown Trigger */}
-          <div
+          <button
+            type="button"
             onClick={(e) => handleDropdownClick(e, 'BRANCH')}
-            className={`text-lg md:text-xl font-bold cursor-pointer hover:underline decoration-2 decoration-dotted underline-offset-4 flex items-center ${branchText}`}
+            className={`text-lg md:text-xl font-bold cursor-pointer hover:underline decoration-2 decoration-dotted underline-offset-4 flex items-center bg-transparent border-none p-0 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 rounded ${branchText}`}
+            aria-haspopup="listbox"
+            aria-expanded={activeDropdown === 'BRANCH'}
+            aria-label={`Select branch, current branch is ${state.currentBranch}`}
           >
             <Icons.GitBranch className="w-5 h-5 mr-2 opacity-80" />
             <span className="truncate">{state.currentBranch}</span>
-          </div>
+          </button>
 
           {activeDropdown === 'BRANCH' && (
             <div className="absolute top-full left-0 z-50">
@@ -158,8 +170,12 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
         {/* Comparison Branch Dropdown */}
         <div className="relative">
           <button
+            type="button"
             onClick={(e) => handleDropdownClick(e, 'COMPARE')}
-            className={`bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-0.5 rounded text-sm font-mono flex items-center transition-colors border border-transparent hover:border-gray-400 active:scale-95`}
+            className={`bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-0.5 rounded text-sm font-mono flex items-center transition-colors border border-transparent hover:border-gray-400 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2`}
+            aria-haspopup="listbox"
+            aria-expanded={activeDropdown === 'COMPARE'}
+            aria-label={`Select comparison branch, current comparison is ${comparisonBranch}`}
           >
             {comparisonBranch}
             <span className="ml-1 opacity-50 text-[10px]">▼</span>
