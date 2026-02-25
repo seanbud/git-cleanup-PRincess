@@ -104,11 +104,19 @@ export class GitService {
         const files: GitFile[] = [];
         const seenPaths = new Set<string>();
 
-        // 1. Get uncommitted files (Status)
-        const res = await git('status', '--porcelain');
-        if (res.success && res.stdout.trim()) {
-            const lines = res.stdout.split('\n').filter(Boolean);
-            lines.forEach((line: string, index: number) => {
+        // Optimization: Parallelize initial Git commands to reduce command waterfall.
+        // We fetch status, current branch, and local/staged stats concurrently.
+        const [statusRes, currentBranch, localStats, stagedStats] = await Promise.all([
+            git('status', '--porcelain'),
+            this.getCurrentBranch(),
+            git('diff', '--numstat', '--text'),
+            git('diff', '--numstat', '--text', '--cached')
+        ]);
+
+        // 1. Process uncommitted files (Status)
+        if (statusRes.success && statusRes.stdout.trim()) {
+            const lines = statusRes.stdout.split('\n').filter(Boolean);
+            lines.forEach((line: string) => {
                 const code = line.substring(0, 2);
                 let filePath = line.substring(3).trim();
                 if (filePath.startsWith('"') && filePath.endsWith('"')) {
@@ -132,35 +140,42 @@ export class GitService {
             });
         }
 
-        // 2. Get committed differences if comparing to another branch
-        const currentBranch = await this.getCurrentBranch();
+        // 2. Get committed differences and stats if comparing to another branch
+        let diffRes = null;
+        let branchStats = null;
+
         if (comparisonBranch && comparisonBranch !== currentBranch) {
-            const diffRes = await git('diff', '--name-status', `${comparisonBranch}...HEAD`);
-            if (diffRes.success && diffRes.stdout.trim()) {
-                const lines = diffRes.stdout.split('\n').filter(Boolean);
-                lines.forEach((line: string, index: number) => {
-                    const parts = line.split(/\s+/);
-                    const code = parts[0];
-                    const filePath = parts[parts.length - 1];
+            // Optimization: Parallelize comparison-based diff and numstat calls.
+            [diffRes, branchStats] = await Promise.all([
+                git('diff', '--name-status', `${comparisonBranch}...HEAD`),
+                git('diff', '--numstat', '--text', `${comparisonBranch}...HEAD`)
+            ]);
+        }
 
-                    // Skip if already seen in status (local changes take priority)
-                    if (seenPaths.has(filePath)) return;
+        if (diffRes && diffRes.success && diffRes.stdout.trim()) {
+            const lines = diffRes.stdout.split('\n').filter(Boolean);
+            lines.forEach((line: string) => {
+                const parts = line.split(/\s+/);
+                const code = parts[0];
+                const filePath = parts[parts.length - 1];
 
-                    let status = FileStatus.MODIFIED;
-                    if (code.startsWith('A')) status = FileStatus.ADDED;
-                    if (code.startsWith('D')) status = FileStatus.DELETED;
-                    if (code.startsWith('R')) status = FileStatus.RENAMED;
+                // Skip if already seen in status (local changes take priority)
+                if (seenPaths.has(filePath)) return;
 
-                    files.push({
-                        id: `diff:${filePath}`,
-                        path: filePath,
-                        status,
-                        changeType: ChangeType.COMMITTED,
-                        linesAdded: 0,
-                        linesRemoved: 0
-                    });
+                let status = FileStatus.MODIFIED;
+                if (code.startsWith('A')) status = FileStatus.ADDED;
+                if (code.startsWith('D')) status = FileStatus.DELETED;
+                if (code.startsWith('R')) status = FileStatus.RENAMED;
+
+                files.push({
+                    id: `diff:${filePath}`,
+                    path: filePath,
+                    status,
+                    changeType: ChangeType.COMMITTED,
+                    linesAdded: 0,
+                    linesRemoved: 0
                 });
-            }
+            });
         }
 
         // Fetch line stats
@@ -182,17 +197,13 @@ export class GitService {
             }
         };
 
-        // 1. Get uncommitted stats (staged + unstaged)
-        // Use separate commands for staged and unstaged to avoid issues with empty repos (no HEAD)
-        const localStats = await git('diff', '--numstat', '--text');
+        // Apply uncommitted stats
         if (localStats.success) addStats(localStats.stdout);
-        const stagedStats = await git('diff', '--numstat', '--text', '--cached');
         if (stagedStats.success) addStats(stagedStats.stdout);
 
-        // 2. Get committed stats for the branch comparison
-        if (comparisonBranch && comparisonBranch !== currentBranch) {
-            const branchStats = await git('diff', '--numstat', '--text', `${comparisonBranch}...HEAD`);
-            if (branchStats.success) addStats(branchStats.stdout);
+        // Apply comparison branch stats
+        if (branchStats && branchStats.success) {
+            addStats(branchStats.stdout);
         }
 
         // Apply stats to files
@@ -238,14 +249,21 @@ export class GitService {
     }
 
     static async getGitConfig(): Promise<GitConfig> {
-        // @ts-ignore
-        const name = await window.electronAPI.gitConfigGet('user.name');
-        // @ts-ignore
-        const email = await window.electronAPI.gitConfigGet('user.email');
-        // @ts-ignore
-        const defaultBranch = await window.electronAPI.gitConfigGet('init.defaultBranch') || 'main';
+        // Optimization: Parallelize IPC calls to reduce latency from 3 serial round-trips to 1 parallel batch.
+        const [name, email, defaultBranch] = await Promise.all([
+            // @ts-ignore
+            window.electronAPI.gitConfigGet('user.name'),
+            // @ts-ignore
+            window.electronAPI.gitConfigGet('user.email'),
+            // @ts-ignore
+            window.electronAPI.gitConfigGet('init.defaultBranch')
+        ]);
 
-        return { name, email, defaultBranch };
+        return {
+            name: name || '',
+            email: email || '',
+            defaultBranch: defaultBranch || 'main'
+        };
     }
 
     static async setGitConfig(key: string, value: string): Promise<boolean> {
