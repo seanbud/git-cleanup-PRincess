@@ -63,6 +63,10 @@ export function useGitState(): UseGitStateReturn {
 
     const refreshGitState = useCallback(async () => {
         try {
+            // Optimization: If we already have a comparison branch, fetch file status in parallel with other metadata
+            // to eliminate the waterfall between metadata discovery and file listing.
+            const filesPromise = comparisonBranch ? GitService.getStatusFiles(comparisonBranch) : null;
+
             const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp] = await Promise.all([
                 GitService.getRepoName(),
                 GitService.getCurrentBranch(),
@@ -74,14 +78,14 @@ export function useGitState(): UseGitStateReturn {
                 GitService.getBestComparisonBranch()
             ]);
 
-            // If we don't have a comparison branch set yet, use the best guess
-            let activeComp = comparisonBranch;
-            if (!activeComp) {
-                activeComp = bestComp;
+            let files;
+            if (filesPromise) {
+                files = await filesPromise;
+            } else {
+                // First run: use the best comparison branch discovered
                 setComparisonBranch(bestComp);
+                files = await GitService.getStatusFiles(bestComp);
             }
-
-            const files = await GitService.getStatusFiles(activeComp);
 
             setGitState(prev => ({
                 ...prev,
