@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell, ipcMain, safeStorage, dialog, Menu } from 'electron';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { execSync, execFileSync, execFile } from 'child_process';
+import { execFileSync, execFile } from 'child_process';
 import fs from 'fs';
 import { autoUpdater } from 'electron-updater';
 const __filename = fileURLToPath(import.meta.url);
@@ -22,7 +22,7 @@ let currentCwd = process.cwd();
 function initializeCwd() {
     try {
         // 1. Try launch directory
-        const gitRoot = execSync('git rev-parse --show-toplevel', {
+        const gitRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], {
             encoding: 'utf-8',
             cwd: process.cwd(),
             stdio: ['pipe', 'pipe', 'pipe']
@@ -39,7 +39,7 @@ function initializeCwd() {
         if (recent.length > 0) {
             const lastRepo = recent[0];
             // Verify it still exists and is a repo
-            execSync('git rev-parse --is-inside-work-tree', {
+            execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
                 cwd: lastRepo,
                 encoding: 'utf-8',
                 stdio: ['pipe', 'pipe', 'pipe']
@@ -78,10 +78,23 @@ function addRecentRepo(repoPath: string) {
     fs.writeFileSync(RECENT_REPOS_PATH, JSON.stringify(repos));
 }
 
+function isValidSettingValue(value: any): boolean {
+    if (typeof value !== 'string') return false;
+    if (value.length === 0 || value.length > 255) return false;
+    // Security: Block characters that could be used for shell injection: & | ; < > $ `
+    // We allow parentheses () to support common paths like "Program Files (x86)"
+    const dangerousChars = /[&|;<>$`]/;
+    return !dangerousChars.test(value);
+}
+
 function getSettings() {
     try {
         if (fs.existsSync(SETTINGS_PATH)) {
-            return JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+            const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+            // Validate loaded settings
+            if (isValidSettingValue(settings.externalEditor) && isValidSettingValue(settings.shell)) {
+                return settings;
+            }
         }
     } catch { }
     // Defaults
@@ -92,7 +105,21 @@ function getSettings() {
 }
 
 function saveSettings(settings: any) {
-    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+    const validatedSettings: any = {};
+
+    if (isValidSettingValue(settings.externalEditor)) {
+        validatedSettings.externalEditor = settings.externalEditor;
+    } else {
+        validatedSettings.externalEditor = 'code';
+    }
+
+    if (isValidSettingValue(settings.shell)) {
+        validatedSettings.shell = settings.shell;
+    } else {
+        validatedSettings.shell = process.platform === 'win32' ? 'powershell' : 'bash';
+    }
+
+    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(validatedSettings, null, 2));
 }
 
 function createWindow() {
@@ -342,7 +369,7 @@ app.whenReady().then(() => {
 
         // Verify it's a git repo
         try {
-            execSync('git rev-parse --is-inside-work-tree', {
+            execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
                 cwd: selectedDir,
                 encoding: 'utf-8',
                 stdio: ['pipe', 'pipe', 'pipe']
@@ -366,7 +393,7 @@ app.whenReady().then(() => {
 
     ipcMain.handle('repos:switch', (_, repoPath: string) => {
         try {
-            execSync('git rev-parse --is-inside-work-tree', {
+            execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
                 cwd: repoPath,
                 encoding: 'utf-8',
                 stdio: ['pipe', 'pipe', 'pipe']
