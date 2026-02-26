@@ -19,6 +19,25 @@ const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
 // Track the current working directory for git commands
 let currentCwd = process.cwd();
 
+// Security: Validation helpers
+const isValidGitKey = (key: string) => /^[a-z0-9.-]+$/i.test(key);
+
+const isValidSettingValue = (val: any) =>
+    typeof val === 'string' &&
+    val.length > 0 &&
+    val.length < 255 &&
+    !/[&|;<>$`]/.test(val);
+
+const isSafePath = (filePath: string): boolean => {
+    try {
+        const fullPath = path.resolve(currentCwd, filePath);
+        const relative = path.relative(currentCwd, fullPath);
+        return !relative.startsWith('..') && !path.isAbsolute(relative);
+    } catch {
+        return false;
+    }
+};
+
 function initializeCwd() {
     try {
         // 1. Try launch directory
@@ -92,7 +111,19 @@ function getSettings() {
 }
 
 function saveSettings(settings: any) {
-    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+    if (typeof settings !== 'object' || settings === null) return;
+
+    // Security: Only allow specific keys and validate values
+    const allowedKeys = ['externalEditor', 'shell'];
+    const sanitized: any = getSettings(); // Start with current settings/defaults
+
+    for (const key of allowedKeys) {
+        if (key in settings && isValidSettingValue(settings[key])) {
+            sanitized[key] = settings[key];
+        }
+    }
+
+    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(sanitized, null, 2));
 }
 
 function createWindow() {
@@ -318,6 +349,11 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('git:config-get', async (_, key) => {
+        // Security: Validate git config key to prevent passing extra arguments
+        if (!isValidGitKey(key)) {
+            return '';
+        }
+
         try {
             return execFileSync('git', ['config', '--get', key], {
                 encoding: 'utf-8',
@@ -414,15 +450,25 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-path', (_, filePath: string) => {
-        shell.showItemInFolder(filePath);
+        // Security: Prevent path traversal
+        if (isSafePath(filePath)) {
+            shell.showItemInFolder(path.resolve(currentCwd, filePath));
+        }
     });
 
     ipcMain.handle('shell:open-directory', (_, dirPath: string) => {
-        shell.openPath(dirPath);
+        // Security: Prevent path traversal
+        if (isSafePath(dirPath)) {
+            shell.openPath(path.resolve(currentCwd, dirPath));
+        }
     });
 
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
-        const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
+        // Security: Prevent path traversal
+        if (!isSafePath(filePath)) {
+            return { success: false, error: 'Access denied: Path outside of repository' };
+        }
+        const fullPath = path.resolve(currentCwd, filePath);
         try {
             await shell.trashItem(fullPath);
             return { success: true };
