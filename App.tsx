@@ -100,6 +100,11 @@ const App: React.FC = () => {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
+      // 'Escape' to clear search and blur if focused
+      if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
+        setSearchQuery('');
+        searchInputRef.current?.blur();
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);

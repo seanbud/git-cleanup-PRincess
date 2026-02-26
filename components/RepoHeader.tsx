@@ -36,6 +36,7 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
 }) => {
   const isPrincess = mode === ThemeMode.PRINCESS;
   const [activeDropdown, setActiveDropdown] = useState<DropdownType>(null);
+  const [copiedBranch, setCopiedBranch] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Theme Variables
@@ -137,13 +138,32 @@ const RepoHeader: React.FC<RepoHeaderProps> = ({
           onContextMenu={(e) => { e.stopPropagation(); onContextMenu(e, 'BRANCH'); }}
         >
           {/* Branch Name Dropdown Trigger */}
-          <div
+          <button
+            type="button"
             onClick={(e) => handleDropdownClick(e, 'BRANCH')}
-            className={`text-lg md:text-xl font-bold cursor-pointer hover:underline decoration-2 decoration-dotted underline-offset-4 flex items-center ${branchText}`}
+            aria-label={`Switch branch from ${state.currentBranch}`}
+            aria-haspopup="listbox"
+            aria-expanded={activeDropdown === 'BRANCH'}
+            className={`text-lg md:text-xl font-bold cursor-pointer hover:underline decoration-2 decoration-dotted underline-offset-4 flex items-center ${branchText} focus:outline-none focus:ring-2 focus:ring-offset-2 ${isPrincess ? 'focus:ring-pink-300' : 'focus:ring-blue-400'} rounded-sm`}
           >
             <Icons.GitBranch className="w-5 h-5 mr-2 opacity-80" />
             <span className="truncate">{state.currentBranch}</span>
-          </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(state.currentBranch);
+              setCopiedBranch(true);
+              setTimeout(() => setCopiedBranch(false), 2000);
+            }}
+            className={`ml-2 p-1 rounded-md transition-all ${isPrincess ? 'hover:bg-pink-200 text-pink-600' : 'hover:bg-blue-200 text-blue-600'} focus:outline-none focus:ring-2 ${isPrincess ? 'focus:ring-pink-300' : 'focus:ring-blue-400'}`}
+            aria-label="Copy branch name"
+            title="Copy branch name"
+          >
+            {copiedBranch ? <Icons.Check className="w-3.5 h-3.5" /> : <Icons.Copy className="w-3.5 h-3.5 opacity-60 hover:opacity-100" />}
+          </button>
 
           {activeDropdown === 'BRANCH' && (
             <div className="absolute top-full left-0 z-50">

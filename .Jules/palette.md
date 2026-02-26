@@ -21,3 +21,7 @@
 ## 2025-05-25 - [Accessibility for Toggle Buttons in Diff View]
 **Learning:** Using semantic `<button type="button">` with `aria-expanded` and `aria-label` for chunk headers and context expansion in diff views ensures that complex code-viewing interfaces are navigable for screen reader and keyboard users.
 **Action:** Always use buttons for toggles in the diff view and include `focus:ring-inset` to provide clear focus indicators without layout shifts.
+
+## 2025-05-26 - [Copy-to-Clipboard Accessibility]
+**Learning:** When adding "Copy to Clipboard" buttons, providing visual feedback (like an icon swap) is essential for UX. Additionally, ensuring these buttons have clear `aria-label` attributes and `title` tooltips helps both screen reader and mouse users.
+**Action:** Always implement a brief "success" state (e.g., 2s) when performing clipboard operations to confirm the action to the user.
