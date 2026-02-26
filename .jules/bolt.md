@@ -9,3 +9,7 @@
 ## 2026-02-22 - [Memoizing Derived Props for Heavy Components]
 **Learning:** Passing object literals as props (e.g., `file={ { ...file, diffContent } }`) to heavy components like `DiffView` causes them to re-render and re-parse data on every parent render, even if the data hasn't changed. Memoizing these derived objects with `useMemo` is critical for maintaining reference stability and skipping expensive processing.
 **Action:** Always wrap derived objects in `useMemo` if they are passed to components that perform heavy parsing or rendering (like diff viewers or graphs). Use specific identity dependencies (like IDs) to balance performance and correctness.
+
+## 2025-05-16 - [Parallelizing Git Command Waterfall]
+**Learning:** Sequential execution of read-only Git commands (status, stats, config) creates a significant "waterfall" latency. Using `Promise.all` to parallelize these calls reduces the total time to that of the slowest single command. Additionally, Git is significantly more efficient at processing multiple files in a single command (`git checkout -- path1 path2...`) than spawning multiple processes.
+**Action:** Use `Promise.all` for independent Git commands in service layers. Implement bulk versions of service methods (`restoreFiles`, `removeFiles`) and use them in high-level hooks to avoid O(N) process spawn bottlenecks during multi-file actions.
