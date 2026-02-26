@@ -81,7 +81,7 @@ export function useGitState(): UseGitStateReturn {
                 setComparisonBranch(bestComp);
             }
 
-            const files = await GitService.getStatusFiles(activeComp);
+            const files = await GitService.getStatusFiles(activeComp, currentBranch);
 
             setGitState(prev => ({
                 ...prev,
@@ -154,13 +154,13 @@ export function useGitState(): UseGitStateReturn {
         // Explicitly refresh with the new comparison
         setIsProcessing(true);
         try {
-            const files = await GitService.getStatusFiles(branch);
+            const files = await GitService.getStatusFiles(branch, gitState.currentBranch);
             setGitState(prev => ({ ...prev, files }));
             filesRef.current = files;
         } finally {
             setIsProcessing(false);
         }
-    }, []);
+    }, [gitState.currentBranch]);
 
     const handleChangeRepo = useCallback(async (repoPath: string) => {
         // @ts-ignore
@@ -205,14 +205,13 @@ export function useGitState(): UseGitStateReturn {
         setCharacterState(actionType === 'RESTORE' ? CharacterState.ACTION_GOOD : CharacterState.ACTION_BAD);
 
         const selectedFiles = gitState.files.filter(f => gitState.selectedFileIds.has(f.id));
+        const filePaths = selectedFiles.map(f => f.path);
 
         try {
-            for (const file of selectedFiles) {
-                if (actionType === 'RESTORE') {
-                    await GitService.restoreFile(file.path);
-                } else {
-                    await GitService.removeFile(file.path);
-                }
+            if (actionType === 'RESTORE') {
+                await GitService.restoreFiles(filePaths, comparisonBranch);
+            } else {
+                await GitService.removeFiles(filePaths);
             }
 
             await refreshGitState();
@@ -234,7 +233,7 @@ export function useGitState(): UseGitStateReturn {
             setTimeout(() => setCharacterState(CharacterState.IDLE), 3000);
             setIsProcessing(false);
         }
-    }, [gitState.files, gitState.selectedFileIds, refreshGitState]);
+    }, [gitState.files, gitState.selectedFileIds, refreshGitState, comparisonBranch]);
 
     const handleFileSelect = useCallback((file: GitFile) => {
         setGitState(prev => {
