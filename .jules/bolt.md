@@ -9,3 +9,7 @@
 ## 2026-02-22 - [Memoizing Derived Props for Heavy Components]
 **Learning:** Passing object literals as props (e.g., `file={ { ...file, diffContent } }`) to heavy components like `DiffView` causes them to re-render and re-parse data on every parent render, even if the data hasn't changed. Memoizing these derived objects with `useMemo` is critical for maintaining reference stability and skipping expensive processing.
 **Action:** Always wrap derived objects in `useMemo` if they are passed to components that perform heavy parsing or rendering (like diff viewers or graphs). Use specific identity dependencies (like IDs) to balance performance and correctness.
+
+## 2026-03-05 - [Optimizing Git CLI Waterfall]
+**Learning:** Sequential execution of multiple Git CLI commands during UI refreshes creates a significant "waterfall" latency due to IPC and process spawn overhead. Parallelizing independent commands with `Promise.all` and passing already-fetched metadata (like current branch name) to sub-methods significantly reduces total refresh time.
+**Action:** Use `Promise.all` to fetch Git status, numstat, and config data concurrently. Update service method signatures to accept optional parameters for metadata that has already been retrieved in the call chain.
