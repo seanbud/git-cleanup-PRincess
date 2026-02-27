@@ -100,11 +100,19 @@ const App: React.FC = () => {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
+
+      // 'Escape' to clear search and blur if active
+      if (e.key === 'Escape') {
+        if (document.activeElement === searchInputRef.current) {
+          setSearchQuery('');
+          searchInputRef.current?.blur();
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [setSearchQuery]);
 
   // ─── Auth Init ─────────────────────────────────────────────────
   useEffect(() => {

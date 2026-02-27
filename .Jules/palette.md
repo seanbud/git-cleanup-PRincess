@@ -21,3 +21,7 @@
 ## 2025-05-25 - [Accessibility for Toggle Buttons in Diff View]
 **Learning:** Using semantic `<button type="button">` with `aria-expanded` and `aria-label` for chunk headers and context expansion in diff views ensures that complex code-viewing interfaces are navigable for screen reader and keyboard users.
 **Action:** Always use buttons for toggles in the diff view and include `focus:ring-inset` to provide clear focus indicators without layout shifts.
+
+## 2025-06-01 - [Keyboard Interaction for Search and Dropdowns]
+**Learning:** Users expect global keyboard listeners for 'Escape' to clear high-priority transient states like search filters. Additionally, converting custom dropdown components to semantic `<button>` elements with ARIA `listbox`/`option` roles provides immediate accessibility wins for screen readers without requiring complex state management.
+**Action:** Implement 'Escape' to clear and blur search inputs. Audit dropdowns to ensure they use semantic buttons and proper ARIA roles for selection states.
