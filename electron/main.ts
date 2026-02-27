@@ -81,7 +81,15 @@ function addRecentRepo(repoPath: string) {
 function getSettings() {
     try {
         if (fs.existsSync(SETTINGS_PATH)) {
-            return JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+            const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+            // Security: Validate loaded settings
+            if (settings.externalEditor && !isValidSettingValue(settings.externalEditor)) {
+                settings.externalEditor = 'code';
+            }
+            if (settings.shell && !isValidSettingValue(settings.shell)) {
+                settings.shell = process.platform === 'win32' ? 'powershell' : 'bash';
+            }
+            return settings;
         }
     } catch { }
     // Defaults
@@ -91,8 +99,52 @@ function getSettings() {
     };
 }
 
+/**
+ * Security: Validates that a path is within the current working directory
+ * to prevent path traversal vulnerabilities.
+ */
+function isSafePath(filePath: string): boolean {
+    if (!filePath) return false;
+    const resolvedPath = path.resolve(currentCwd, filePath);
+    const relative = path.relative(currentCwd, resolvedPath);
+    return !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+/**
+ * Security: Validates setting values to prevent injection and DoS.
+ */
+function isValidSettingValue(value: any): boolean {
+    if (typeof value !== 'string') return false;
+    // Limit length to prevent DoS/overflow
+    if (value.length > 255) return false;
+    // Block common shell injection characters while allowing spaces and parentheses (for "Program Files")
+    return !/[&|;<>$`]/.test(value);
+}
+
+/**
+ * Security: Validates git config keys to prevent command injection.
+ */
+function isValidGitKey(key: string): boolean {
+    // Must start with alphanumeric and contain only valid git config characters
+    return /^[a-z0-9][a-z0-9.-]*$/i.test(key);
+}
+
 function saveSettings(settings: any) {
-    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+    // Security: Only allow whitelisted keys and validate values
+    const safeSettings: any = {};
+    const whitelist = ['externalEditor', 'shell'];
+
+    for (const key of whitelist) {
+        if (settings[key] !== undefined && isValidSettingValue(settings[key])) {
+            safeSettings[key] = settings[key];
+        }
+    }
+
+    // Preserve existing settings that aren't in the whitelist if they exist
+    const currentSettings = getSettings();
+    const finalSettings = { ...currentSettings, ...safeSettings };
+
+    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(finalSettings, null, 2));
 }
 
 function createWindow() {
@@ -318,6 +370,8 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('git:config-get', async (_, key) => {
+        // Security: Validate key to prevent passing arbitrary flags or commands
+        if (!isValidGitKey(key)) return '';
         try {
             return execFileSync('git', ['config', '--get', key], {
                 encoding: 'utf-8',
@@ -414,15 +468,23 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-path', (_, filePath: string) => {
-        shell.showItemInFolder(filePath);
+        // Security: Prevent path traversal
+        if (!isSafePath(filePath)) return;
+        shell.showItemInFolder(path.resolve(currentCwd, filePath));
     });
 
     ipcMain.handle('shell:open-directory', (_, dirPath: string) => {
-        shell.openPath(dirPath);
+        // Security: Prevent path traversal
+        if (!isSafePath(dirPath)) return;
+        shell.openPath(path.resolve(currentCwd, dirPath));
     });
 
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
-        const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
+        // Security: Prevent path traversal
+        if (!isSafePath(filePath)) {
+            return { success: false, error: 'Access denied' };
+        }
+        const fullPath = path.resolve(currentCwd, filePath);
         try {
             await shell.trashItem(fullPath);
             return { success: true };
