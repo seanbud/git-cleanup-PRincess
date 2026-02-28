@@ -95,6 +95,27 @@ function saveSettings(settings: any) {
     fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
 }
 
+function isSafePath(filePath: string): boolean {
+    try {
+        const fullPath = path.resolve(currentCwd, filePath);
+        const relative = path.relative(currentCwd, fullPath);
+        return !relative.startsWith('..') && !path.isAbsolute(relative);
+    } catch {
+        return false;
+    }
+}
+
+function isValidGitKey(key: string): boolean {
+    return /^[a-z0-9][a-z0-9.-]*$/i.test(key);
+}
+
+function isValidSettingValue(value: string): boolean {
+    if (typeof value !== 'string') return false;
+    // Allow alphanumeric, spaces, and common path characters like () for "Program Files (x86)"
+    // but block shell metacharacters: &|;<>$ and backticks
+    return value.length > 0 && value.length < 256 && !/[&|;<>$`]/.test(value);
+}
+
 function createWindow() {
     process.env.DIST_ELECTRON = path.join(__dirname, '../dist-electron');
     process.env.DIST = path.join(__dirname, '../dist');
@@ -318,6 +339,9 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('git:config-get', async (_, key) => {
+        if (!isValidGitKey(key)) {
+            return '';
+        }
         try {
             return execFileSync('git', ['config', '--get', key], {
                 encoding: 'utf-8',
@@ -387,6 +411,9 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-editor', async (_, filePath: string) => {
+        if (!isSafePath(filePath)) {
+            return { success: false, error: 'Access denied' };
+        }
         const settings = getSettings();
         const editor = settings.externalEditor || 'code';
         try {
@@ -414,14 +441,21 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-path', (_, filePath: string) => {
-        shell.showItemInFolder(filePath);
+        if (isSafePath(filePath)) {
+            shell.showItemInFolder(path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath));
+        }
     });
 
     ipcMain.handle('shell:open-directory', (_, dirPath: string) => {
-        shell.openPath(dirPath);
+        if (isSafePath(dirPath)) {
+            shell.openPath(path.isAbsolute(dirPath) ? dirPath : path.join(currentCwd, dirPath));
+        }
     });
 
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
+        if (!isSafePath(filePath)) {
+            return { success: false, error: 'Access denied' };
+        }
         const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
         try {
             await shell.trashItem(fullPath);
@@ -512,7 +546,18 @@ app.whenReady().then(() => {
         return getSettings();
     });
 
-    ipcMain.handle('app:save-settings', (_, settings) => {
-        saveSettings(settings);
+    ipcMain.handle('app:save-settings', (_, newSettings) => {
+        const currentSettings = getSettings();
+        const mergedSettings = { ...currentSettings, ...newSettings };
+
+        // Sanitize sensitive settings
+        if (mergedSettings.externalEditor && !isValidSettingValue(mergedSettings.externalEditor)) {
+            mergedSettings.externalEditor = currentSettings.externalEditor;
+        }
+        if (mergedSettings.shell && !isValidSettingValue(mergedSettings.shell)) {
+            mergedSettings.shell = currentSettings.shell;
+        }
+
+        saveSettings(mergedSettings);
     });
 });

@@ -7,3 +7,8 @@
 **Vulnerability:** Shell command injection via interpolated strings in `child_process.execSync` within IPC handlers.
 **Learning:** Passing unsanitized strings from the renderer to the main process for shell execution is extremely dangerous. Even quoting arguments is insufficient if the shell interprets special characters or if the input breaks out of quotes.
 **Prevention:** Always use argument arrays with `execFile` or `execFileSync` to bypass the shell entirely. Restrict IPC handlers to specific binaries (e.g., `git`) rather than allowing arbitrary commands.
+
+## 2026-03-05 - Path Traversal in File Operations
+**Vulnerability:** Renderer-provided paths were used in Electron `shell` and `fs` operations without validation, allowing access to files outside the repository.
+**Learning:** Even when using safe execution methods, path traversal is a risk if the main process blindly trusts paths from the renderer. `path.resolve` can be tricked by absolute paths or `..` segments.
+**Prevention:** Always validate that resolved paths remain within the expected root directory using `path.relative` and checking for `..` prefixes before performing filesystem or shell operations.
