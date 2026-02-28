@@ -63,25 +63,35 @@ export function useGitState(): UseGitStateReturn {
 
     const refreshGitState = useCallback(async () => {
         try {
-            const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp] = await Promise.all([
+            // Performance: Parallelize metadata fetching to reduce the 'waterfall' effect.
+            // If we already have a comparison branch, we can fetch status files in the same batch.
+            const initialTasks: Promise<any>[] = [
                 GitService.getRepoName(),
                 GitService.getCurrentBranch(),
                 GitService.getUpstreamBranch(),
                 GitService.getGitConfig(),
                 GitService.getBranches(),
                 GitService.getCommitGraph(),
-                GitService.getAppSettings(),
-                GitService.getBestComparisonBranch()
-            ]);
+                GitService.getAppSettings()
+            ];
 
-            // If we don't have a comparison branch set yet, use the best guess
-            let activeComp = comparisonBranch;
-            if (!activeComp) {
-                activeComp = bestComp;
-                setComparisonBranch(bestComp);
+            if (comparisonBranch) {
+                initialTasks.push(GitService.getStatusFiles(comparisonBranch));
             }
 
-            const files = await GitService.getStatusFiles(activeComp);
+            const results = await Promise.all(initialTasks);
+
+            const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings] = results;
+            let files = comparisonBranch ? results[7] : null;
+
+            // If we don't have a comparison branch set yet, find the best guess
+            let activeComp = comparisonBranch;
+            if (!activeComp) {
+                activeComp = await GitService.getBestComparisonBranch(currentBranch, branchList);
+                setComparisonBranch(activeComp);
+                // Since we didn't have activeComp, we must fetch files now
+                files = await GitService.getStatusFiles(activeComp);
+            }
 
             setGitState(prev => ({
                 ...prev,
@@ -205,14 +215,14 @@ export function useGitState(): UseGitStateReturn {
         setCharacterState(actionType === 'RESTORE' ? CharacterState.ACTION_GOOD : CharacterState.ACTION_BAD);
 
         const selectedFiles = gitState.files.filter(f => gitState.selectedFileIds.has(f.id));
+        const paths = selectedFiles.map(f => f.path);
 
         try {
-            for (const file of selectedFiles) {
-                if (actionType === 'RESTORE') {
-                    await GitService.restoreFile(file.path);
-                } else {
-                    await GitService.removeFile(file.path);
-                }
+            // Performance: Use bulk Git operations to avoid sequential CLI overhead
+            if (actionType === 'RESTORE') {
+                await GitService.restoreFiles(paths, comparisonBranch);
+            } else {
+                await GitService.removeFiles(paths);
             }
 
             await refreshGitState();
