@@ -21,3 +21,11 @@
 ## 2025-05-25 - [Accessibility for Toggle Buttons in Diff View]
 **Learning:** Using semantic `<button type="button">` with `aria-expanded` and `aria-label` for chunk headers and context expansion in diff views ensures that complex code-viewing interfaces are navigable for screen reader and keyboard users.
 **Action:** Always use buttons for toggles in the diff view and include `focus:ring-inset` to provide clear focus indicators without layout shifts.
+
+## 2025-05-26 - [Global Escape Key for Input Reset]
+**Learning:** Implementing a global `Escape` key handler that specifically targets focused search inputs to clear their state and blur focus provides a fast, expected "reset" path for power users.
+**Action:** Include `Escape` key logic in global listeners when adding search or filter inputs to allow users to quickly return to the main view.
+
+## 2025-05-26 - [Theme-Aware Focus States]
+**Learning:** In a multi-theme application (like Prince/Princess modes), hardcoded focus rings can feel out of place. Dynamic focus ring colors that match the active theme's primary palette ensure the UI remains cohesive and accessible across all modes.
+**Action:** Always use theme-conditional classes for focus rings (e.g., `focus:ring-pink-300` vs `focus:ring-blue-400`) to maintain brand consistency.
