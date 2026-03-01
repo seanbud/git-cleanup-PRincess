@@ -7,3 +7,8 @@
 **Vulnerability:** Shell command injection via interpolated strings in `child_process.execSync` within IPC handlers.
 **Learning:** Passing unsanitized strings from the renderer to the main process for shell execution is extremely dangerous. Even quoting arguments is insufficient if the shell interprets special characters or if the input breaks out of quotes.
 **Prevention:** Always use argument arrays with `execFile` or `execFileSync` to bypass the shell entirely. Restrict IPC handlers to specific binaries (e.g., `git`) rather than allowing arbitrary commands.
+
+## 2026-03-01 - Logic Regression in Settings Hardening
+**Vulnerability:** Command injection via user-controlled application settings (shell, externalEditor).
+**Learning:** When hardening a "save-settings" IPC handler, a naive replacement of the settings object with a sanitized subset causes silent data loss of all other UI/UX preferences.
+**Prevention:** Always use partial updates or spread the existing state when merging settings, specifically targeting only the sensitive keys for validation while preserving the rest of the object.
