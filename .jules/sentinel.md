@@ -7,3 +7,8 @@
 **Vulnerability:** Shell command injection via interpolated strings in `child_process.execSync` within IPC handlers.
 **Learning:** Passing unsanitized strings from the renderer to the main process for shell execution is extremely dangerous. Even quoting arguments is insufficient if the shell interprets special characters or if the input breaks out of quotes.
 **Prevention:** Always use argument arrays with `execFile` or `execFileSync` to bypass the shell entirely. Restrict IPC handlers to specific binaries (e.g., `git`) rather than allowing arbitrary commands.
+
+## 2026-02-22 - IPC and Settings Hardening
+**Vulnerability:** Unvalidated settings and IPC parameters allowed potential command injection in shell commands and argument injection in git config.
+**Learning:** Validation regexes must balance security and usability. For example, blocking parentheses prevents command grouping in shells but also breaks support for common Windows paths like "Program Files (x86)".
+**Prevention:** Implement allow-lists for IPC parameters (like git config keys) and sanitize user-provided configuration used in shell execution. Use safer execution patterns like `execFile` with argument arrays and avoid shell interpretation where possible.

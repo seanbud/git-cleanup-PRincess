@@ -7,6 +7,19 @@ import { autoUpdater } from 'electron-updater';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Security validation helpers
+function isValidSettingValue(value: any): boolean {
+    if (typeof value !== 'string') return false;
+    // Disallow shell injection characters; allow () for Windows paths
+    return !/[&|;<>$`]/.test(value);
+}
+
+function isValidGitKey(key: any): boolean {
+    if (typeof key !== 'string') return false;
+    // Git keys allow alphanumeric, dots, and hyphens
+    return /^[a-zA-Z0-9.-]+$/.test(key);
+}
+
 let win: BrowserWindow | null;
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
 
@@ -318,6 +331,8 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('git:config-get', async (_, key) => {
+        if (!isValidGitKey(key)) return ''; // Prevent argument injection
+
         try {
             return execFileSync('git', ['config', '--get', key], {
                 encoding: 'utf-8',
@@ -380,8 +395,7 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-external', (_, url: string) => {
-        // Security: Validate protocol to prevent opening local files or other dangerous schemes
-        if (url.startsWith('https:') || url.startsWith('http:')) {
+        if (url.startsWith('https:')) { // Restrict to https
             shell.openExternal(url);
         }
     });
@@ -401,9 +415,15 @@ app.whenReady().then(() => {
     ipcMain.handle('shell:open-terminal', async () => {
         const settings = getSettings();
         const shellCmd = settings.shell || (process.platform === 'win32' ? 'powershell' : 'bash');
+
+        if (!isValidSettingValue(shellCmd)) {
+            return { success: false, error: 'Invalid shell command' };
+        }
+
         try {
             if (process.platform === 'win32') {
-                execFile('cmd.exe', ['/c', 'start', shellCmd], { cwd: currentCwd });
+                // Use empty title "" to ensure shellCmd is treated as the command
+                execFile('cmd.exe', ['/c', 'start', '""', shellCmd], { cwd: currentCwd });
             } else {
                 execFile(shellCmd, [], { cwd: currentCwd });
             }
@@ -513,6 +533,19 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('app:save-settings', (_, settings) => {
-        saveSettings(settings);
+        if (typeof settings !== 'object' || settings === null) return;
+
+        const current = getSettings();
+        const validated: any = { ...current };
+
+        // Validate and allow-list known settings
+        if (isValidSettingValue(settings.externalEditor)) {
+            validated.externalEditor = settings.externalEditor;
+        }
+        if (isValidSettingValue(settings.shell)) {
+            validated.shell = settings.shell;
+        }
+
+        saveSettings(validated);
     });
 });
