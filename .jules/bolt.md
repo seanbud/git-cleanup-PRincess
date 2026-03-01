@@ -9,3 +9,7 @@
 ## 2026-02-22 - [Memoizing Derived Props for Heavy Components]
 **Learning:** Passing object literals as props (e.g., `file={ { ...file, diffContent } }`) to heavy components like `DiffView` causes them to re-render and re-parse data on every parent render, even if the data hasn't changed. Memoizing these derived objects with `useMemo` is critical for maintaining reference stability and skipping expensive processing.
 **Action:** Always wrap derived objects in `useMemo` if they are passed to components that perform heavy parsing or rendering (like diff viewers or graphs). Use specific identity dependencies (like IDs) to balance performance and correctness.
+
+## 2026-03-10 - [Parallelizing Git CLI Operations]
+**Learning:** Sequential Git CLI calls in the Electron renderer process create a significant bottleneck due to process spawn overhead. Grouping independent commands into `Promise.all` and passing already-fetched metadata (like current branch or branch lists) as optional parameters to downstream services can eliminate the data-fetching waterfall and reduce redundant CLI execution.
+**Action:** Design service methods to accept optional metadata to avoid redundant lookups. Parallelize independent I/O and process-bound operations in state-refreshing hooks.

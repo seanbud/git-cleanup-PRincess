@@ -63,7 +63,8 @@ export function useGitState(): UseGitStateReturn {
 
     const refreshGitState = useCallback(async () => {
         try {
-            const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp] = await Promise.all([
+            // First wave: Fetch core repository metadata and settings
+            const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings] = await Promise.all([
                 GitService.getRepoName(),
                 GitService.getCurrentBranch(),
                 GitService.getUpstreamBranch(),
@@ -71,17 +72,31 @@ export function useGitState(): UseGitStateReturn {
                 GitService.getBranches(),
                 GitService.getCommitGraph(),
                 GitService.getAppSettings(),
-                GitService.getBestComparisonBranch()
             ]);
 
-            // If we don't have a comparison branch set yet, use the best guess
+            // Second wave: Use core metadata to fetch the best comparison and file status
+            // Optimization: If comparisonBranch is already known, we can fetch files in parallel with metadata above.
+            // However, to keep it clean and handle initial load/switch, we do a coordinated parallel fetch here.
+
+            const bestCompPromise = GitService.getBestComparisonBranch(currentBranch, branchList, upstreamBranch);
+
             let activeComp = comparisonBranch;
+            let filesPromise;
+
+            if (activeComp) {
+                // Fast path: we already know what to compare against
+                filesPromise = GitService.getStatusFiles(activeComp, currentBranch);
+            }
+
+            const bestComp = await bestCompPromise;
+
             if (!activeComp) {
                 activeComp = bestComp;
                 setComparisonBranch(bestComp);
+                filesPromise = GitService.getStatusFiles(activeComp, currentBranch);
             }
 
-            const files = await GitService.getStatusFiles(activeComp);
+            const files = await filesPromise;
 
             setGitState(prev => ({
                 ...prev,
