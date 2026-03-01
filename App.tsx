@@ -223,12 +223,17 @@ const App: React.FC = () => {
                   aria-label="Filter files"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-2 pr-7 py-1.5 text-xs bg-white border border-gray-200 rounded text-gray-700 placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
+                  className={`w-full pl-2 pr-7 py-1.5 text-xs bg-white border border-gray-200 rounded text-gray-700 placeholder-gray-400 focus:outline-none transition-all shadow-sm focus:ring-2 ${
+                    isPrincess
+                      ? 'focus:border-pink-400 focus:ring-pink-100'
+                      : 'focus:border-blue-400 focus:ring-blue-100'
+                  }`}
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
                     aria-label="Clear filter"
+                    title="Clear filter"
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 rounded-full p-0.5 hover:bg-gray-100 transition-colors"
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
