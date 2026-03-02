@@ -85,7 +85,7 @@ const FileListItem: React.FC<FileListItemProps> = React.memo(({
           onClick={(e) => e.stopPropagation()}
           tabIndex={-1}
           aria-label={`Select ${file.path}`}
-          className={`h-3.5 w-3.5 rounded focus:ring-blue-500 cursor-pointer ${isSelected ? 'accent-white opacity-80' : 'border-gray-400/60 bg-white/40 group-hover:bg-white'}`}
+          className={`h-3.5 w-3.5 rounded cursor-pointer ${isPrincess ? 'focus:ring-pink-500' : 'focus:ring-blue-500'} ${isSelected ? 'accent-white opacity-80' : 'border-gray-400/60 bg-white/40 group-hover:bg-white'}`}
         />
       </div>
 
@@ -112,6 +112,7 @@ interface FileListProps {
   onHoverStateChange: (state: CharacterState) => void;
   onContextMenu: (e: React.MouseEvent, type: 'FILE', payload?: GitFile) => void;
   mode: ThemeMode;
+  searchQuery?: string;
 }
 
 const FileList: React.FC<FileListProps> = ({
@@ -120,7 +121,8 @@ const FileList: React.FC<FileListProps> = ({
   onSelectionChange,
   onHoverStateChange,
   onContextMenu,
-  mode
+  mode,
+  searchQuery = ''
 }) => {
   // Use a ref for lastSelectedId to keep handleSelect stable across renders
   const lastSelectedIdRef = useRef<string | null>(null);
@@ -237,9 +239,9 @@ const FileList: React.FC<FileListProps> = ({
       <div className="flex flex-col min-h-full pb-20 pt-2">
         {files.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 p-10 text-gray-400 text-center">
-            <div className="mb-4 opacity-30 text-4xl">✨</div>
-            <p className="font-medium">No changes found</p>
-            <p className="text-xs mt-1">Your branch is up to date.</p>
+            <div className="mb-4 opacity-30 text-4xl">{searchQuery ? '🔍' : '✨'}</div>
+            <p className="font-medium">{searchQuery ? 'No matches found' : 'No changes found'}</p>
+            <p className="text-xs mt-1">{searchQuery ? 'Try adjusting your filter.' : 'Your branch is up to date.'}</p>
           </div>
         ) : (
           <>
