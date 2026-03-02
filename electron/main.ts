@@ -95,6 +95,23 @@ function saveSettings(settings: any) {
     fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
 }
 
+function isSafePath(filePath: string): boolean {
+    if (!filePath) return false;
+    const resolvedPath = path.resolve(currentCwd, filePath);
+    const relative = path.relative(currentCwd, resolvedPath);
+    return !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+function isValidSettingValue(value: any): boolean {
+    if (value === '') return true;
+    if (typeof value !== 'string') return false;
+    return value.length <= 255 && !/[&|;<>$`]/.test(value);
+}
+
+function isValidGitKey(key: string): boolean {
+    return /^[a-z0-9.-]+$/i.test(key);
+}
+
 function createWindow() {
     process.env.DIST_ELECTRON = path.join(__dirname, '../dist-electron');
     process.env.DIST = path.join(__dirname, '../dist');
@@ -318,6 +335,7 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('git:config-get', async (_, key) => {
+        if (!isValidGitKey(key)) return '';
         try {
             return execFileSync('git', ['config', '--get', key], {
                 encoding: 'utf-8',
@@ -387,6 +405,7 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-editor', async (_, filePath: string) => {
+        if (!isSafePath(filePath)) return { success: false, error: 'Access denied' };
         const settings = getSettings();
         const editor = settings.externalEditor || 'code';
         try {
@@ -414,15 +433,20 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-path', (_, filePath: string) => {
-        shell.showItemInFolder(filePath);
+        if (isSafePath(filePath)) {
+            shell.showItemInFolder(path.resolve(currentCwd, filePath));
+        }
     });
 
     ipcMain.handle('shell:open-directory', (_, dirPath: string) => {
-        shell.openPath(dirPath);
+        if (isSafePath(dirPath)) {
+            shell.openPath(path.resolve(currentCwd, dirPath));
+        }
     });
 
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
-        const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
+        if (!isSafePath(filePath)) return { success: false, error: 'Access denied' };
+        const fullPath = path.resolve(currentCwd, filePath);
         try {
             await shell.trashItem(fullPath);
             return { success: true };
@@ -434,12 +458,10 @@ app.whenReady().then(() => {
     // File Preview: read file from disk as base64 data URI
     ipcMain.handle('file:read-base64', (_, relativePath: string) => {
         try {
-            const fullPath = path.resolve(currentCwd, relativePath);
-            // Security: Prevent path traversal by ensuring the file is within the repository
-            const relative = path.relative(currentCwd, fullPath);
-            if (relative.startsWith('..') || path.isAbsolute(relative)) {
-                return { success: false, error: 'Access denied: Path outside of repository' };
+            if (!isSafePath(relativePath)) {
+                return { success: false, error: 'Access denied' };
             }
+            const fullPath = path.resolve(currentCwd, relativePath);
             if (!fs.existsSync(fullPath)) return { success: false, error: 'File not found' };
             const buffer = fs.readFileSync(fullPath);
             const ext = path.extname(fullPath).toLowerCase();
@@ -513,6 +535,9 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('app:save-settings', (_, settings) => {
-        saveSettings(settings);
+        const sanitized = { ...settings };
+        if (!isValidSettingValue(sanitized.externalEditor)) sanitized.externalEditor = 'code';
+        if (!isValidSettingValue(sanitized.shell)) sanitized.shell = process.platform === 'win32' ? 'powershell' : 'bash';
+        saveSettings(sanitized);
     });
 });
