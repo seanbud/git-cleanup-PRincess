@@ -19,10 +19,41 @@ const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
 // Track the current working directory for git commands
 let currentCwd = process.cwd();
 
+/**
+ * Security: Prevent path traversal by ensuring the path is within the current repository.
+ */
+function isSafePath(filePath: string): boolean {
+    const fullPath = path.resolve(currentCwd, filePath);
+    const relative = path.relative(currentCwd, fullPath);
+    return !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+/**
+ * Security: Validate setting values to prevent command injection.
+ * Permits alphanumeric, spaces, and common path characters but blocks shell metacharacters.
+ */
+function isValidSettingValue(value: string): boolean {
+    if (value.length > 255) return false;
+    // Allow empty string to reset to default
+    if (value === '') return true;
+    // Block dangerous shell characters: & | ; < > $ `
+    // Also allow () for Windows paths like "Program Files (x86)"
+    const dangerousChars = /[&|;<>$`]/;
+    return !dangerousChars.test(value);
+}
+
+/**
+ * Security: Validate Git config keys to prevent injection into git commands.
+ * Git keys are typically section.name or section.subsection.name
+ */
+function isValidGitKey(key: string): boolean {
+    return /^[a-zA-Z0-9.-]+$/.test(key);
+}
+
 function initializeCwd() {
     try {
         // 1. Try launch directory
-        const gitRoot = execSync('git rev-parse --show-toplevel', {
+        const gitRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], {
             encoding: 'utf-8',
             cwd: process.cwd(),
             stdio: ['pipe', 'pipe', 'pipe']
@@ -39,7 +70,7 @@ function initializeCwd() {
         if (recent.length > 0) {
             const lastRepo = recent[0];
             // Verify it still exists and is a repo
-            execSync('git rev-parse --is-inside-work-tree', {
+            execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
                 cwd: lastRepo,
                 encoding: 'utf-8',
                 stdio: ['pipe', 'pipe', 'pipe']
@@ -318,6 +349,7 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('git:config-get', async (_, key) => {
+        if (!isValidGitKey(key)) return '';
         try {
             return execFileSync('git', ['config', '--get', key], {
                 encoding: 'utf-8',
@@ -342,7 +374,7 @@ app.whenReady().then(() => {
 
         // Verify it's a git repo
         try {
-            execSync('git rev-parse --is-inside-work-tree', {
+            execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
                 cwd: selectedDir,
                 encoding: 'utf-8',
                 stdio: ['pipe', 'pipe', 'pipe']
@@ -366,7 +398,7 @@ app.whenReady().then(() => {
 
     ipcMain.handle('repos:switch', (_, repoPath: string) => {
         try {
-            execSync('git rev-parse --is-inside-work-tree', {
+            execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
                 cwd: repoPath,
                 encoding: 'utf-8',
                 stdio: ['pipe', 'pipe', 'pipe']
@@ -414,15 +446,20 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-path', (_, filePath: string) => {
-        shell.showItemInFolder(filePath);
+        if (!isSafePath(filePath)) return { success: false, error: 'Access denied' };
+        shell.showItemInFolder(path.resolve(currentCwd, filePath));
+        return { success: true };
     });
 
     ipcMain.handle('shell:open-directory', (_, dirPath: string) => {
-        shell.openPath(dirPath);
+        if (!isSafePath(dirPath)) return { success: false, error: 'Access denied' };
+        shell.openPath(path.resolve(currentCwd, dirPath));
+        return { success: true };
     });
 
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
-        const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
+        if (!isSafePath(filePath)) return { success: false, error: 'Access denied' };
+        const fullPath = path.resolve(currentCwd, filePath);
         try {
             await shell.trashItem(fullPath);
             return { success: true };
@@ -434,12 +471,10 @@ app.whenReady().then(() => {
     // File Preview: read file from disk as base64 data URI
     ipcMain.handle('file:read-base64', (_, relativePath: string) => {
         try {
-            const fullPath = path.resolve(currentCwd, relativePath);
-            // Security: Prevent path traversal by ensuring the file is within the repository
-            const relative = path.relative(currentCwd, fullPath);
-            if (relative.startsWith('..') || path.isAbsolute(relative)) {
+            if (!isSafePath(relativePath)) {
                 return { success: false, error: 'Access denied: Path outside of repository' };
             }
+            const fullPath = path.resolve(currentCwd, relativePath);
             if (!fs.existsSync(fullPath)) return { success: false, error: 'File not found' };
             const buffer = fs.readFileSync(fullPath);
             const ext = path.extname(fullPath).toLowerCase();
@@ -513,6 +548,20 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('app:save-settings', (_, settings) => {
-        saveSettings(settings);
+        const currentSettings = getSettings();
+        const newSettings = { ...currentSettings };
+
+        // Security: Only allow specific keys and validate their values
+        const allowedKeys = ['externalEditor', 'shell'];
+        for (const key of allowedKeys) {
+            if (settings[key] !== undefined) {
+                const val = String(settings[key]);
+                if (isValidSettingValue(val)) {
+                    (newSettings as any)[key] = val;
+                }
+            }
+        }
+        saveSettings(newSettings);
+        return { success: true };
     });
 });
