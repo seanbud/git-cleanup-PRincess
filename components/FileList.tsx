@@ -107,6 +107,8 @@ const FileListItem: React.FC<FileListItemProps> = React.memo(({
 
 interface FileListProps {
   files: GitFile[];
+  totalFilesCount: number;
+  onClearFilter: () => void;
   selectedIds: Set<string>;
   onSelectionChange: (updater: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
   onHoverStateChange: (state: CharacterState) => void;
@@ -116,6 +118,8 @@ interface FileListProps {
 
 const FileList: React.FC<FileListProps> = ({
   files,
+  totalFilesCount,
+  onClearFilter,
   selectedIds,
   onSelectionChange,
   onHoverStateChange,
@@ -236,11 +240,24 @@ const FileList: React.FC<FileListProps> = ({
     >
       <div className="flex flex-col min-h-full pb-20 pt-2">
         {files.length === 0 ? (
-          <div className="flex flex-col items-center justify-center flex-1 p-10 text-gray-400 text-center">
-            <div className="mb-4 opacity-30 text-4xl">✨</div>
-            <p className="font-medium">No changes found</p>
-            <p className="text-xs mt-1">Your branch is up to date.</p>
-          </div>
+          totalFilesCount > 0 ? (
+            <div className="flex flex-col items-center justify-center flex-1 p-10 text-gray-400 text-center">
+              <div className="mb-4 opacity-30 text-4xl">🔍</div>
+              <p className="font-medium">No matches found</p>
+              <button
+                onClick={onClearFilter}
+                className={`mt-2 text-xs font-semibold underline underline-offset-4 ${isPrincess ? 'text-pink-600 hover:text-pink-700' : 'text-blue-600 hover:text-blue-700'}`}
+              >
+                Clear filter
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center flex-1 p-10 text-gray-400 text-center">
+              <div className="mb-4 opacity-30 text-4xl">✨</div>
+              <p className="font-medium">No changes found</p>
+              <p className="text-xs mt-1">Your branch is up to date.</p>
+            </div>
+          )
         ) : (
           <>
             {renderGroup("Staged Changes", uncommitted)}
