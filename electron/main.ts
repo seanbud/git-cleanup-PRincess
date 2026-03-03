@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell, ipcMain, safeStorage, dialog, Menu } from 'electron';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { execSync, execFileSync, execFile } from 'child_process';
+import { execSync, execFile } from 'child_process';
 import fs from 'fs';
 import { autoUpdater } from 'electron-updater';
 const __filename = fileURLToPath(import.meta.url);
@@ -302,31 +302,40 @@ app.whenReady().then(() => {
 
     // ─── Git CLI IPC ──────────────────────────────────────────────
     ipcMain.handle('git:cmd', async (_, args: string[]) => {
-        try {
-            // Security: Use execFileSync with argument array to prevent command injection
+        return new Promise((resolve) => {
+            // Security: Use execFile with argument array to prevent command injection
             // and restrict execution to the 'git' binary only.
-            const output = execFileSync('git', args, {
+            execFile('git', args, {
                 encoding: 'utf-8',
                 cwd: currentCwd,
                 timeout: 15000,
-                stdio: ['pipe', 'pipe', 'pipe'] // Suppress stderr from leaking to console
+            }, (error: any, stdout, stderr) => {
+                if (error) {
+                    resolve({
+                        stderr: stderr || error.message,
+                        stdout: stdout || '',
+                        success: false
+                    });
+                } else {
+                    resolve({ stdout, success: true });
+                }
             });
-            return { stdout: output, success: true };
-        } catch (error: any) {
-            return { stderr: error.stderr || error.message, stdout: error.stdout || '', success: false };
-        }
+        });
     });
 
     ipcMain.handle('git:config-get', async (_, key) => {
-        try {
-            return execFileSync('git', ['config', '--get', key], {
+        return new Promise((resolve) => {
+            execFile('git', ['config', '--get', key], {
                 encoding: 'utf-8',
                 cwd: currentCwd,
-                stdio: ['pipe', 'pipe', 'pipe']
-            }).trim();
-        } catch {
-            return '';
-        }
+            }, (error, stdout) => {
+                if (error) {
+                    resolve('');
+                } else {
+                    resolve(stdout.trim());
+                }
+            });
+        });
     });
 
     // ─── Repository Management IPC ────────────────────────────────
@@ -459,28 +468,30 @@ app.whenReady().then(() => {
 
     // File Preview: read file from git HEAD as base64 data URI
     ipcMain.handle('git:show-file-base64', (_, relativePath: string) => {
-        try {
-            // Security: Use execFileSync with argument array to prevent command injection
-            const result = execFileSync('git', ['show', `HEAD:${relativePath}`], {
+        return new Promise((resolve) => {
+            // Security: Use execFile with argument array to prevent command injection
+            execFile('git', ['show', `HEAD:${relativePath}`], {
                 cwd: currentCwd,
                 encoding: 'buffer',
                 maxBuffer: 10 * 1024 * 1024,
-                stdio: ['pipe', 'pipe', 'pipe']
+            }, (error, stdout) => {
+                if (error) {
+                    // File doesn't exist in HEAD (new file)
+                    resolve({ success: false, error: 'Not in HEAD' });
+                    return;
+                }
+                const ext = path.extname(relativePath).toLowerCase();
+                const mimeMap: Record<string, string> = {
+                    '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+                    '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
+                    '.bmp': 'image/bmp', '.ico': 'image/x-icon',
+                };
+                const mime = mimeMap[ext] || 'application/octet-stream';
+                const base64 = stdout.toString('base64');
+                const size = stdout.length;
+                resolve({ success: true, dataUri: `data:${mime};base64,${base64}`, size });
             });
-            const ext = path.extname(relativePath).toLowerCase();
-            const mimeMap: Record<string, string> = {
-                '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
-                '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
-                '.bmp': 'image/bmp', '.ico': 'image/x-icon',
-            };
-            const mime = mimeMap[ext] || 'application/octet-stream';
-            const base64 = result.toString('base64');
-            const size = result.length;
-            return { success: true, dataUri: `data:${mime};base64,${base64}`, size };
-        } catch {
-            // File doesn't exist in HEAD (new file)
-            return { success: false, error: 'Not in HEAD' };
-        }
+        });
     });
 
     ipcMain.handle('app:get-cwd', () => {
