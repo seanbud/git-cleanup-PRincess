@@ -19,6 +19,26 @@ const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
 // Track the current working directory for git commands
 let currentCwd = process.cwd();
 
+function isSafePath(filePath: string): boolean {
+    if (!filePath) return false;
+    const resolvedPath = path.resolve(currentCwd, filePath);
+    const relative = path.relative(currentCwd, resolvedPath);
+    return !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+function isValidSettingValue(value: any): boolean {
+    if (typeof value !== 'string') return false;
+    if (value.length > 255) return false;
+    const forbidden = /[&|;<>$`]/;
+    return !forbidden.test(value);
+}
+
+function isValidGitKey(key: string): boolean {
+    if (typeof key !== 'string') return false;
+    const validGitKey = /^[a-z0-9.-]+$/i;
+    return validGitKey.test(key);
+}
+
 function initializeCwd() {
     try {
         // 1. Try launch directory
@@ -318,6 +338,9 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('git:config-get', async (_, key) => {
+        if (!isValidGitKey(key)) {
+            return '';
+        }
         try {
             return execFileSync('git', ['config', '--get', key], {
                 encoding: 'utf-8',
@@ -387,6 +410,9 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-editor', async (_, filePath: string) => {
+        if (!isSafePath(filePath)) {
+            return { success: false, error: 'Access denied: Path outside of repository' };
+        }
         const settings = getSettings();
         const editor = settings.externalEditor || 'code';
         try {
@@ -414,14 +440,19 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-path', (_, filePath: string) => {
+        if (!isSafePath(filePath)) return;
         shell.showItemInFolder(filePath);
     });
 
     ipcMain.handle('shell:open-directory', (_, dirPath: string) => {
+        if (!isSafePath(dirPath)) return;
         shell.openPath(dirPath);
     });
 
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
+        if (!isSafePath(filePath)) {
+            return { success: false, error: 'Access denied: Path outside of repository' };
+        }
         const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
         try {
             await shell.trashItem(fullPath);
@@ -459,6 +490,9 @@ app.whenReady().then(() => {
 
     // File Preview: read file from git HEAD as base64 data URI
     ipcMain.handle('git:show-file-base64', (_, relativePath: string) => {
+        if (!isSafePath(relativePath)) {
+            return { success: false, error: 'Access denied: Path outside of repository' };
+        }
         try {
             // Security: Use execFileSync with argument array to prevent command injection
             const result = execFileSync('git', ['show', `HEAD:${relativePath}`], {
@@ -512,7 +546,13 @@ app.whenReady().then(() => {
         return getSettings();
     });
 
-    ipcMain.handle('app:save-settings', (_, settings) => {
+    ipcMain.handle('app:save-settings', (_, settings: any) => {
+        if (settings.externalEditor && !isValidSettingValue(settings.externalEditor)) {
+            return;
+        }
+        if (settings.shell && !isValidSettingValue(settings.shell)) {
+            return;
+        }
         saveSettings(settings);
     });
 });
