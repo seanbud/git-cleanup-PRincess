@@ -9,3 +9,7 @@
 ## 2026-02-22 - [Memoizing Derived Props for Heavy Components]
 **Learning:** Passing object literals as props (e.g., `file={ { ...file, diffContent } }`) to heavy components like `DiffView` causes them to re-render and re-parse data on every parent render, even if the data hasn't changed. Memoizing these derived objects with `useMemo` is critical for maintaining reference stability and skipping expensive processing.
 **Action:** Always wrap derived objects in `useMemo` if they are passed to components that perform heavy parsing or rendering (like diff viewers or graphs). Use specific identity dependencies (like IDs) to balance performance and correctness.
+
+## 2025-05-16 - [Parallelizing Git and IPC Operations]
+**Learning:** Sequential await calls for independent Git or IPC operations (like config fetching or multi-file actions) lead to significant user-perceived latency. Parallelizing these with `Promise.all` and batching multiple file paths into single CLI commands (e.g., `git rm`) drastically reduces total execution time and process overhead.
+**Action:** Always identify independent asynchronous operations and parallelize them. When performing actions on multiple files, prioritize bulk CLI commands over sequential loops to minimize process spawns and refreshes.
