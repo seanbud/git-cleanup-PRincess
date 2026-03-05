@@ -21,3 +21,7 @@
 ## 2025-05-25 - [Accessibility for Toggle Buttons in Diff View]
 **Learning:** Using semantic `<button type="button">` with `aria-expanded` and `aria-label` for chunk headers and context expansion in diff views ensures that complex code-viewing interfaces are navigable for screen reader and keyboard users.
 **Action:** Always use buttons for toggles in the diff view and include `focus:ring-inset` to provide clear focus indicators without layout shifts.
+
+## 2025-05-26 - [Semantic Buttons for Header Dropdowns]
+**Learning:** Converting dropdown triggers in headers from `div` elements to semantic `<button type="button">` elements with appropriate ARIA attributes (`aria-haspopup`, `aria-expanded`) significantly improves keyboard accessibility and structural clarity.
+**Action:** Ensure all dropdown triggers are semantic buttons and provide theme-appropriate focus rings for clear visual feedback.
