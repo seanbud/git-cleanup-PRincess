@@ -63,16 +63,19 @@ export function useGitState(): UseGitStateReturn {
 
     const refreshGitState = useCallback(async () => {
         try {
-            const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp] = await Promise.all([
+            // Optimization: Initial parallel fetch for core state
+            const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings] = await Promise.all([
                 GitService.getRepoName(),
                 GitService.getCurrentBranch(),
                 GitService.getUpstreamBranch(),
                 GitService.getGitConfig(),
                 GitService.getBranches(),
                 GitService.getCommitGraph(),
-                GitService.getAppSettings(),
-                GitService.getBestComparisonBranch()
+                GitService.getAppSettings()
             ]);
+
+            // Optimization: Pass pre-fetched state to best comparison check to avoid redundant Git processes
+            const bestComp = await GitService.getBestComparisonBranch(upstreamBranch, currentBranch, branchList);
 
             // If we don't have a comparison branch set yet, use the best guess
             let activeComp = comparisonBranch;
@@ -81,7 +84,8 @@ export function useGitState(): UseGitStateReturn {
                 setComparisonBranch(bestComp);
             }
 
-            const files = await GitService.getStatusFiles(activeComp);
+            // Optimization: Pass current branch to getStatusFiles to avoid another internal getCurrentBranch call
+            const files = await GitService.getStatusFiles(activeComp, currentBranch);
 
             setGitState(prev => ({
                 ...prev,
@@ -205,14 +209,15 @@ export function useGitState(): UseGitStateReturn {
         setCharacterState(actionType === 'RESTORE' ? CharacterState.ACTION_GOOD : CharacterState.ACTION_BAD);
 
         const selectedFiles = gitState.files.filter(f => gitState.selectedFileIds.has(f.id));
+        const paths = selectedFiles.map(f => f.path);
 
         try {
-            for (const file of selectedFiles) {
-                if (actionType === 'RESTORE') {
-                    await GitService.restoreFile(file.path);
-                } else {
-                    await GitService.removeFile(file.path);
-                }
+            // Optimization: Use bulk operations (discardChanges for RESTORE, removeFiles for REMOVE)
+            // to avoid N sequential Git process spawns.
+            if (actionType === 'RESTORE') {
+                await GitService.discardChanges(paths);
+            } else {
+                await GitService.removeFiles(paths);
             }
 
             await refreshGitState();

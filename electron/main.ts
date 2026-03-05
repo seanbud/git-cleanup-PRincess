@@ -302,31 +302,36 @@ app.whenReady().then(() => {
 
     // ─── Git CLI IPC ──────────────────────────────────────────────
     ipcMain.handle('git:cmd', async (_, args: string[]) => {
-        try {
-            // Security: Use execFileSync with argument array to prevent command injection
-            // and restrict execution to the 'git' binary only.
-            const output = execFileSync('git', args, {
-                encoding: 'utf-8',
+        return new Promise((resolve) => {
+            // Security: Use execFile with argument array to prevent command injection.
+            // Performance: Using async execFile prevents blocking the Electron main thread.
+            execFile('git', args, {
                 cwd: currentCwd,
                 timeout: 15000,
-                stdio: ['pipe', 'pipe', 'pipe'] // Suppress stderr from leaking to console
+                maxBuffer: 10 * 1024 * 1024,
+            }, (error, stdout, stderr) => {
+                if (error) {
+                    resolve({ stderr: stderr || error.message, stdout: stdout || '', success: false });
+                } else {
+                    resolve({ stdout: stdout, success: true });
+                }
             });
-            return { stdout: output, success: true };
-        } catch (error: any) {
-            return { stderr: error.stderr || error.message, stdout: error.stdout || '', success: false };
-        }
+        });
     });
 
     ipcMain.handle('git:config-get', async (_, key) => {
-        try {
-            return execFileSync('git', ['config', '--get', key], {
-                encoding: 'utf-8',
+        return new Promise((resolve) => {
+            execFile('git', ['config', '--get', key], {
                 cwd: currentCwd,
-                stdio: ['pipe', 'pipe', 'pipe']
-            }).trim();
-        } catch {
-            return '';
-        }
+                timeout: 5000,
+            }, (error, stdout) => {
+                if (error) {
+                    resolve('');
+                } else {
+                    resolve(stdout.trim());
+                }
+            });
+        });
     });
 
     // ─── Repository Management IPC ────────────────────────────────
