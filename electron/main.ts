@@ -19,6 +19,39 @@ const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
 // Track the current working directory for git commands
 let currentCwd = process.cwd();
 
+/**
+ * Security: Validates that a path is within the current repository.
+ * Prevents path traversal attacks.
+ */
+function isSafePath(filePath: string): boolean {
+    if (!filePath) return false;
+    const resolvedPath = path.resolve(currentCwd, filePath);
+    const relative = path.relative(currentCwd, resolvedPath);
+    // On Windows, path.isAbsolute(relative) might be true if it's a different drive
+    return !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+/**
+ * Security: Validates setting values to prevent command injection
+ * or other malicious input.
+ */
+function isValidSettingValue(value: string): boolean {
+    if (typeof value !== 'string') return false;
+    if (value.length > 255) return false;
+    // Block common shell metacharacters
+    const illegalChars = /[&|;<>$`]/;
+    return !illegalChars.test(value);
+}
+
+/**
+ * Security: Validates Git configuration keys.
+ */
+function isValidGitKey(key: string): boolean {
+    // Git config keys are typically section.name or section.subsection.name
+    // They should only contain alphanumeric characters, dots, and hyphens.
+    return /^[a-zA-Z0-9.-]+$/.test(key);
+}
+
 function initializeCwd() {
     try {
         // 1. Try launch directory
@@ -318,6 +351,10 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('git:config-get', async (_, key) => {
+        if (!isValidGitKey(key)) {
+            console.error(`Security: Invalid git config key: ${key}`);
+            return '';
+        }
         try {
             return execFileSync('git', ['config', '--get', key], {
                 encoding: 'utf-8',
@@ -414,14 +451,27 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-path', (_, filePath: string) => {
-        shell.showItemInFolder(filePath);
+        if (!isSafePath(filePath)) {
+            console.error(`Security: Access denied to path: ${filePath}`);
+            return;
+        }
+        const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
+        shell.showItemInFolder(fullPath);
     });
 
     ipcMain.handle('shell:open-directory', (_, dirPath: string) => {
-        shell.openPath(dirPath);
+        if (!isSafePath(dirPath)) {
+            console.error(`Security: Access denied to directory: ${dirPath}`);
+            return;
+        }
+        const fullPath = path.isAbsolute(dirPath) ? dirPath : path.join(currentCwd, dirPath);
+        shell.openPath(fullPath);
     });
 
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
+        if (!isSafePath(filePath)) {
+            return { success: false, error: 'Access denied: Path outside of repository' };
+        }
         const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
         try {
             await shell.trashItem(fullPath);
@@ -433,13 +483,11 @@ app.whenReady().then(() => {
 
     // File Preview: read file from disk as base64 data URI
     ipcMain.handle('file:read-base64', (_, relativePath: string) => {
+        if (!isSafePath(relativePath)) {
+            return { success: false, error: 'Access denied: Path outside of repository' };
+        }
         try {
             const fullPath = path.resolve(currentCwd, relativePath);
-            // Security: Prevent path traversal by ensuring the file is within the repository
-            const relative = path.relative(currentCwd, fullPath);
-            if (relative.startsWith('..') || path.isAbsolute(relative)) {
-                return { success: false, error: 'Access denied: Path outside of repository' };
-            }
             if (!fs.existsSync(fullPath)) return { success: false, error: 'File not found' };
             const buffer = fs.readFileSync(fullPath);
             const ext = path.extname(fullPath).toLowerCase();
@@ -513,6 +561,16 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('app:save-settings', (_, settings) => {
-        saveSettings(settings);
+        // Security: Validate sensitive setting values before saving
+        if (settings.externalEditor !== undefined && !isValidSettingValue(settings.externalEditor)) {
+            return { success: false, error: 'Invalid external editor value' };
+        }
+        if (settings.shell !== undefined && !isValidSettingValue(settings.shell)) {
+            return { success: false, error: 'Invalid shell value' };
+        }
+
+        const currentSettings = getSettings();
+        saveSettings({ ...currentSettings, ...settings });
+        return { success: true };
     });
 });
