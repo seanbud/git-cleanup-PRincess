@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "web:dev": "vite --config vite.web.config.ts",
+    "test": "bun test tests/*.test.ts",
     "build": "tsc && vite build && electron-builder",
     "preview": "vite preview",
     "clean": "node -e \"const fs=require('fs');['dist','dist-electron','release'].forEach(d=>{if(fs.existsSync(d)){fs.rmSync(d,{recursive:true,force:true})}})\"",
