@@ -7,3 +7,8 @@
 **Vulnerability:** Shell command injection via interpolated strings in `child_process.execSync` within IPC handlers.
 **Learning:** Passing unsanitized strings from the renderer to the main process for shell execution is extremely dangerous. Even quoting arguments is insufficient if the shell interprets special characters or if the input breaks out of quotes.
 **Prevention:** Always use argument arrays with `execFile` or `execFileSync` to bypass the shell entirely. Restrict IPC handlers to specific binaries (e.g., `git`) rather than allowing arbitrary commands.
+
+## 2026-03-05 - Missing Validation in Shell and File IPC Handlers
+**Vulnerability:** IPC handlers for shell operations (trash, open) and file reading lacked validation, allowing path traversal or execution of potentially dangerous user-configured strings.
+**Learning:** Even when using "safe" APIs like `shell.trashItem` or `execFile`, lack of input validation can still lead to unauthorized file access or shell injection if the inputs (like file paths or editor commands) are sourced from the renderer without server-side verification.
+**Prevention:** Implement a centralized security utility to validate paths against the active repository (`isSafePath`) and sanitize user-configurable settings (`isValidSettingValue`). Always validate inputs in the main process before passing them to OS-level APIs.
