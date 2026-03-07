@@ -95,6 +95,25 @@ function saveSettings(settings: any) {
     fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
 }
 
+function isValidShell(shell: string): boolean {
+    const allowedShells = ['bash', 'zsh', 'sh', 'fish', 'powershell', 'pwsh', 'cmd'];
+    return allowedShells.includes(shell);
+}
+
+function isValidSettingValue(value: string): boolean {
+    if (typeof value !== 'string') return false;
+    if (value.length > 255) return false;
+    if (/[\n\r]/.test(value)) return false;
+    return true;
+}
+
+function isSafePath(filePath: string): boolean {
+    if (!filePath) return false;
+    const resolvedPath = path.resolve(currentCwd, filePath);
+    const relative = path.relative(currentCwd, resolvedPath);
+    return !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
 function createWindow() {
     process.env.DIST_ELECTRON = path.join(__dirname, '../dist-electron');
     process.env.DIST = path.join(__dirname, '../dist');
@@ -400,7 +419,13 @@ app.whenReady().then(() => {
 
     ipcMain.handle('shell:open-terminal', async () => {
         const settings = getSettings();
-        const shellCmd = settings.shell || (process.platform === 'win32' ? 'powershell' : 'bash');
+        let shellCmd = settings.shell || (process.platform === 'win32' ? 'powershell' : 'bash');
+
+        // Security: Validate shell against allowlist
+        if (!isValidShell(shellCmd)) {
+            shellCmd = process.platform === 'win32' ? 'powershell' : 'bash';
+        }
+
         try {
             if (process.platform === 'win32') {
                 execFile('cmd.exe', ['/c', 'start', shellCmd], { cwd: currentCwd });
@@ -414,14 +439,22 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-path', (_, filePath: string) => {
-        shell.showItemInFolder(filePath);
+        // Security: Prevent path traversal
+        if (!isSafePath(filePath)) return;
+        shell.showItemInFolder(path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath));
     });
 
     ipcMain.handle('shell:open-directory', (_, dirPath: string) => {
-        shell.openPath(dirPath);
+        // Security: Prevent path traversal
+        if (!isSafePath(dirPath)) return;
+        shell.openPath(path.isAbsolute(dirPath) ? dirPath : path.join(currentCwd, dirPath));
     });
 
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
+        // Security: Prevent path traversal
+        if (!isSafePath(filePath)) {
+            return { success: false, error: 'Access denied: Path outside of repository' };
+        }
         const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
         try {
             await shell.trashItem(fullPath);
@@ -513,6 +546,17 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('app:save-settings', (_, settings) => {
-        saveSettings(settings);
+        // Security: Validate sensitive settings
+        if (settings.shell && !isValidShell(settings.shell)) {
+            delete settings.shell;
+        }
+        if (settings.externalEditor && !isValidSettingValue(settings.externalEditor)) {
+            delete settings.externalEditor;
+        }
+
+        // Merge with existing settings to prevent losing unvalidated fields
+        const currentSettings = getSettings();
+        const newSettings = { ...currentSettings, ...settings };
+        saveSettings(newSettings);
     });
 });
