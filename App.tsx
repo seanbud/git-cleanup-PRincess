@@ -229,6 +229,7 @@ const App: React.FC = () => {
                   <button
                     onClick={() => setSearchQuery('')}
                     aria-label="Clear filter"
+                    title="Clear filter"
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 rounded-full p-0.5 hover:bg-gray-100 transition-colors"
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
