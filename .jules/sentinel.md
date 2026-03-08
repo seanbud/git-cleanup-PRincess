@@ -7,3 +7,8 @@
 **Vulnerability:** Shell command injection via interpolated strings in `child_process.execSync` within IPC handlers.
 **Learning:** Passing unsanitized strings from the renderer to the main process for shell execution is extremely dangerous. Even quoting arguments is insufficient if the shell interprets special characters or if the input breaks out of quotes.
 **Prevention:** Always use argument arrays with `execFile` or `execFileSync` to bypass the shell entirely. Restrict IPC handlers to specific binaries (e.g., `git`) rather than allowing arbitrary commands.
+
+## 2026-02-24 - Command Injection via Settings
+**Vulnerability:** Unvalidated settings (like `shell` and `externalEditor`) were used as arguments in `execFile` calls, allowing command injection via malicious settings.
+**Learning:** Settings saved by the user are untrusted input. Even when using `execFile` with argument arrays, a malicious binary path or shell name can still lead to arbitrary execution.
+**Prevention:** Implement strict allow-lists for shells and character-set/length validation for path-based settings (e.g., regex: `/^[a-zA-Z0-9._\-\/\\ :~()@+]*$/`). Ensure `app:save-settings` merges and validates sensitive fields rather than blindly overwriting.

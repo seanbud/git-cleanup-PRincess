@@ -95,6 +95,15 @@ function saveSettings(settings: any) {
     fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
 }
 
+function isValidShell(shell: string): boolean {
+    const allowed = ['bash', 'zsh', 'sh', 'fish', 'powershell', 'pwsh', 'cmd'];
+    return allowed.includes(shell.toLowerCase());
+}
+
+function isValidSettingValue(val: any): boolean {
+    return typeof val === 'string' && val.length < 255 && /^[a-zA-Z0-9._\-\/\\ :~()@+]*$/.test(val);
+}
+
 function createWindow() {
     process.env.DIST_ELECTRON = path.join(__dirname, '../dist-electron');
     process.env.DIST = path.join(__dirname, '../dist');
@@ -400,7 +409,10 @@ app.whenReady().then(() => {
 
     ipcMain.handle('shell:open-terminal', async () => {
         const settings = getSettings();
-        const shellCmd = settings.shell || (process.platform === 'win32' ? 'powershell' : 'bash');
+        let shellCmd = settings.shell;
+        if (!shellCmd || !isValidShell(shellCmd)) {
+            shellCmd = process.platform === 'win32' ? 'powershell' : 'bash';
+        }
         try {
             if (process.platform === 'win32') {
                 execFile('cmd.exe', ['/c', 'start', shellCmd], { cwd: currentCwd });
@@ -513,6 +525,17 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('app:save-settings', (_, settings) => {
-        saveSettings(settings);
+        const current = getSettings();
+        const updated = { ...current, ...settings };
+
+        // Security: Re-validate sensitive settings if they were provided
+        if (settings.shell && !isValidShell(settings.shell)) {
+            updated.shell = current.shell;
+        }
+        if (settings.externalEditor && !isValidSettingValue(settings.externalEditor)) {
+            updated.externalEditor = current.externalEditor;
+        }
+
+        saveSettings(updated);
     });
 });
