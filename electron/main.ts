@@ -95,6 +95,27 @@ function saveSettings(settings: any) {
     fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
 }
 
+function isValidShell(shell: string): boolean {
+    const allowedShells = ['bash', 'zsh', 'sh', 'fish', 'powershell', 'pwsh', 'cmd'];
+    return allowedShells.includes(shell);
+}
+
+function isValidSettingValue(value: string): boolean {
+    const safeRegex = /^[a-zA-Z0-9._\-\/\\ :~()@+]*$/;
+    return typeof value === 'string' && value.length <= 255 && safeRegex.test(value);
+}
+
+function isSafePath(filePath: string): boolean {
+    if (!filePath) return false;
+    try {
+        const resolvedPath = path.resolve(currentCwd, filePath);
+        const relative = path.relative(currentCwd, resolvedPath);
+        return !relative.startsWith('..') && !path.isAbsolute(relative);
+    } catch {
+        return false;
+    }
+}
+
 function createWindow() {
     process.env.DIST_ELECTRON = path.join(__dirname, '../dist-electron');
     process.env.DIST = path.join(__dirname, '../dist');
@@ -387,6 +408,9 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-editor', async (_, filePath: string) => {
+        if (!isSafePath(filePath)) {
+            return { success: false, error: 'Access denied: Path outside of repository' };
+        }
         const settings = getSettings();
         const editor = settings.externalEditor || 'code';
         try {
@@ -400,7 +424,13 @@ app.whenReady().then(() => {
 
     ipcMain.handle('shell:open-terminal', async () => {
         const settings = getSettings();
-        const shellCmd = settings.shell || (process.platform === 'win32' ? 'powershell' : 'bash');
+        let shellCmd = settings.shell || (process.platform === 'win32' ? 'powershell' : 'bash');
+
+        // Security: Validate the shell command
+        if (!isValidShell(shellCmd)) {
+            shellCmd = process.platform === 'win32' ? 'powershell' : 'bash';
+        }
+
         try {
             if (process.platform === 'win32') {
                 execFile('cmd.exe', ['/c', 'start', shellCmd], { cwd: currentCwd });
@@ -414,14 +444,21 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-path', (_, filePath: string) => {
-        shell.showItemInFolder(filePath);
+        if (isSafePath(filePath)) {
+            shell.showItemInFolder(filePath);
+        }
     });
 
     ipcMain.handle('shell:open-directory', (_, dirPath: string) => {
-        shell.openPath(dirPath);
+        if (isSafePath(dirPath)) {
+            shell.openPath(dirPath);
+        }
     });
 
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
+        if (!isSafePath(filePath)) {
+            return { success: false, error: 'Access denied: Path outside of repository' };
+        }
         const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
         try {
             await shell.trashItem(fullPath);
@@ -513,6 +550,18 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('app:save-settings', (_, settings) => {
-        saveSettings(settings);
+        // Security: Validate critical settings before saving
+        const currentSettings = getSettings();
+        const validatedSettings = { ...currentSettings, ...settings };
+
+        if (settings.shell && !isValidShell(settings.shell)) {
+            validatedSettings.shell = currentSettings.shell;
+        }
+
+        if (settings.externalEditor && !isValidSettingValue(settings.externalEditor)) {
+            validatedSettings.externalEditor = currentSettings.externalEditor;
+        }
+
+        saveSettings(validatedSettings);
     });
 });
