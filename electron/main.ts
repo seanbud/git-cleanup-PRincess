@@ -95,6 +95,21 @@ function saveSettings(settings: any) {
     fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
 }
 
+function isSafePath(filePath: string): boolean {
+    const fullPath = path.resolve(currentCwd, filePath);
+    const relative = path.relative(currentCwd, fullPath);
+    return !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+function isValidShell(shellPath: string): boolean {
+    const allowedShells = ['bash', 'zsh', 'sh', 'fish', 'powershell', 'pwsh', 'cmd'];
+    return allowedShells.includes(shellPath.toLowerCase());
+}
+
+function isValidSettingValue(value: string): boolean {
+    return typeof value === 'string' && value.length <= 255 && /^[a-zA-Z0-9._\-\/\\ :~()@+]*$/.test(value);
+}
+
 function createWindow() {
     process.env.DIST_ELECTRON = path.join(__dirname, '../dist-electron');
     process.env.DIST = path.join(__dirname, '../dist');
@@ -400,7 +415,9 @@ app.whenReady().then(() => {
 
     ipcMain.handle('shell:open-terminal', async () => {
         const settings = getSettings();
-        const shellCmd = settings.shell || (process.platform === 'win32' ? 'powershell' : 'bash');
+        const shellCmd = (settings.shell && isValidShell(settings.shell))
+            ? settings.shell
+            : (process.platform === 'win32' ? 'powershell' : 'bash');
         try {
             if (process.platform === 'win32') {
                 execFile('cmd.exe', ['/c', 'start', shellCmd], { cwd: currentCwd });
@@ -414,15 +431,26 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-path', (_, filePath: string) => {
-        shell.showItemInFolder(filePath);
+        if (isSafePath(filePath)) {
+            shell.showItemInFolder(path.resolve(currentCwd, filePath));
+            return { success: true };
+        }
+        return { success: false, error: 'Access denied' };
     });
 
     ipcMain.handle('shell:open-directory', (_, dirPath: string) => {
-        shell.openPath(dirPath);
+        if (isSafePath(dirPath)) {
+            shell.openPath(path.resolve(currentCwd, dirPath));
+            return { success: true };
+        }
+        return { success: false, error: 'Access denied' };
     });
 
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
-        const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
+        if (!isSafePath(filePath)) {
+            return { success: false, error: 'Access denied' };
+        }
+        const fullPath = path.resolve(currentCwd, filePath);
         try {
             await shell.trashItem(fullPath);
             return { success: true };
@@ -434,12 +462,10 @@ app.whenReady().then(() => {
     // File Preview: read file from disk as base64 data URI
     ipcMain.handle('file:read-base64', (_, relativePath: string) => {
         try {
-            const fullPath = path.resolve(currentCwd, relativePath);
-            // Security: Prevent path traversal by ensuring the file is within the repository
-            const relative = path.relative(currentCwd, fullPath);
-            if (relative.startsWith('..') || path.isAbsolute(relative)) {
-                return { success: false, error: 'Access denied: Path outside of repository' };
+            if (!isSafePath(relativePath)) {
+                return { success: false, error: 'Access denied' };
             }
+            const fullPath = path.resolve(currentCwd, relativePath);
             if (!fs.existsSync(fullPath)) return { success: false, error: 'File not found' };
             const buffer = fs.readFileSync(fullPath);
             const ext = path.extname(fullPath).toLowerCase();
@@ -513,6 +539,13 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('app:save-settings', (_, settings) => {
-        saveSettings(settings);
+        const validatedSettings = { ...getSettings() };
+        if (settings.shell && isValidShell(settings.shell)) {
+            validatedSettings.shell = settings.shell;
+        }
+        if (settings.externalEditor && isValidSettingValue(settings.externalEditor)) {
+            validatedSettings.externalEditor = settings.externalEditor;
+        }
+        saveSettings(validatedSettings);
     });
 });
