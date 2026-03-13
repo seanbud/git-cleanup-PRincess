@@ -270,6 +270,8 @@ const App: React.FC = () => {
               onHoverStateChange={(state) => !git.isProcessing && git.gitState.selectedFileIds.size === 0 && setCharacterState(state)}
               onContextMenu={handleContextMenu}
               mode={themeMode}
+              isFiltered={!!searchQuery}
+              onClearFilter={() => setSearchQuery('')}
             />
 
             <ActionPanel
