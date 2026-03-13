@@ -112,6 +112,8 @@ interface FileListProps {
   onHoverStateChange: (state: CharacterState) => void;
   onContextMenu: (e: React.MouseEvent, type: 'FILE', payload?: GitFile) => void;
   mode: ThemeMode;
+  isFiltered?: boolean;
+  onClearFilter?: () => void;
 }
 
 const FileList: React.FC<FileListProps> = ({
@@ -120,7 +122,9 @@ const FileList: React.FC<FileListProps> = ({
   onSelectionChange,
   onHoverStateChange,
   onContextMenu,
-  mode
+  mode,
+  isFiltered,
+  onClearFilter
 }) => {
   // Use a ref for lastSelectedId to keep handleSelect stable across renders
   const lastSelectedIdRef = useRef<string | null>(null);
@@ -237,9 +241,25 @@ const FileList: React.FC<FileListProps> = ({
       <div className="flex flex-col min-h-full pb-20 pt-2">
         {files.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 p-10 text-gray-400 text-center">
-            <div className="mb-4 opacity-30 text-4xl">✨</div>
-            <p className="font-medium">No changes found</p>
-            <p className="text-xs mt-1">Your branch is up to date.</p>
+            {isFiltered ? (
+              <>
+                <div className="mb-4 opacity-30 text-4xl">🔍</div>
+                <p className="font-medium text-gray-500">No matches found</p>
+                <p className="text-xs mt-1 mb-4">Try a different filter or clear it.</p>
+                <button
+                  onClick={onClearFilter}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95 border ${isPrincess ? 'bg-pink-100 hover:bg-pink-200 text-pink-700 border-pink-200' : 'bg-blue-100 hover:bg-blue-200 text-blue-700 border-blue-200'}`}
+                >
+                  Clear Filter
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="mb-4 opacity-30 text-4xl">✨</div>
+                <p className="font-medium">No changes found</p>
+                <p className="text-xs mt-1">Your branch is up to date.</p>
+              </>
+            )}
           </div>
         ) : (
           <>
