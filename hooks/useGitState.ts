@@ -204,15 +204,15 @@ export function useGitState(): UseGitStateReturn {
         setIsProcessing(true);
         setCharacterState(actionType === 'RESTORE' ? CharacterState.ACTION_GOOD : CharacterState.ACTION_BAD);
 
-        const selectedFiles = gitState.files.filter(f => gitState.selectedFileIds.has(f.id));
+        const selectedPaths = gitState.files
+            .filter(f => gitState.selectedFileIds.has(f.id))
+            .map(f => f.path);
 
         try {
-            for (const file of selectedFiles) {
-                if (actionType === 'RESTORE') {
-                    await GitService.restoreFile(file.path);
-                } else {
-                    await GitService.removeFile(file.path);
-                }
+            if (actionType === 'RESTORE') {
+                await GitService.discardChanges(selectedPaths);
+            } else {
+                await GitService.removeFiles(selectedPaths);
             }
 
             await refreshGitState();

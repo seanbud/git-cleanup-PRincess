@@ -2,7 +2,10 @@ import { app, BrowserWindow, shell, ipcMain, safeStorage, dialog, Menu } from 'e
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { execSync, execFileSync, execFile } from 'child_process';
+import { promisify } from 'node:util';
 import fs from 'fs';
+
+const execFileAsync = promisify(execFile);
 import { autoUpdater } from 'electron-updater';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -303,15 +306,14 @@ app.whenReady().then(() => {
     // ─── Git CLI IPC ──────────────────────────────────────────────
     ipcMain.handle('git:cmd', async (_, args: string[]) => {
         try {
-            // Security: Use execFileSync with argument array to prevent command injection
-            // and restrict execution to the 'git' binary only.
-            const output = execFileSync('git', args, {
+            // Security: Use execFile (async) with argument array to prevent command injection
+            // and restrict execution to the 'git' binary only. This allows concurrent git operations.
+            const { stdout } = await execFileAsync('git', args, {
                 encoding: 'utf-8',
                 cwd: currentCwd,
                 timeout: 15000,
-                stdio: ['pipe', 'pipe', 'pipe'] // Suppress stderr from leaking to console
             });
-            return { stdout: output, success: true };
+            return { stdout, success: true };
         } catch (error: any) {
             return { stderr: error.stderr || error.message, stdout: error.stdout || '', success: false };
         }
