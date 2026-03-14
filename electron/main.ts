@@ -4,6 +4,7 @@ import path from 'node:path';
 import { execSync, execFileSync, execFile } from 'child_process';
 import fs from 'fs';
 import { autoUpdater } from 'electron-updater';
+import { isSafePath } from '../utils/security';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -390,6 +391,9 @@ app.whenReady().then(() => {
         const settings = getSettings();
         const editor = settings.externalEditor || 'code';
         try {
+            if (!isSafePath(currentCwd, filePath)) {
+                return { success: false, error: 'Access denied: Path outside of repository' };
+            }
             // Security: Use execFile with argument array
             execFile(editor, [filePath], { cwd: currentCwd });
             return { success: true };
@@ -422,6 +426,9 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
+        if (!isSafePath(currentCwd, filePath)) {
+            return { success: false, error: 'Access denied: Path outside of repository' };
+        }
         const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
         try {
             await shell.trashItem(fullPath);
@@ -460,6 +467,9 @@ app.whenReady().then(() => {
     // File Preview: read file from git HEAD as base64 data URI
     ipcMain.handle('git:show-file-base64', (_, relativePath: string) => {
         try {
+            if (!isSafePath(currentCwd, relativePath)) {
+                return { success: false, error: 'Access denied: Path outside of repository' };
+            }
             // Security: Use execFileSync with argument array to prevent command injection
             const result = execFileSync('git', ['show', `HEAD:${relativePath}`], {
                 cwd: currentCwd,
