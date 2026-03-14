@@ -112,6 +112,8 @@ interface FileListProps {
   onHoverStateChange: (state: CharacterState) => void;
   onContextMenu: (e: React.MouseEvent, type: 'FILE', payload?: GitFile) => void;
   mode: ThemeMode;
+  isFiltered?: boolean;
+  onClearFilter?: () => void;
 }
 
 const FileList: React.FC<FileListProps> = ({
@@ -120,7 +122,9 @@ const FileList: React.FC<FileListProps> = ({
   onSelectionChange,
   onHoverStateChange,
   onContextMenu,
-  mode
+  mode,
+  isFiltered,
+  onClearFilter
 }) => {
   // Use a ref for lastSelectedId to keep handleSelect stable across renders
   const lastSelectedIdRef = useRef<string | null>(null);
@@ -236,11 +240,24 @@ const FileList: React.FC<FileListProps> = ({
     >
       <div className="flex flex-col min-h-full pb-20 pt-2">
         {files.length === 0 ? (
-          <div className="flex flex-col items-center justify-center flex-1 p-10 text-gray-400 text-center">
-            <div className="mb-4 opacity-30 text-4xl">✨</div>
-            <p className="font-medium">No changes found</p>
-            <p className="text-xs mt-1">Your branch is up to date.</p>
-          </div>
+          isFiltered ? (
+            <div className="flex flex-col items-center justify-center flex-1 p-10 text-gray-400 text-center">
+              <div className="mb-4 opacity-30 text-4xl">🔍</div>
+              <p className="font-medium">No matches found</p>
+              <button
+                onClick={onClearFilter}
+                className={`mt-4 text-xs font-bold px-4 py-2 rounded-full border transition-all active:scale-95 ${isPrincess ? 'bg-pink-100 text-pink-700 border-pink-200 hover:bg-pink-200' : 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200'}`}
+              >
+                Clear Filter
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center flex-1 p-10 text-gray-400 text-center">
+              <div className="mb-4 opacity-30 text-4xl">✨</div>
+              <p className="font-medium">No changes found</p>
+              <p className="text-xs mt-1">Your branch is up to date.</p>
+            </div>
+          )
         ) : (
           <>
             {renderGroup("Staged Changes", uncommitted)}
