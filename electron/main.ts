@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell, ipcMain, safeStorage, dialog, Menu } from 'e
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { execSync, execFileSync, execFile } from 'child_process';
+import { isSafePath, isValidShell, isValidSettingValue } from '../utils/security';
 import fs from 'fs';
 import { autoUpdater } from 'electron-updater';
 const __filename = fileURLToPath(import.meta.url);
@@ -10,7 +11,7 @@ const __dirname = path.dirname(__filename);
 let win: BrowserWindow | null;
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
 
-const GITHUB_CLIENT_ID = 'Ov23lil6obiLhsHkt1R2';
+const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || 'Ov23lil6obiLhsHkt1R2';
 
 const TOKEN_PATH = path.join(app.getPath('userData'), 'github-token.bin');
 const RECENT_REPOS_PATH = path.join(app.getPath('userData'), 'recent-repos.json');
@@ -92,7 +93,19 @@ function getSettings() {
 }
 
 function saveSettings(settings: any) {
-    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+    // Merge with existing settings to avoid accidental wipes of sensitive fields
+    const current = getSettings();
+    const updated = { ...current, ...settings };
+
+    // Security: Validate settings before saving
+    if (updated.shell && !isValidShell(updated.shell)) {
+        updated.shell = current.shell; // Revert to safe value
+    }
+    if (updated.externalEditor && !isValidSettingValue(updated.externalEditor)) {
+        updated.externalEditor = current.externalEditor; // Revert to safe value
+    }
+
+    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(updated, null, 2));
 }
 
 function createWindow() {
@@ -387,6 +400,10 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-editor', async (_, filePath: string) => {
+        // Security: Prevent path traversal
+        if (!isSafePath(currentCwd, filePath)) {
+            return { success: false, error: 'Access denied: Path outside of repository' };
+        }
         const settings = getSettings();
         const editor = settings.externalEditor || 'code';
         try {
@@ -414,14 +431,24 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-path', (_, filePath: string) => {
-        shell.showItemInFolder(filePath);
+        // Security: Prevent path traversal
+        if (isSafePath(currentCwd, filePath)) {
+            shell.showItemInFolder(filePath);
+        }
     });
 
     ipcMain.handle('shell:open-directory', (_, dirPath: string) => {
-        shell.openPath(dirPath);
+        // Security: Prevent path traversal
+        if (isSafePath(currentCwd, dirPath)) {
+            shell.openPath(dirPath);
+        }
     });
 
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
+        // Security: Prevent path traversal
+        if (!isSafePath(currentCwd, filePath)) {
+            return { success: false, error: 'Access denied: Path outside of repository' };
+        }
         const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
         try {
             await shell.trashItem(fullPath);
@@ -460,6 +487,10 @@ app.whenReady().then(() => {
     // File Preview: read file from git HEAD as base64 data URI
     ipcMain.handle('git:show-file-base64', (_, relativePath: string) => {
         try {
+            // Security: Prevent path traversal
+            if (!isSafePath(currentCwd, relativePath)) {
+                return { success: false, error: 'Access denied: Path outside of repository' };
+            }
             // Security: Use execFileSync with argument array to prevent command injection
             const result = execFileSync('git', ['show', `HEAD:${relativePath}`], {
                 cwd: currentCwd,
