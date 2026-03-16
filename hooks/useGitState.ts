@@ -63,7 +63,8 @@ export function useGitState(): UseGitStateReturn {
 
     const refreshGitState = useCallback(async () => {
         try {
-            const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp] = await Promise.all([
+            // Optimization: If we already know the comparison branch, fetch files in parallel with metadata
+            const metadataPromise = Promise.all([
                 GitService.getRepoName(),
                 GitService.getCurrentBranch(),
                 GitService.getUpstreamBranch(),
@@ -74,21 +75,30 @@ export function useGitState(): UseGitStateReturn {
                 GitService.getBestComparisonBranch()
             ]);
 
-            // If we don't have a comparison branch set yet, use the best guess
-            let activeComp = comparisonBranch;
-            if (!activeComp) {
-                activeComp = bestComp;
-                setComparisonBranch(bestComp);
-            }
+            let repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp, files;
 
-            const files = await GitService.getStatusFiles(activeComp);
+            if (comparisonBranch) {
+                // Parallelize file fetching with metadata fetching
+                const [metadata, statusFiles] = await Promise.all([
+                    metadataPromise,
+                    GitService.getStatusFiles(comparisonBranch)
+                ]);
+                [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp] = metadata;
+                files = statusFiles;
+            } else {
+                [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp] = await metadataPromise;
+                // If we don't have a comparison branch set yet, use the best guess
+                const activeComp = bestComp;
+                setComparisonBranch(bestComp);
+                files = await GitService.getStatusFiles(activeComp, currentBranch);
+            }
 
             setGitState(prev => ({
                 ...prev,
                 repoName,
                 currentBranch,
                 upstreamBranch,
-                files
+                files: files || []
             }));
             filesRef.current = files;
             setGitConfig(config);

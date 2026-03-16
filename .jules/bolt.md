@@ -9,3 +9,7 @@
 ## 2026-02-22 - [Memoizing Derived Props for Heavy Components]
 **Learning:** Passing object literals as props (e.g., `file={ { ...file, diffContent } }`) to heavy components like `DiffView` causes them to re-render and re-parse data on every parent render, even if the data hasn't changed. Memoizing these derived objects with `useMemo` is critical for maintaining reference stability and skipping expensive processing.
 **Action:** Always wrap derived objects in `useMemo` if they are passed to components that perform heavy parsing or rendering (like diff viewers or graphs). Use specific identity dependencies (like IDs) to balance performance and correctness.
+
+## 2026-03-16 - [Parallelizing Git CLI Operations]
+**Learning:** Sequential execution of multiple Git CLI commands (status, diff --name-status, diff --numstat) during state refreshes creates a significant performance waterfall. Parallelizing these with `Promise.all` and hoisting metadata (like current branch) to avoid redundant CLI calls reduces latency to the duration of the single slowest command.
+**Action:** Always identify independent CLI operations and parallelize them. Hoist commonly used state (e.g., branch names) across service methods to eliminate redundant process spawning.
