@@ -63,25 +63,37 @@ export function useGitState(): UseGitStateReturn {
 
     const refreshGitState = useCallback(async () => {
         try {
-            const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp] = await Promise.all([
-                GitService.getRepoName(),
-                GitService.getCurrentBranch(),
-                GitService.getUpstreamBranch(),
-                GitService.getGitConfig(),
-                GitService.getBranches(),
-                GitService.getCommitGraph(),
-                GitService.getAppSettings(),
-                GitService.getBestComparisonBranch()
-            ]);
+            let repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp, files;
 
-            // If we don't have a comparison branch set yet, use the best guess
-            let activeComp = comparisonBranch;
-            if (!activeComp) {
-                activeComp = bestComp;
+            if (comparisonBranch) {
+                // Optimization: Fetch status files concurrently with core metadata when comparison is already established.
+                // This maximizes throughput by overlapping all independent Git CLI executions.
+                [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp, files] = await Promise.all([
+                    GitService.getRepoName(),
+                    GitService.getCurrentBranch(),
+                    GitService.getUpstreamBranch(),
+                    GitService.getGitConfig(),
+                    GitService.getBranches(),
+                    GitService.getCommitGraph(),
+                    GitService.getAppSettings(),
+                    GitService.getBestComparisonBranch(),
+                    GitService.getStatusFiles(comparisonBranch)
+                ]);
+            } else {
+                [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp] = await Promise.all([
+                    GitService.getRepoName(),
+                    GitService.getCurrentBranch(),
+                    GitService.getUpstreamBranch(),
+                    GitService.getGitConfig(),
+                    GitService.getBranches(),
+                    GitService.getCommitGraph(),
+                    GitService.getAppSettings(),
+                    GitService.getBestComparisonBranch()
+                ]);
                 setComparisonBranch(bestComp);
+                // Pass pre-fetched currentBranch to eliminate one redundant CLI call.
+                files = await GitService.getStatusFiles(bestComp, currentBranch);
             }
-
-            const files = await GitService.getStatusFiles(activeComp);
 
             setGitState(prev => ({
                 ...prev,
