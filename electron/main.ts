@@ -4,13 +4,14 @@ import path from 'node:path';
 import { execSync, execFileSync, execFile } from 'child_process';
 import fs from 'fs';
 import { autoUpdater } from 'electron-updater';
+import { isSafePath, isValidShell, isValidSettingValue } from '../utils/security';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let win: BrowserWindow | null;
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
 
-const GITHUB_CLIENT_ID = 'Ov23lil6obiLhsHkt1R2';
+const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || 'Ov23lil6obiLhsHkt1R2';
 
 const TOKEN_PATH = path.join(app.getPath('userData'), 'github-token.bin');
 const RECENT_REPOS_PATH = path.join(app.getPath('userData'), 'recent-repos.json');
@@ -92,7 +93,18 @@ function getSettings() {
 }
 
 function saveSettings(settings: any) {
-    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+    const current = getSettings();
+    const updated = { ...current, ...settings };
+
+    // Security: Validate sensitive settings
+    if (updated.shell && !isValidShell(updated.shell)) {
+        updated.shell = current.shell;
+    }
+    if (updated.externalEditor && !isValidSettingValue(updated.externalEditor)) {
+        updated.externalEditor = current.externalEditor;
+    }
+
+    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(updated, null, 2));
 }
 
 function createWindow() {
@@ -387,6 +399,9 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-editor', async (_, filePath: string) => {
+        if (!isSafePath(currentCwd, filePath)) {
+            return { success: false, error: 'Access denied' };
+        }
         const settings = getSettings();
         const editor = settings.externalEditor || 'code';
         try {
@@ -401,6 +416,12 @@ app.whenReady().then(() => {
     ipcMain.handle('shell:open-terminal', async () => {
         const settings = getSettings();
         const shellCmd = settings.shell || (process.platform === 'win32' ? 'powershell' : 'bash');
+
+        // Security: Validate shell against allowlist
+        if (!isValidShell(shellCmd)) {
+            return { success: false, error: 'Invalid shell configured' };
+        }
+
         try {
             if (process.platform === 'win32') {
                 execFile('cmd.exe', ['/c', 'start', shellCmd], { cwd: currentCwd });
@@ -414,14 +435,21 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-path', (_, filePath: string) => {
-        shell.showItemInFolder(filePath);
+        if (isSafePath(currentCwd, filePath)) {
+            shell.showItemInFolder(path.resolve(currentCwd, filePath));
+        }
     });
 
     ipcMain.handle('shell:open-directory', (_, dirPath: string) => {
-        shell.openPath(dirPath);
+        if (isSafePath(currentCwd, dirPath)) {
+            shell.openPath(path.resolve(currentCwd, dirPath));
+        }
     });
 
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
+        if (!isSafePath(currentCwd, filePath)) {
+            return { success: false, error: 'Access denied' };
+        }
         const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
         try {
             await shell.trashItem(fullPath);
@@ -434,12 +462,10 @@ app.whenReady().then(() => {
     // File Preview: read file from disk as base64 data URI
     ipcMain.handle('file:read-base64', (_, relativePath: string) => {
         try {
-            const fullPath = path.resolve(currentCwd, relativePath);
-            // Security: Prevent path traversal by ensuring the file is within the repository
-            const relative = path.relative(currentCwd, fullPath);
-            if (relative.startsWith('..') || path.isAbsolute(relative)) {
-                return { success: false, error: 'Access denied: Path outside of repository' };
+            if (!isSafePath(currentCwd, relativePath)) {
+                return { success: false, error: 'Access denied' };
             }
+            const fullPath = path.resolve(currentCwd, relativePath);
             if (!fs.existsSync(fullPath)) return { success: false, error: 'File not found' };
             const buffer = fs.readFileSync(fullPath);
             const ext = path.extname(fullPath).toLowerCase();
@@ -460,6 +486,9 @@ app.whenReady().then(() => {
     // File Preview: read file from git HEAD as base64 data URI
     ipcMain.handle('git:show-file-base64', (_, relativePath: string) => {
         try {
+            if (!isSafePath(currentCwd, relativePath)) {
+                return { success: false, error: 'Access denied' };
+            }
             // Security: Use execFileSync with argument array to prevent command injection
             const result = execFileSync('git', ['show', `HEAD:${relativePath}`], {
                 cwd: currentCwd,
