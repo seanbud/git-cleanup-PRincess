@@ -7,3 +7,8 @@
 **Vulnerability:** Shell command injection via interpolated strings in `child_process.execSync` within IPC handlers.
 **Learning:** Passing unsanitized strings from the renderer to the main process for shell execution is extremely dangerous. Even quoting arguments is insufficient if the shell interprets special characters or if the input breaks out of quotes.
 **Prevention:** Always use argument arrays with `execFile` or `execFileSync` to bypass the shell entirely. Restrict IPC handlers to specific binaries (e.g., `git`) rather than allowing arbitrary commands.
+
+## 2026-03-17 - Path Traversal in Electron IPC Handlers
+**Vulnerability:** File-related IPC handlers (`file:read-base64`, `shell:trash-item`, etc.) were susceptible to path traversal attacks, allowing the renderer process to access or modify files outside the intended repository directory.
+**Learning:** Functions like `path.join` or `path.resolve` do not protect against traversal if the input contains `..` or is an absolute path. Security must be enforced by verifying the relationship between the base directory and the target path.
+**Prevention:** Use a dedicated `isSafePath` utility that employs `path.relative` to ensure the resolved path remains within the application's working directory and does not escape via `..` segments.
