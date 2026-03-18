@@ -57,7 +57,7 @@ export class GitService {
         return res.success ? res.stdout.trim() : '';
     }
 
-    static async getBestComparisonBranch(): Promise<string> {
+    static async getBestComparisonBranch(preFetchedCurrentBranch?: string): Promise<string> {
         // 1. Try upstream
         const upstream = await this.getUpstreamBranch();
         if (upstream) return upstream;
@@ -65,11 +65,11 @@ export class GitService {
         // 2. Try common branches
         const common = ['develop', 'development', 'main', 'master'];
         const branches = await this.getBranches();
+        const current = preFetchedCurrentBranch || await this.getCurrentBranch();
 
         for (const target of common) {
             if (branches.includes(target)) {
                 // Verify it's not the same branch
-                const current = await this.getCurrentBranch();
                 if (current !== target) return target;
             }
         }
@@ -101,11 +101,17 @@ export class GitService {
     }
 
     static async getStatusFiles(comparisonBranch?: string): Promise<GitFile[]> {
+        // Optimization: Parallelize independent Git status and branch lookups
+        const [currentBranch, statusRes] = await Promise.all([
+            this.getCurrentBranch(),
+            git('status', '--porcelain')
+        ]);
+
         const files: GitFile[] = [];
         const seenPaths = new Set<string>();
 
         // 1. Get uncommitted files (Status)
-        const res = await git('status', '--porcelain');
+        const res = statusRes;
         if (res.success && res.stdout.trim()) {
             const lines = res.stdout.split('\n').filter(Boolean);
             lines.forEach((line: string, index: number) => {
@@ -133,7 +139,6 @@ export class GitService {
         }
 
         // 2. Get committed differences if comparing to another branch
-        const currentBranch = await this.getCurrentBranch();
         if (comparisonBranch && comparisonBranch !== currentBranch) {
             const diffRes = await git('diff', '--name-status', `${comparisonBranch}...HEAD`);
             if (diffRes.success && diffRes.stdout.trim()) {
@@ -163,7 +168,17 @@ export class GitService {
             }
         }
 
-        // Fetch line stats
+        // Optimization: Fetch all line stats in parallel
+        const statRequests = [
+            git('diff', '--numstat', '--text'),
+            git('diff', '--numstat', '--text', '--cached')
+        ];
+        if (comparisonBranch && comparisonBranch !== currentBranch) {
+            statRequests.push(git('diff', '--numstat', '--text', `${comparisonBranch}...HEAD`));
+        }
+
+        const statResults = await Promise.all(statRequests);
+
         const statMap = new Map<string, { added: number; removed: number }>();
         const addStats = (stdout: string) => {
             const lines = stdout.split('\n').filter(Boolean);
@@ -182,18 +197,9 @@ export class GitService {
             }
         };
 
-        // 1. Get uncommitted stats (staged + unstaged)
-        // Use separate commands for staged and unstaged to avoid issues with empty repos (no HEAD)
-        const localStats = await git('diff', '--numstat', '--text');
-        if (localStats.success) addStats(localStats.stdout);
-        const stagedStats = await git('diff', '--numstat', '--text', '--cached');
-        if (stagedStats.success) addStats(stagedStats.stdout);
-
-        // 2. Get committed stats for the branch comparison
-        if (comparisonBranch && comparisonBranch !== currentBranch) {
-            const branchStats = await git('diff', '--numstat', '--text', `${comparisonBranch}...HEAD`);
-            if (branchStats.success) addStats(branchStats.stdout);
-        }
+        statResults.forEach(res => {
+            if (res.success) addStats(res.stdout);
+        });
 
         // Apply stats to files
         for (const file of files) {
@@ -254,46 +260,45 @@ export class GitService {
     }
 
     static async restoreFile(filePath: string, comparisonBranch?: string): Promise<boolean> {
+        return this.discardChanges([filePath], comparisonBranch);
+    }
+
+    static async discardChanges(filePaths: string[], comparisonBranch?: string): Promise<boolean> {
+        if (filePaths.length === 0) return true;
+
         const currentBranch = await this.getCurrentBranch();
 
         // If restoring FROM a base branch (making it match the base)
         if (comparisonBranch && comparisonBranch !== currentBranch) {
-            const res = await git('checkout', comparisonBranch, '--', filePath);
+            const res = await git('checkout', comparisonBranch, '--', ...filePaths);
             return res.success;
         }
 
-        // Normal unstage + restore
-        await git('reset', 'HEAD', '--', filePath);
-        const res = await git('checkout', '--', filePath);
-        return res.success;
-    }
-
-    static async discardChanges(filePaths: string[]): Promise<boolean> {
-        if (filePaths.length === 0) return true;
-
-        // 1. Unstage everything in the list
+        // Normal unstage + restore in bulk
         await git('reset', 'HEAD', '--', ...filePaths);
-
-        // 2. Restore working tree for tracked files (Modified/Deleted)
         const restoreRes = await git('checkout', '--', ...filePaths);
-
-        // 3. Optional: Remove untracked files (Added/Untracked)
-        // Only if they are actually untracked (not just staged).
-        // For simplicity and safety in a "Princess" tool, we might just stick to tracked files 
-        // or specifically handle untracked if they exist.
 
         return restoreRes.success;
     }
 
     static async removeFile(filePath: string): Promise<boolean> {
+        return this.removeFiles([filePath]);
+    }
+
+    static async removeFiles(filePaths: string[]): Promise<boolean> {
+        if (filePaths.length === 0) return true;
+
         // 1. Remove from git index first (keep on disk)
         // Use --ignore-unmatch so it doesn't fail if the file is untracked
-        await git('rm', '--cached', '-f', '--ignore-unmatch', filePath);
+        await git('rm', '--cached', '-f', '--ignore-unmatch', ...filePaths);
 
-        // 2. Move the local file to trash/recycle bin
-        // @ts-ignore
-        const res = await window.electronAPI.trashFile(filePath);
-        return res.success;
+        // 2. Move the local files to trash/recycle bin in parallel
+        const results = await Promise.all(filePaths.map(p =>
+            // @ts-ignore
+            window.electronAPI.trashFile(p)
+        ));
+
+        return results.every(res => res.success);
     }
 
     static async getCommitGraph(): Promise<CommitNode[]> {
