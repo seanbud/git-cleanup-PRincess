@@ -4,6 +4,7 @@ import path from 'node:path';
 import { execSync, execFileSync, execFile } from 'child_process';
 import fs from 'fs';
 import { autoUpdater } from 'electron-updater';
+import { isSafePath, isValidShell, isValidSettingValue } from '../utils/security';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -387,6 +388,10 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-editor', async (_, filePath: string) => {
+        // Security: Prevent path traversal
+        if (!isSafePath(currentCwd, filePath)) {
+            return { success: false, error: 'Access denied: Path outside of repository' };
+        }
         const settings = getSettings();
         const editor = settings.externalEditor || 'code';
         try {
@@ -414,14 +419,24 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('shell:open-path', (_, filePath: string) => {
-        shell.showItemInFolder(filePath);
+        // Security: Prevent path traversal
+        if (isSafePath(currentCwd, filePath)) {
+            shell.showItemInFolder(filePath);
+        }
     });
 
     ipcMain.handle('shell:open-directory', (_, dirPath: string) => {
-        shell.openPath(dirPath);
+        // Security: Prevent path traversal
+        if (isSafePath(currentCwd, dirPath)) {
+            shell.openPath(dirPath);
+        }
     });
 
     ipcMain.handle('shell:trash-item', async (_, filePath: string) => {
+        // Security: Prevent path traversal
+        if (!isSafePath(currentCwd, filePath)) {
+            return { success: false, error: 'Access denied: Path outside of repository' };
+        }
         const fullPath = path.isAbsolute(filePath) ? filePath : path.join(currentCwd, filePath);
         try {
             await shell.trashItem(fullPath);
@@ -434,12 +449,11 @@ app.whenReady().then(() => {
     // File Preview: read file from disk as base64 data URI
     ipcMain.handle('file:read-base64', (_, relativePath: string) => {
         try {
-            const fullPath = path.resolve(currentCwd, relativePath);
-            // Security: Prevent path traversal by ensuring the file is within the repository
-            const relative = path.relative(currentCwd, fullPath);
-            if (relative.startsWith('..') || path.isAbsolute(relative)) {
+            // Security: Prevent path traversal
+            if (!isSafePath(currentCwd, relativePath)) {
                 return { success: false, error: 'Access denied: Path outside of repository' };
             }
+            const fullPath = path.resolve(currentCwd, relativePath);
             if (!fs.existsSync(fullPath)) return { success: false, error: 'File not found' };
             const buffer = fs.readFileSync(fullPath);
             const ext = path.extname(fullPath).toLowerCase();
@@ -513,6 +527,31 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('app:save-settings', (_, settings) => {
-        saveSettings(settings);
+        const current = getSettings();
+        const merged = { ...current };
+
+        // Security: Validate and sanitize each field
+        if (settings.shell && isValidShell(settings.shell)) {
+            merged.shell = settings.shell;
+        }
+
+        if (settings.externalEditor && (isValidShell(settings.externalEditor) || isValidSettingValue(settings.externalEditor))) {
+            merged.externalEditor = settings.externalEditor;
+        }
+
+        // Apply other settings that are safe strings
+        Object.keys(settings).forEach(key => {
+            if (key !== 'shell' && key !== 'externalEditor') {
+                const val = settings[key];
+                if (typeof val === 'string' && isValidSettingValue(val)) {
+                    merged[key] = val;
+                } else if (typeof val !== 'object') {
+                    // Primitive non-string values are generally safe
+                    merged[key] = val;
+                }
+            }
+        });
+
+        saveSettings(merged);
     });
 });
