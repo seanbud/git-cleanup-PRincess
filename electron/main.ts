@@ -1,8 +1,11 @@
 import { app, BrowserWindow, shell, ipcMain, safeStorage, dialog, Menu } from 'electron';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { execSync, execFileSync, execFile } from 'child_process';
+import { execSync, execFile } from 'child_process';
+import { promisify } from 'node:util';
 import fs from 'fs';
+
+const execFileAsync = promisify(execFile);
 import { autoUpdater } from 'electron-updater';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -303,15 +306,15 @@ app.whenReady().then(() => {
     // ─── Git CLI IPC ──────────────────────────────────────────────
     ipcMain.handle('git:cmd', async (_, args: string[]) => {
         try {
-            // Security: Use execFileSync with argument array to prevent command injection
+            // Security: Use execFile with argument array to prevent command injection
             // and restrict execution to the 'git' binary only.
-            const output = execFileSync('git', args, {
+            // Optimization: Using async execFile to avoid blocking the main thread.
+            const { stdout } = await execFileAsync('git', args, {
                 encoding: 'utf-8',
                 cwd: currentCwd,
                 timeout: 15000,
-                stdio: ['pipe', 'pipe', 'pipe'] // Suppress stderr from leaking to console
             });
-            return { stdout: output, success: true };
+            return { stdout, success: true };
         } catch (error: any) {
             return { stderr: error.stderr || error.message, stdout: error.stdout || '', success: false };
         }
@@ -319,11 +322,11 @@ app.whenReady().then(() => {
 
     ipcMain.handle('git:config-get', async (_, key) => {
         try {
-            return execFileSync('git', ['config', '--get', key], {
+            const { stdout } = await execFileAsync('git', ['config', '--get', key], {
                 encoding: 'utf-8',
                 cwd: currentCwd,
-                stdio: ['pipe', 'pipe', 'pipe']
-            }).trim();
+            });
+            return stdout.trim();
         } catch {
             return '';
         }

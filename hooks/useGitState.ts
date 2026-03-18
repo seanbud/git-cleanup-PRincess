@@ -63,15 +63,15 @@ export function useGitState(): UseGitStateReturn {
 
     const refreshGitState = useCallback(async () => {
         try {
-            const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp] = await Promise.all([
+            const currentBranch = await GitService.getCurrentBranch();
+            const [repoName, upstreamBranch, config, branchList, commits, settings, bestComp] = await Promise.all([
                 GitService.getRepoName(),
-                GitService.getCurrentBranch(),
                 GitService.getUpstreamBranch(),
                 GitService.getGitConfig(),
                 GitService.getBranches(),
                 GitService.getCommitGraph(),
                 GitService.getAppSettings(),
-                GitService.getBestComparisonBranch()
+                GitService.getBestComparisonBranch(currentBranch)
             ]);
 
             // If we don't have a comparison branch set yet, use the best guess
@@ -204,15 +204,17 @@ export function useGitState(): UseGitStateReturn {
         setIsProcessing(true);
         setCharacterState(actionType === 'RESTORE' ? CharacterState.ACTION_GOOD : CharacterState.ACTION_BAD);
 
-        const selectedFiles = gitState.files.filter(f => gitState.selectedFileIds.has(f.id));
+        const selectedPaths = gitState.files
+            .filter(f => gitState.selectedFileIds.has(f.id))
+            .map(f => f.path);
 
         try {
-            for (const file of selectedFiles) {
-                if (actionType === 'RESTORE') {
-                    await GitService.restoreFile(file.path);
-                } else {
-                    await GitService.removeFile(file.path);
-                }
+            if (actionType === 'RESTORE') {
+                // Optimization: Use bulk discard instead of O(N) sequential calls
+                await GitService.discardChanges(selectedPaths, comparisonBranch);
+            } else {
+                // Optimization: Use bulk removal instead of O(N) sequential calls
+                await GitService.removeFiles(selectedPaths);
             }
 
             await refreshGitState();
