@@ -13,13 +13,12 @@ Lightweight desktop utility- provides a visual, safe way to audit and prune your
 ...so you can keep your kingdom clean and tidy!
 
 ### Features
+
 - Safe deletion, files move to the Recycle Bin instead of permanent erasure.
 - Network Tree View (similar to git kracken)
 - "Prince" mode if you prefer ♂ character.
 
-
-
-## Video Demo 
+## Video Demo
 
 https://github.com/user-attachments/assets/bdfd76ed-9a15-4c48-aa4a-cf00ca219217
 
@@ -30,7 +29,9 @@ Runs on Windows, macOS, and Linux.
 View all downloads on the [Releases Page](https://github.com/seanbud/git-cleanup-PRincess/releases/latest).
 
 ## Build from Source
+
 If you prefer to build it yourself:
+
 ```bash
 git clone https://github.com/seanbud/git-cleanup-PRincess.git
 cd git-cleanup-PRincess
@@ -47,4 +48,5 @@ If the PRincess has saved your workflow, consider supporting future development.
 </a>
 
 ---
-*Created by the Princess' Royal Engineering Team. Free, open source, and cross-platform.*
+
+_Created by the Princess' Royal Engineering Team. Free, open source, and cross-platform._

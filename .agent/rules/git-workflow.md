@@ -13,13 +13,13 @@ This document defines the official Git workflow for the `git-cleanup-PRincess` p
 Banches should be prefixed based on their purpose:
 
 - `feature/` : For new components, features, or significant functional updates.
-  - *Example*: `feature/syntax-highlighting`, `feature/dust-bunny-variants`
+  - _Example_: `feature/syntax-highlighting`, `feature/dust-bunny-variants`
 - `fix/` : For bug fixes and small technical corrections.
-  - *Example*: `fix/diff-rendering-glitch`, `fix/sound-loading-error`
+  - _Example_: `fix/diff-rendering-glitch`, `fix/sound-loading-error`
 - `refactor/` : For code cleanup, architectural changes, or performance optimizations without changing functionality.
-  - *Example*: `refactor/app-tsx-hooks`
+  - _Example_: `refactor/app-tsx-hooks`
 - `release/` : For preparing a new version release.
-  - *Example*: `release/v2.0.0`
+  - _Example_: `release/v2.0.0`
 
 ## Workflow Steps
 

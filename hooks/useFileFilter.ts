@@ -1,85 +1,105 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { GitFile } from '../types';
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
+import { GitFile } from "../types";
 
 interface UseFileFilterOptions {
-    files: GitFile[];
-    selectedFileIds: Set<string>;
-    onSelectionChange: (updater: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+  files: GitFile[];
+  selectedFileIds: Set<string>;
+  onSelectionChange: (
+    updater: Set<string> | ((prev: Set<string>) => Set<string>),
+  ) => void;
 }
 
 export interface UseFileFilterReturn {
-    searchQuery: string;
-    setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
-    filteredFiles: GitFile[];
-    allFilteredSelected: boolean;
-    someFilteredSelected: boolean;
-    selectAllRef: React.RefObject<HTMLInputElement | null>;
-    toggleSelectAll: () => void;
+  searchQuery: string;
+  setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
+  filteredFiles: GitFile[];
+  allFilteredSelected: boolean;
+  someFilteredSelected: boolean;
+  selectAllRef: React.RefObject<HTMLInputElement | null>;
+  toggleSelectAll: () => void;
 }
 
-export function useFileFilter({ files, selectedFileIds, onSelectionChange }: UseFileFilterOptions): UseFileFilterReturn {
-    const [searchQuery, setSearchQuery] = useState('');
-    const selectAllRef = useRef<HTMLInputElement | null>(null);
+export function useFileFilter({
+  files,
+  selectedFileIds,
+  onSelectionChange,
+}: UseFileFilterOptions): UseFileFilterReturn {
+  const [searchQuery, setSearchQuery] = useState("");
+  const selectAllRef = useRef<HTMLInputElement | null>(null);
 
-    const filteredFiles = useMemo(() => {
-        const rawQuery = searchQuery.trim();
-        if (!rawQuery) return files;
+  const filteredFiles = useMemo(() => {
+    const rawQuery = searchQuery.trim();
+    if (!rawQuery) return files;
 
-        const terms = rawQuery.split(/\s+/).filter(Boolean);
+    const terms = rawQuery.split(/\s+/).filter(Boolean);
 
-        const processedTerms = terms.map(term => {
-            // Handle Glob patterns (e.g. *.md, src/*)
-            if (term.includes('*')) {
-                const escapeRegex = (str: string) => str.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-                const pattern = term.split('*').map(escapeRegex).join('.*');
-                return new RegExp(`^${pattern}$`, 'i');
-            }
-            return term.toLowerCase();
-        });
+    const processedTerms = terms.map((term) => {
+      // Handle Glob patterns (e.g. *.md, src/*)
+      if (term.includes("*")) {
+        const escapeRegex = (str: string) =>
+          str.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+        const pattern = term.split("*").map(escapeRegex).join(".*");
+        return new RegExp(`^${pattern}$`, "i");
+      }
+      return term.toLowerCase();
+    });
 
-        return files.filter(f => {
-            const filePath = f.path;
-            return processedTerms.every(term => {
-                if (term instanceof RegExp) {
-                    return term.test(filePath);
-                }
-                return filePath.toLowerCase().includes(term);
-            });
-        });
-    }, [files, searchQuery]);
-
-    // Optimization: Memoize selection state checks to avoid O(N) re-calculations on every render
-    const allFilteredSelected = useMemo(() =>
-        filteredFiles.length > 0 && filteredFiles.every(f => selectedFileIds.has(f.id)),
-        [filteredFiles, selectedFileIds]);
-
-    const someFilteredSelected = useMemo(() =>
-        filteredFiles.length > 0 && filteredFiles.some(f => selectedFileIds.has(f.id)) && !allFilteredSelected,
-        [filteredFiles, selectedFileIds, allFilteredSelected]);
-
-    useEffect(() => {
-        if (selectAllRef.current) {
-            selectAllRef.current.indeterminate = someFilteredSelected;
+    return files.filter((f) => {
+      const filePath = f.path;
+      return processedTerms.every((term) => {
+        if (term instanceof RegExp) {
+          return term.test(filePath);
         }
-    }, [someFilteredSelected]);
+        return filePath.toLowerCase().includes(term);
+      });
+    });
+  }, [files, searchQuery]);
 
-    const toggleSelectAll = useCallback(() => {
-        const newSet = new Set(selectedFileIds);
-        if (allFilteredSelected) {
-            filteredFiles.forEach(f => newSet.delete(f.id));
-        } else {
-            filteredFiles.forEach(f => newSet.add(f.id));
-        }
-        onSelectionChange(newSet);
-    }, [selectedFileIds, allFilteredSelected, filteredFiles, onSelectionChange]);
+  // Optimization: Memoize selection state checks to avoid O(N) re-calculations on every render
+  const allFilteredSelected = useMemo(
+    () =>
+      filteredFiles.length > 0 &&
+      filteredFiles.every((f) => selectedFileIds.has(f.id)),
+    [filteredFiles, selectedFileIds],
+  );
 
-    return {
-        searchQuery,
-        setSearchQuery,
-        filteredFiles,
-        allFilteredSelected,
-        someFilteredSelected,
-        selectAllRef,
-        toggleSelectAll,
-    };
+  const someFilteredSelected = useMemo(
+    () =>
+      filteredFiles.length > 0 &&
+      filteredFiles.some((f) => selectedFileIds.has(f.id)) &&
+      !allFilteredSelected,
+    [filteredFiles, selectedFileIds, allFilteredSelected],
+  );
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someFilteredSelected;
+    }
+  }, [someFilteredSelected]);
+
+  const toggleSelectAll = useCallback(() => {
+    const newSet = new Set(selectedFileIds);
+    if (allFilteredSelected) {
+      filteredFiles.forEach((f) => newSet.delete(f.id));
+    } else {
+      filteredFiles.forEach((f) => newSet.add(f.id));
+    }
+    onSelectionChange(newSet);
+  }, [selectedFileIds, allFilteredSelected, filteredFiles, onSelectionChange]);
+
+  return {
+    searchQuery,
+    setSearchQuery,
+    filteredFiles,
+    allFilteredSelected,
+    someFilteredSelected,
+    selectAllRef,
+    toggleSelectAll,
+  };
 }
