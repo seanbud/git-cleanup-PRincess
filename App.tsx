@@ -1,32 +1,34 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { GitFile, CharacterState, ThemeMode } from './types';
-import { GitService } from './services/gitService';
-import TopMenuBar from './components/TopMenuBar';
-import ProductTitleBar from './components/ProductTitleBar';
-import RepoHeader from './components/RepoHeader';
-import NetworkGraph from './components/NetworkGraph';
-import FileList from './components/FileList';
-import DiffView from './components/DiffView';
-import Character from './components/Character';
-import ActionPanel from './components/ActionPanel';
-import ContextMenu from './components/ContextMenu';
-import DustSpore from './components/DustSpore';
-import OptionsModal from './components/OptionsModal';
-import SignInModal from './components/SignInModal';
-import UpdateBanner from './components/UpdateBanner';
-import AboutModal from './components/AboutModal';
-import UpdateCheckModal from './components/UpdateCheckModal';
+import React, { useState, useEffect, useRef } from "react";
+import { GitFile, CharacterState, ThemeMode } from "./types";
+import { GitService } from "./services/gitService";
+import TopMenuBar from "./components/TopMenuBar";
+import ProductTitleBar from "./components/ProductTitleBar";
+import RepoHeader from "./components/RepoHeader";
+import NetworkGraph from "./components/NetworkGraph";
+import FileList from "./components/FileList";
+import DiffView from "./components/DiffView";
+import Character from "./components/Character";
+import ActionPanel from "./components/ActionPanel";
+import ContextMenu from "./components/ContextMenu";
+import DustSpore from "./components/DustSpore";
+import OptionsModal from "./components/OptionsModal";
+import SignInModal from "./components/SignInModal";
+import UpdateBanner from "./components/UpdateBanner";
+import AboutModal from "./components/AboutModal";
+import UpdateCheckModal from "./components/UpdateCheckModal";
 
-import { useGitState } from './hooks/useGitState';
-import { useCharacter } from './hooks/useCharacter';
-import { useResizableSidebar } from './hooks/useResizableSidebar';
-import { useContextMenu } from './hooks/useContextMenu';
-import { useFileFilter } from './hooks/useFileFilter';
+import { useGitState } from "./hooks/useGitState";
+import { useCharacter } from "./hooks/useCharacter";
+import { useResizableSidebar } from "./hooks/useResizableSidebar";
+import { useContextMenu } from "./hooks/useContextMenu";
+import { useFileFilter } from "./hooks/useFileFilter";
 
 const App: React.FC = () => {
   // ─── Theme ─────────────────────────────────────────────────────
   const [themeMode, setThemeMode] = useState<ThemeMode>(ThemeMode.PRINCESS);
-  const [actionHover, setActionHover] = useState<'REMOVE' | 'RESTORE' | null>(null);
+  const [actionHover, setActionHover] = useState<"REMOVE" | "RESTORE" | null>(
+    null,
+  );
   const [isGraphExpanded, setIsGraphExpanded] = useState(false);
 
   // ─── Modal State ───────────────────────────────────────────────
@@ -44,39 +46,44 @@ const App: React.FC = () => {
     actionHover,
   });
 
-  const { sidebarWidth, isResizing, sidebarRef, startResizing } = useResizableSidebar(320);
+  const { sidebarWidth, isResizing, sidebarRef, startResizing } =
+    useResizableSidebar(320);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const handleDiscardChanges = React.useCallback(async (files: GitFile[]) => {
-    if (files.length === 0) return;
+  const handleDiscardChanges = React.useCallback(
+    async (files: GitFile[]) => {
+      if (files.length === 0) return;
 
-    const confirmMessage = files.length === 1
-      ? `Are you sure you want to discard changes in ${files[0].path}?`
-      : `Are you sure you want to discard changes in ${files.length} files?`;
+      const confirmMessage =
+        files.length === 1
+          ? `Are you sure you want to discard changes in ${files[0].path}?`
+          : `Are you sure you want to discard changes in ${files.length} files?`;
 
-    if (!confirm(confirmMessage)) return;
+      if (!confirm(confirmMessage)) return;
 
-    // Trigger character reaction
-    setCharacterState(CharacterState.ACTION_GOOD);
+      // Trigger character reaction
+      setCharacterState(CharacterState.ACTION_GOOD);
 
-    const paths = files.map(f => f.path);
-    const success = await GitService.discardChanges(paths);
+      const paths = files.map((f) => f.path);
+      const success = await GitService.discardChanges(paths);
 
-    if (success) {
-      git.refreshGitState();
-      // Keep state for a bit for the animation
-      setTimeout(() => setCharacterState(CharacterState.IDLE), 2000);
-    } else {
-      alert('Failed to discard changes.');
-      setCharacterState(CharacterState.IDLE);
-    }
-  }, [git.refreshGitState, setCharacterState]);
+      if (success) {
+        git.refreshGitState();
+        // Keep state for a bit for the animation
+        setTimeout(() => setCharacterState(CharacterState.IDLE), 2000);
+      } else {
+        alert("Failed to discard changes.");
+        setCharacterState(CharacterState.IDLE);
+      }
+    },
+    [git.refreshGitState, setCharacterState],
+  );
 
   const { contextMenu, handleContextMenu, closeContextMenu } = useContextMenu({
     currentBranch: git.gitState.currentBranch,
     onOpenGithub: git.handleOpenGithub,
     onDiscardChanges: handleDiscardChanges,
-    appSettings: git.appSettings
+    appSettings: git.appSettings,
   });
 
   const {
@@ -96,14 +103,18 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // '/' to focus search, if not already in an input
-      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      if (
+        e.key === "/" &&
+        document.activeElement?.tagName !== "INPUT" &&
+        document.activeElement?.tagName !== "TEXTAREA"
+      ) {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   // ─── Auth Init ─────────────────────────────────────────────────
@@ -124,29 +135,33 @@ const App: React.FC = () => {
 
   // ─── Derived Values ────────────────────────────────────────────
   const toggleTheme = () => {
-    const newMode = themeMode === ThemeMode.PRINCESS ? ThemeMode.PRINCE : ThemeMode.PRINCESS;
+    const newMode =
+      themeMode === ThemeMode.PRINCESS ? ThemeMode.PRINCE : ThemeMode.PRINCESS;
     setThemeMode(newMode);
 
     // Update Electron title bar overlay color
-    const overlayOptions = newMode === ThemeMode.PRINCESS
-      ? { color: '#fff0f6', symbolColor: '#742a2a' }
-      : { color: '#eef5ff', symbolColor: '#1e293b' };
+    const overlayOptions =
+      newMode === ThemeMode.PRINCESS
+        ? { color: "#fff0f6", symbolColor: "#742a2a" }
+        : { color: "#eef5ff", symbolColor: "#1e293b" };
 
     // @ts-ignore
     window.electronAPI.setTitleBarOverlay?.(overlayOptions);
   };
 
-  const handleAction = async (actionType: 'RESTORE' | 'REMOVE') => {
+  const handleAction = async (actionType: "RESTORE" | "REMOVE") => {
     await git.handleAction(actionType, setCharacterState);
   };
 
   const isPrincess = themeMode === ThemeMode.PRINCESS;
-  const appBgClass = isPrincess ? 'bg-[#fff5f9]' : 'bg-[#f4faff]';
-  const sidebarHeaderBg = isPrincess ? 'bg-[#fff0f6]' : 'bg-[#e0efff]/50';
+  const appBgClass = isPrincess ? "bg-[#fff5f9]" : "bg-[#f4faff]";
+  const sidebarHeaderBg = isPrincess ? "bg-[#fff0f6]" : "bg-[#e0efff]/50";
 
   // Optimization: Memoize selected files to avoid O(N) lookup in the render loop
   const selectedFiles = React.useMemo(() => {
-    return git.gitState.files.filter(f => git.gitState.selectedFileIds.has(f.id));
+    return git.gitState.files.filter((f) =>
+      git.gitState.selectedFileIds.has(f.id),
+    );
   }, [git.gitState.files, git.gitState.selectedFileIds]);
 
   const selectedFile = selectedFiles.length === 1 ? selectedFiles[0] : null;
@@ -155,12 +170,16 @@ const App: React.FC = () => {
   // Optimization: Memoize the file object passed to DiffView to prevent redundant re-parsing of large diffs
   // when unrelated state (like theme or hover) changes.
   const diffViewFile = React.useMemo(() => {
-    return selectedFile ? { ...selectedFile, diffContent: git.selectedDiff } : null;
+    return selectedFile
+      ? { ...selectedFile, diffContent: git.selectedDiff }
+      : null;
   }, [selectedFile, git.selectedDiff]);
 
   // ─── Render ────────────────────────────────────────────────────
   return (
-    <div className={`flex flex-col h-screen w-screen overflow-hidden text-sm ${appBgClass} font-sans transition-colors duration-300 rounded-[2px] border border-black/10 shadow-inner`}>
+    <div
+      className={`flex flex-col h-screen w-screen overflow-hidden text-sm ${appBgClass} font-sans transition-colors duration-300 rounded-[2px] border border-black/10 shadow-inner`}
+    >
       <UpdateBanner mode={themeMode} />
       <div className="z-[100]">
         <TopMenuBar
@@ -200,12 +219,11 @@ const App: React.FC = () => {
 
         {/* Main Workspace */}
         <div className="flex flex-1 overflow-hidden relative">
-
           {/* Left Sidebar: Changes (Resizable) */}
           <div
             ref={sidebarRef}
             style={{ width: sidebarWidth }}
-            className={`flex flex-col border-r border-gray-200 shadow-[4px_0_24px_-4px_rgba(0,0,0,0.1)] z-20 transition-colors duration-300 ${isPrincess ? 'bg-[#fff5f9]' : 'bg-[#f4faff]'} relative shrink-0`}
+            className={`flex flex-col border-r border-gray-200 shadow-[4px_0_24px_-4px_rgba(0,0,0,0.1)] z-20 transition-colors duration-300 ${isPrincess ? "bg-[#fff5f9]" : "bg-[#f4faff]"} relative shrink-0`}
           >
             {/* Resize Handle */}
             <div
@@ -214,7 +232,9 @@ const App: React.FC = () => {
             />
 
             {/* Changes Header with Search & Select All */}
-            <div className={`p-3 border-b border-gray-200/60 ${sidebarHeaderBg} backdrop-blur-sm flex flex-col gap-3 transition-colors duration-300 shadow-sm z-10`}>
+            <div
+              className={`p-3 border-b border-gray-200/60 ${sidebarHeaderBg} backdrop-blur-sm flex flex-col gap-3 transition-colors duration-300 shadow-sm z-10`}
+            >
               <div className="relative group">
                 <input
                   ref={searchInputRef}
@@ -227,11 +247,20 @@ const App: React.FC = () => {
                 />
                 {searchQuery && (
                   <button
-                    onClick={() => setSearchQuery('')}
+                    onClick={() => setSearchQuery("")}
                     aria-label="Clear filter"
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 rounded-full p-0.5 hover:bg-gray-100 transition-colors"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <line x1="18" y1="6" x2="6" y2="18"></line>
                       <line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
@@ -248,7 +277,7 @@ const App: React.FC = () => {
                     checked={allFilteredSelected}
                     onChange={toggleSelectAll}
                     aria-label="Select all filtered files"
-                    className={`h-3.5 w-3.5 border-gray-300 rounded focus:ring-blue-500 cursor-pointer ${isPrincess ? 'accent-pink-500' : 'accent-blue-600'}`}
+                    className={`h-3.5 w-3.5 border-gray-300 rounded focus:ring-blue-500 cursor-pointer ${isPrincess ? "accent-pink-500" : "accent-blue-600"}`}
                   />
                 </div>
 
@@ -267,28 +296,32 @@ const App: React.FC = () => {
               files={filteredFiles}
               selectedIds={git.gitState.selectedFileIds}
               onSelectionChange={git.handleSelectionChange}
-              onHoverStateChange={(state) => !git.isProcessing && git.gitState.selectedFileIds.size === 0 && setCharacterState(state)}
+              onHoverStateChange={(state) =>
+                !git.isProcessing &&
+                git.gitState.selectedFileIds.size === 0 &&
+                setCharacterState(state)
+              }
               onContextMenu={handleContextMenu}
               mode={themeMode}
             />
 
             <ActionPanel
               selectedCount={git.gitState.selectedFileIds.size}
-              selectedPaths={selectedFiles.map(f => f.path)}
+              selectedPaths={selectedFiles.map((f) => f.path)}
               mode={themeMode}
-              onRemove={() => handleAction('REMOVE')}
-              onRestore={() => handleAction('RESTORE')}
+              onRemove={() => handleAction("REMOVE")}
+              onRestore={() => handleAction("RESTORE")}
               isProcessing={git.isProcessing}
               onHoverAction={setActionHover}
             />
           </div>
 
-          <div className={`flex-1 flex flex-col min-w-0 ${isPrincess ? 'bg-[#fffbfc]' : 'bg-[#f8fbff]'} ${isResizing ? 'pointer-events-none select-none' : ''}`}>
-
+          <div
+            className={`flex-1 flex flex-col min-w-0 ${isPrincess ? "bg-[#fffbfc]" : "bg-[#f8fbff]"} ${isResizing ? "pointer-events-none select-none" : ""}`}
+          >
             {/* Diff Viewer Area */}
             <div className="flex-1 relative overflow-hidden flex flex-col">
               <div className="flex-1 h-full overflow-hidden relative">
-
                 {isMultipleSelected ? (
                   /* Multi-Select "Dust Spores" View */
                   <div className="h-full w-full overflow-y-auto overflow-x-hidden p-10 flex flex-wrap content-start items-start justify-center gap-4 bg-opacity-50">
@@ -308,7 +341,7 @@ const App: React.FC = () => {
                             fileName={file.path}
                             linesAdded={file.linesAdded}
                             linesRemoved={file.linesRemoved}
-                            isScared={actionHover === 'REMOVE'}
+                            isScared={actionHover === "REMOVE"}
                             mode={themeMode}
                             delay={index * 0.2}
                           />
@@ -320,16 +353,17 @@ const App: React.FC = () => {
                   /* Single File Diff View */
                   <DiffView file={diffViewFile} mode={themeMode} />
                 )}
-
               </div>
             </div>
 
-            <div className={`shrink-0 bg-white ${isGraphExpanded ? 'h-[32rem]' : 'h-24'} transition-all duration-300 ease-in-out`}>
+            <div
+              className={`shrink-0 bg-white ${isGraphExpanded ? "h-[32rem]" : "h-24"} transition-all duration-300 ease-in-out`}
+            >
               <NetworkGraph
                 mode={themeMode}
                 commits={git.commitGraph}
                 isExpanded={isGraphExpanded}
-                onToggleExpand={() => setIsGraphExpanded(prev => !prev)}
+                onToggleExpand={() => setIsGraphExpanded((prev) => !prev)}
                 currentBranch={git.gitState.currentBranch}
                 comparisonBranch={git.comparisonBranch}
               />
@@ -338,7 +372,11 @@ const App: React.FC = () => {
             {/* Floating Character — positioned over all right panel content, sitting above the bottom edge */}
             <div className="absolute bottom-6 right-4 w-64 h-80 pointer-events-none z-40">
               <div className="relative w-full h-full">
-                <Character mode={themeMode} state={characterState} showBackdrop={isMultipleSelected} />
+                <Character
+                  mode={themeMode}
+                  state={characterState}
+                  showBackdrop={isMultipleSelected}
+                />
                 {git.isProcessing && (
                   <div className="absolute -top-4 left-0 w-full text-center bg-black/80 text-white text-[10px] py-1 px-2 rounded-lg animate-bounce">
                     Processing...
@@ -346,7 +384,6 @@ const App: React.FC = () => {
                 )}
               </div>
             </div>
-
           </div>
         </div>
 

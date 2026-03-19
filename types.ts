@@ -1,20 +1,20 @@
 export enum ThemeMode {
-  PRINCESS = 'PRINCESS',
-  PRINCE = 'PRINCE'
+  PRINCESS = "PRINCESS",
+  PRINCE = "PRINCE",
 }
 
 export enum FileStatus {
-  MODIFIED = 'Modified',
-  ADDED = 'Added',
-  DELETED = 'Deleted',
-  RENAMED = 'Renamed'
+  MODIFIED = "Modified",
+  ADDED = "Added",
+  DELETED = "Deleted",
+  RENAMED = "Renamed",
 }
 
 export enum ChangeType {
-  UNCOMMITTED = 'Uncommitted Changes',
-  STASHED = 'Stashed Changes',
-  UNPUSHED = 'Unpushed Commits', // Older commits not yet upstream
-  COMMITTED = 'Committed on Branch'
+  UNCOMMITTED = "Uncommitted Changes",
+  STASHED = "Stashed Changes",
+  UNPUSHED = "Unpushed Commits", // Older commits not yet upstream
+  COMMITTED = "Committed on Branch",
 }
 
 export interface GitFile {
@@ -29,14 +29,14 @@ export interface GitFile {
 }
 
 export enum CharacterState {
-  IDLE = 'IDLE',
-  SELECTED = 'SELECTED',
-  ACTION_GOOD = 'ACTION_GOOD',
-  ACTION_BAD = 'ACTION_BAD',
-  CELEBRATING = 'CELEBRATING',
-  SWEEPING = 'SWEEPING',
-  WORRIED = 'WORRIED',
-  WAVING = 'WAVING'
+  IDLE = "IDLE",
+  SELECTED = "SELECTED",
+  ACTION_GOOD = "ACTION_GOOD",
+  ACTION_BAD = "ACTION_BAD",
+  CELEBRATING = "CELEBRATING",
+  SWEEPING = "SWEEPING",
+  WORRIED = "WORRIED",
+  WAVING = "WAVING",
 }
 
 export interface GitState {

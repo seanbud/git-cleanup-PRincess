@@ -14,10 +14,12 @@ This document outlines how we will work together to iteratively improve the appl
 ## 🧪 Testing Strategy
 
 ### Manual Testing
+
 - Run `npm run electron:dev` to verify UI changes and interactivity.
 - Run `npm run electron:build` to verify packaging for distribution.
 
 ### Automated Testing (Future)
+
 - We can implement unit tests (Vitest) for logic that doesn't require a GUI.
 - We can implement Playwright/Spectron tests for end-to-end Electron testing.
 
@@ -33,4 +35,5 @@ Since I cannot see your local desktop GUI, I use a "Web Sandbox" to test UI chan
 > This testing only covers the **Renderer (UI)**. Electron-specific features (like system menus or file-system access via Node) must be verified by you locally.
 
 ## 🚀 Deployment
+
 - Every time we push a tag (e.g., `v1.0.1`), the GitHub Action I created will automatically build installers for Windows, Mac, and Linux and upload them to a GitHub Release.

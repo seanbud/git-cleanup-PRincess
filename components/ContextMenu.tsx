@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { ThemeMode } from '../types';
+import React, { useEffect, useRef } from "react";
+import { ThemeMode } from "../types";
 
 export interface ContextMenuItem {
   label: string;
@@ -16,7 +16,13 @@ interface ContextMenuProps {
   mode: ThemeMode;
 }
 
-const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose, mode }) => {
+const ContextMenu: React.FC<ContextMenuProps> = ({
+  x,
+  y,
+  items,
+  onClose,
+  mode,
+}) => {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -26,14 +32,16 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose, mode })
       }
     };
     // Use mousedown to catch clicks before they trigger other things
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
 
   const isPrincess = mode === ThemeMode.PRINCESS;
-  const bgClass = isPrincess ? 'bg-[#fff0f6]' : 'bg-white';
-  const borderClass = isPrincess ? 'border-pink-200' : 'border-gray-200';
-  const hoverClass = isPrincess ? 'hover:bg-pink-100 text-pink-900' : 'hover:bg-blue-50 text-gray-700';
+  const bgClass = isPrincess ? "bg-[#fff0f6]" : "bg-white";
+  const borderClass = isPrincess ? "border-pink-200" : "border-gray-200";
+  const hoverClass = isPrincess
+    ? "hover:bg-pink-100 text-pink-900"
+    : "hover:bg-blue-50 text-gray-700";
 
   return (
     <div
@@ -44,12 +52,17 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose, mode })
     >
       {items.map((item, idx) => {
         if (item.separator) {
-          return <div key={`sep-${idx}`} className={`my-1 border-t ${borderClass}`} />;
+          return (
+            <div
+              key={`sep-${idx}`}
+              className={`my-1 border-t ${borderClass}`}
+            />
+          );
         }
         return (
           <div
             key={idx}
-            className={`px-4 py-2 text-xs font-medium cursor-pointer transition-colors flex items-center ${item.disabled ? 'opacity-50 cursor-default' : hoverClass}`}
+            className={`px-4 py-2 text-xs font-medium cursor-pointer transition-colors flex items-center ${item.disabled ? "opacity-50 cursor-default" : hoverClass}`}
             onClick={() => {
               if (!item.disabled) {
                 item.action();
