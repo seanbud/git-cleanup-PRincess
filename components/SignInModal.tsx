@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import Modal from './Modal';
 import { ThemeMode, GitHubUser } from '../types';
 import { GitHubAuthClient, DeviceCodeResponse } from '../services/githubAuth';
+import { Icons } from '../constants';
 
 function launchConfetti(isPrincess: boolean) {
     const canvas = document.createElement('canvas');
@@ -62,8 +63,17 @@ const SignInModal: React.FC<SignInModalProps> = ({ isOpen, mode, onSuccess }) =>
     const [authData, setAuthData] = useState<DeviceCodeResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isPolling, setIsPolling] = useState(false);
+    const [copied, setCopied] = useState(false);
 
     const isPrincess = mode === ThemeMode.PRINCESS;
+
+    const handleCopy = () => {
+        if (authData?.user_code) {
+            navigator.clipboard.writeText(authData.user_code);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
 
     const startSignIn = async () => {
         try {
@@ -131,10 +141,23 @@ const SignInModal: React.FC<SignInModalProps> = ({ isOpen, mode, onSuccess }) =>
                     </button>
                 ) : (
                     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                        <div className={`p-4 rounded-xl border-2 border-dashed ${isPrincess ? 'border-pink-200 bg-pink-50/50' : 'border-slate-700 bg-slate-800/50'}`}>
+                        <div className={`p-4 rounded-xl border-2 border-dashed relative group ${isPrincess ? 'border-pink-200 bg-pink-50/50' : 'border-slate-700 bg-slate-800/50'}`}>
                             <p className="text-xs uppercase font-bold opacity-50 mb-2">Your Activation Code</p>
-                            <div className="text-3xl font-mono tracking-widest font-bold">
-                                {authData.user_code}
+                            <div className="flex items-center justify-center space-x-3">
+                                <div className="text-3xl font-mono tracking-widest font-bold">
+                                    {authData.user_code}
+                                </div>
+                                <button
+                                    onClick={handleCopy}
+                                    title={copied ? "Copied!" : "Copy code"}
+                                    aria-label={copied ? "Code copied to clipboard" : "Copy activation code to clipboard"}
+                                    className={`p-2 rounded-md transition-all active:scale-95 ${isPrincess
+                                        ? (copied ? 'bg-pink-100 text-pink-600' : 'hover:bg-pink-100 text-pink-400 hover:text-pink-600')
+                                        : (copied ? 'bg-blue-900/40 text-blue-400' : 'hover:bg-slate-700 text-slate-400 hover:text-slate-200')
+                                        }`}
+                                >
+                                    {copied ? <Icons.Check /> : <Icons.Copy className="w-5 h-5" />}
+                                </button>
                             </div>
                         </div>
 
