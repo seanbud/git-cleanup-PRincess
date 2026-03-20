@@ -9,3 +9,7 @@
 ## 2026-02-22 - [Memoizing Derived Props for Heavy Components]
 **Learning:** Passing object literals as props (e.g., `file={ { ...file, diffContent } }`) to heavy components like `DiffView` causes them to re-render and re-parse data on every parent render, even if the data hasn't changed. Memoizing these derived objects with `useMemo` is critical for maintaining reference stability and skipping expensive processing.
 **Action:** Always wrap derived objects in `useMemo` if they are passed to components that perform heavy parsing or rendering (like diff viewers or graphs). Use specific identity dependencies (like IDs) to balance performance and correctness.
+
+## 2026-05-20 - [Parallelizing Git CLI Operations]
+**Learning:** Sequential Git CLI calls in Electron IPC handlers can significantly block the main thread and increase UI latency (e.g., status refresh taking >120ms). Converting handlers to asynchronous `execFile` and batching independent Git queries into `Promise.all` blocks reduces latency to the duration of the longest single command and eliminates IPC overhead.
+**Action:** Always prefer asynchronous IPC for shell commands. Use `Promise.all` to parallelize independent CLI operations (status, diff-stats, config) and hoist common state (current branch) to avoid redundant lookups.

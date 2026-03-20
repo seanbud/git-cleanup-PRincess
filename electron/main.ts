@@ -2,10 +2,12 @@ import { app, BrowserWindow, shell, ipcMain, safeStorage, dialog, Menu } from 'e
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { execSync, execFileSync, execFile } from 'child_process';
+import { promisify } from 'node:util';
 import fs from 'fs';
 import { autoUpdater } from 'electron-updater';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const execFileP = promisify(execFile);
 
 let win: BrowserWindow | null;
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
@@ -303,15 +305,13 @@ app.whenReady().then(() => {
     // ─── Git CLI IPC ──────────────────────────────────────────────
     ipcMain.handle('git:cmd', async (_, args: string[]) => {
         try {
-            // Security: Use execFileSync with argument array to prevent command injection
-            // and restrict execution to the 'git' binary only.
-            const output = execFileSync('git', args, {
+            // Use asynchronous execFile to prevent blocking the main thread
+            const { stdout } = await execFileP('git', args, {
                 encoding: 'utf-8',
                 cwd: currentCwd,
                 timeout: 15000,
-                stdio: ['pipe', 'pipe', 'pipe'] // Suppress stderr from leaking to console
             });
-            return { stdout: output, success: true };
+            return { stdout, success: true };
         } catch (error: any) {
             return { stderr: error.stderr || error.message, stdout: error.stdout || '', success: false };
         }
@@ -319,11 +319,11 @@ app.whenReady().then(() => {
 
     ipcMain.handle('git:config-get', async (_, key) => {
         try {
-            return execFileSync('git', ['config', '--get', key], {
+            const { stdout } = await execFileP('git', ['config', '--get', key], {
                 encoding: 'utf-8',
                 cwd: currentCwd,
-                stdio: ['pipe', 'pipe', 'pipe']
-            }).trim();
+            });
+            return stdout.trim();
         } catch {
             return '';
         }
@@ -458,15 +458,15 @@ app.whenReady().then(() => {
     });
 
     // File Preview: read file from git HEAD as base64 data URI
-    ipcMain.handle('git:show-file-base64', (_, relativePath: string) => {
+    ipcMain.handle('git:show-file-base64', async (_, relativePath: string) => {
         try {
-            // Security: Use execFileSync with argument array to prevent command injection
-            const result = execFileSync('git', ['show', `HEAD:${relativePath}`], {
+            // Use asynchronous execFile for better performance and responsiveness
+            const { stdout } = await execFileP('git', ['show', `HEAD:${relativePath}`], {
                 cwd: currentCwd,
                 encoding: 'buffer',
                 maxBuffer: 10 * 1024 * 1024,
-                stdio: ['pipe', 'pipe', 'pipe']
             });
+            const result = stdout as unknown as Buffer;
             const ext = path.extname(relativePath).toLowerCase();
             const mimeMap: Record<string, string> = {
                 '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
