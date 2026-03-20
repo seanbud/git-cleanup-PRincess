@@ -63,15 +63,19 @@ export function useGitState(): UseGitStateReturn {
 
     const refreshGitState = useCallback(async () => {
         try {
-            const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp] = await Promise.all([
-                GitService.getRepoName(),
+            // First fetch the basic branch info we need for more complex queries
+            const [currentBranch, branchList] = await Promise.all([
                 GitService.getCurrentBranch(),
+                GitService.getBranches()
+            ]);
+
+            const [repoName, upstreamBranch, config, commits, settings, bestComp] = await Promise.all([
+                GitService.getRepoName(),
                 GitService.getUpstreamBranch(),
                 GitService.getGitConfig(),
-                GitService.getBranches(),
                 GitService.getCommitGraph(),
                 GitService.getAppSettings(),
-                GitService.getBestComparisonBranch()
+                GitService.getBestComparisonBranch({ currentBranch, branches: branchList })
             ]);
 
             // If we don't have a comparison branch set yet, use the best guess
@@ -81,7 +85,7 @@ export function useGitState(): UseGitStateReturn {
                 setComparisonBranch(bestComp);
             }
 
-            const files = await GitService.getStatusFiles(activeComp);
+            const files = await GitService.getStatusFiles(activeComp, currentBranch);
 
             setGitState(prev => ({
                 ...prev,
