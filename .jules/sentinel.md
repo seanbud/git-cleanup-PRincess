@@ -7,3 +7,8 @@
 **Vulnerability:** Shell command injection via interpolated strings in `child_process.execSync` within IPC handlers.
 **Learning:** Passing unsanitized strings from the renderer to the main process for shell execution is extremely dangerous. Even quoting arguments is insufficient if the shell interprets special characters or if the input breaks out of quotes.
 **Prevention:** Always use argument arrays with `execFile` or `execFileSync` to bypass the shell entirely. Restrict IPC handlers to specific binaries (e.g., `git`) rather than allowing arbitrary commands.
+
+## 2026-03-21 - Insufficient Validation of Configurable IPC Commands
+**Vulnerability:** IPC handlers like `shell:open-editor` and `shell:open-terminal` used user-configurable paths from `settings.json` without validation, allowing for arbitrary command execution.
+**Learning:** Even when using `execFile` with an argument array, if the executable path itself is user-controlled, it can be pointed to a malicious binary or a system tool like `curl` or `rm`.
+**Prevention:** Implement an allowlist of safe binaries for user-configurable commands and validate them before both saving and execution.
