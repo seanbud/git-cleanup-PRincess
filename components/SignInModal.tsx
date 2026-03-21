@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import Modal from './Modal';
 import { ThemeMode, GitHubUser } from '../types';
 import { GitHubAuthClient, DeviceCodeResponse } from '../services/githubAuth';
+import { Icons } from '../constants';
 
 function launchConfetti(isPrincess: boolean) {
     const canvas = document.createElement('canvas');
@@ -62,8 +63,17 @@ const SignInModal: React.FC<SignInModalProps> = ({ isOpen, mode, onSuccess }) =>
     const [authData, setAuthData] = useState<DeviceCodeResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isPolling, setIsPolling] = useState(false);
+    const [copied, setCopied] = useState(false);
 
     const isPrincess = mode === ThemeMode.PRINCESS;
+
+    const handleCopy = useCallback(() => {
+        if (authData) {
+            navigator.clipboard.writeText(authData.user_code);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    }, [authData]);
 
     const startSignIn = async () => {
         try {
@@ -131,11 +141,21 @@ const SignInModal: React.FC<SignInModalProps> = ({ isOpen, mode, onSuccess }) =>
                     </button>
                 ) : (
                     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                        <div className={`p-4 rounded-xl border-2 border-dashed ${isPrincess ? 'border-pink-200 bg-pink-50/50' : 'border-slate-700 bg-slate-800/50'}`}>
+                        <div className={`p-4 rounded-xl border-2 border-dashed relative group ${isPrincess ? 'border-pink-200 bg-pink-50/50' : 'border-slate-700 bg-slate-800/50'}`}>
                             <p className="text-xs uppercase font-bold opacity-50 mb-2">Your Activation Code</p>
                             <div className="text-3xl font-mono tracking-widest font-bold">
                                 {authData.user_code}
                             </div>
+                            <button
+                                onClick={handleCopy}
+                                aria-label={copied ? "Code copied" : "Copy activation code"}
+                                className={`absolute top-2 right-2 p-1.5 rounded-md transition-all ${isPrincess
+                                    ? 'hover:bg-pink-100 text-pink-500'
+                                    : 'hover:bg-slate-700 text-blue-400'
+                                    }`}
+                            >
+                                {copied ? <Icons.Check /> : <Icons.Copy />}
+                            </button>
                         </div>
 
                         <div className="text-sm space-y-3">
