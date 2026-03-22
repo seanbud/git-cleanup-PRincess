@@ -63,15 +63,22 @@ export function useGitState(): UseGitStateReturn {
 
     const refreshGitState = useCallback(async () => {
         try {
-            const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp] = await Promise.all([
-                GitService.getRepoName(),
+            // First fetch core branch info to avoid redundant calls in subsequent methods
+            const [currentBranch, upstream, branches] = await Promise.all([
                 GitService.getCurrentBranch(),
                 GitService.getUpstreamBranch(),
+                GitService.getBranches()
+            ]);
+
+            const preFetched = { currentBranch, upstream, branches };
+
+            const [repoName, config, commits, settings, bestComp] = await Promise.all([
+                GitService.getRepoName(),
                 GitService.getGitConfig(),
-                GitService.getBranches(),
                 GitService.getCommitGraph(),
                 GitService.getAppSettings(),
-                GitService.getBestComparisonBranch()
+                // Use pre-fetched state to speed up branch detection
+                !comparisonBranch ? GitService.getBestComparisonBranch(preFetched) : Promise.resolve(comparisonBranch)
             ]);
 
             // If we don't have a comparison branch set yet, use the best guess
@@ -81,18 +88,19 @@ export function useGitState(): UseGitStateReturn {
                 setComparisonBranch(bestComp);
             }
 
-            const files = await GitService.getStatusFiles(activeComp);
+            // Use pre-fetched branch to speed up status collection
+            const files = await GitService.getStatusFiles(activeComp, currentBranch);
 
             setGitState(prev => ({
                 ...prev,
                 repoName,
                 currentBranch,
-                upstreamBranch,
+                upstreamBranch: upstream,
                 files
             }));
             filesRef.current = files;
             setGitConfig(config);
-            setBranches(branchList);
+            setBranches(branches);
             setCommitGraph(commits);
             if (settings) {
                 setAppSettings(settings);
@@ -205,14 +213,13 @@ export function useGitState(): UseGitStateReturn {
         setCharacterState(actionType === 'RESTORE' ? CharacterState.ACTION_GOOD : CharacterState.ACTION_BAD);
 
         const selectedFiles = gitState.files.filter(f => gitState.selectedFileIds.has(f.id));
+        const filePaths = selectedFiles.map(f => f.path);
 
         try {
-            for (const file of selectedFiles) {
-                if (actionType === 'RESTORE') {
-                    await GitService.restoreFile(file.path);
-                } else {
-                    await GitService.removeFile(file.path);
-                }
+            if (actionType === 'RESTORE') {
+                await GitService.restoreFiles(filePaths);
+            } else {
+                await GitService.removeFiles(filePaths);
             }
 
             await refreshGitState();
