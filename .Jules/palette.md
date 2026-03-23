@@ -21,3 +21,7 @@
 ## 2025-05-25 - [Accessibility for Toggle Buttons in Diff View]
 **Learning:** Using semantic `<button type="button">` with `aria-expanded` and `aria-label` for chunk headers and context expansion in diff views ensures that complex code-viewing interfaces are navigable for screen reader and keyboard users.
 **Action:** Always use buttons for toggles in the diff view and include `focus:ring-inset` to provide clear focus indicators without layout shifts.
+
+## 2026-03-23 - [Accessibility for Icon-Only Buttons and Visual Feedback for Copy]
+**Learning:** Icon-only buttons (like modal close buttons or copy buttons) MUST have descriptive `aria-label` attributes for screen readers. Additionally, providing immediate visual feedback (e.g., changing the icon to a checkmark) and updating the `aria-label` after a copy action significantly improves the user experience.
+**Action:** Ensure all icon-only buttons have `aria-label` and implement immediate visual/ARIA feedback for clipboard actions.
