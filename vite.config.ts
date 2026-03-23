@@ -17,6 +17,16 @@ export default defineConfig(({ mode }) => {
         main: {
           // Shortcut of `build.lib.entry`
           entry: 'electron/main.ts',
+          vite: {
+            build: {
+              rollupOptions: {
+                external: ['electron', 'path', 'fs', 'child_process', 'node:url', 'node:path'],
+              },
+            },
+            define: {
+              'process.env.GITHUB_CLIENT_ID': JSON.stringify(env.GITHUB_CLIENT_ID || 'Ov23lil6obiLhsHkt1R2'),
+            },
+          },
         },
         preload: {
           // Shortcut of `build.rollupOptions.input`
