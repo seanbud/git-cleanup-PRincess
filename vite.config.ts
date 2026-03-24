@@ -11,6 +11,9 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       host: '127.0.0.1',
     },
+    define: {
+      GITHUB_CLIENT_ID: JSON.stringify('Ov23lil6obiLhsHkt1R2'),
+    },
     plugins: [
       react(),
       electron({
