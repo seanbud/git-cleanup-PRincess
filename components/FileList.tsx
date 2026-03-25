@@ -112,6 +112,8 @@ interface FileListProps {
   onHoverStateChange: (state: CharacterState) => void;
   onContextMenu: (e: React.MouseEvent, type: 'FILE', payload?: GitFile) => void;
   mode: ThemeMode;
+  searchQuery?: string;
+  onClearSearch?: () => void;
 }
 
 const FileList: React.FC<FileListProps> = ({
@@ -120,7 +122,9 @@ const FileList: React.FC<FileListProps> = ({
   onSelectionChange,
   onHoverStateChange,
   onContextMenu,
-  mode
+  mode,
+  searchQuery = '',
+  onClearSearch
 }) => {
   // Use a ref for lastSelectedId to keep handleSelect stable across renders
   const lastSelectedIdRef = useRef<string | null>(null);
@@ -236,10 +240,26 @@ const FileList: React.FC<FileListProps> = ({
     >
       <div className="flex flex-col min-h-full pb-20 pt-2">
         {files.length === 0 ? (
-          <div className="flex flex-col items-center justify-center flex-1 p-10 text-gray-400 text-center">
-            <div className="mb-4 opacity-30 text-4xl">✨</div>
-            <p className="font-medium">No changes found</p>
-            <p className="text-xs mt-1">Your branch is up to date.</p>
+          <div className="flex flex-col items-center justify-center flex-1 p-10 text-gray-400 text-center animate-in fade-in duration-500">
+            {searchQuery ? (
+              <>
+                <div className="mb-4 opacity-30 text-4xl">🔍</div>
+                <p className="font-medium">No matching results</p>
+                <p className="text-xs mt-1 mb-4">Try adjusting your filter or keywords.</p>
+                <button
+                  onClick={onClearSearch}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all border shadow-sm active:scale-95 ${isPrincess ? 'bg-pink-100 hover:bg-pink-200 text-pink-700 border-pink-200' : 'bg-blue-100 hover:bg-blue-200 text-blue-700 border-blue-200'}`}
+                >
+                  Clear filter
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="mb-4 opacity-30 text-4xl">✨</div>
+                <p className="font-medium">No changes found</p>
+                <p className="text-xs mt-1">Your branch is up to date.</p>
+              </>
+            )}
           </div>
         ) : (
           <>
