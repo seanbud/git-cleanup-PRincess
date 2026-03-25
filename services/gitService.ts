@@ -254,46 +254,55 @@ export class GitService {
     }
 
     static async restoreFile(filePath: string, comparisonBranch?: string): Promise<boolean> {
+        return this.restoreFiles([filePath], comparisonBranch);
+    }
+
+    /**
+     * Optimizes bulk restoration by batching git commands and reducing IPC overhead.
+     * Performance impact: Reduces process spawning from O(N) to O(1).
+     */
+    static async restoreFiles(filePaths: string[], comparisonBranch?: string): Promise<boolean> {
+        if (filePaths.length === 0) return true;
+
         const currentBranch = await this.getCurrentBranch();
 
         // If restoring FROM a base branch (making it match the base)
         if (comparisonBranch && comparisonBranch !== currentBranch) {
-            const res = await git('checkout', comparisonBranch, '--', filePath);
+            const res = await git('checkout', comparisonBranch, '--', ...filePaths);
             return res.success;
         }
 
-        // Normal unstage + restore
-        await git('reset', 'HEAD', '--', filePath);
-        const res = await git('checkout', '--', filePath);
+        // Normal unstage + restore (batched)
+        await git('reset', 'HEAD', '--', ...filePaths);
+        const res = await git('checkout', '--', ...filePaths);
         return res.success;
     }
 
     static async discardChanges(filePaths: string[]): Promise<boolean> {
-        if (filePaths.length === 0) return true;
-
-        // 1. Unstage everything in the list
-        await git('reset', 'HEAD', '--', ...filePaths);
-
-        // 2. Restore working tree for tracked files (Modified/Deleted)
-        const restoreRes = await git('checkout', '--', ...filePaths);
-
-        // 3. Optional: Remove untracked files (Added/Untracked)
-        // Only if they are actually untracked (not just staged).
-        // For simplicity and safety in a "Princess" tool, we might just stick to tracked files 
-        // or specifically handle untracked if they exist.
-
-        return restoreRes.success;
+        return this.restoreFiles(filePaths);
     }
 
     static async removeFile(filePath: string): Promise<boolean> {
-        // 1. Remove from git index first (keep on disk)
-        // Use --ignore-unmatch so it doesn't fail if the file is untracked
-        await git('rm', '--cached', '-f', '--ignore-unmatch', filePath);
+        return this.removeFiles([filePath]);
+    }
 
-        // 2. Move the local file to trash/recycle bin
-        // @ts-ignore
-        const res = await window.electronAPI.trashFile(filePath);
-        return res.success;
+    /**
+     * Optimizes bulk removal by batching git index operations and parallelizing trash calls.
+     * Performance impact: Batches git processes and parallelizes I/O-bound Electron IPC.
+     */
+    static async removeFiles(filePaths: string[]): Promise<boolean> {
+        if (filePaths.length === 0) return true;
+
+        // 1. Remove from git index in one command (batch)
+        // Use --ignore-unmatch so it doesn't fail if the file is untracked
+        await git('rm', '--cached', '-f', '--ignore-unmatch', ...filePaths);
+
+        // 2. Move the local files to trash (parallelized via Promise.all)
+        const results = await Promise.all(
+            filePaths.map(p => (window.electronAPI as any).trashFile(p))
+        );
+
+        return results.every(res => res && res.success);
     }
 
     static async getCommitGraph(): Promise<CommitNode[]> {
