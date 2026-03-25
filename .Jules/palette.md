@@ -21,3 +21,7 @@
 ## 2025-05-25 - [Accessibility for Toggle Buttons in Diff View]
 **Learning:** Using semantic `<button type="button">` with `aria-expanded` and `aria-label` for chunk headers and context expansion in diff views ensures that complex code-viewing interfaces are navigable for screen reader and keyboard users.
 **Action:** Always use buttons for toggles in the diff view and include `focus:ring-inset` to provide clear focus indicators without layout shifts.
+
+## 2025-05-26 - [Empty States for Filtered Lists]
+**Learning:** When a list is empty due to an active filter, providing a "No matching results" message instead of a generic "No items" is crucial for user clarity. Including a "Clear filter" button directly in the empty state reduces friction and prevents the UI from feeling like a "dead end."
+**Action:** Always distinguish between a truly empty list and a filtered-out list, and provide an inline action to reset the filter.
