@@ -67,6 +67,7 @@ const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
                 <div>
                     <button
                         onClick={() => setShowDetails(!showDetails)}
+                        aria-expanded={showDetails}
                         className={`text-xs flex items-center space-x-1 transition-colors ${isPrincess ? 'text-slate-400 hover:text-slate-600' : 'text-slate-500 hover:text-slate-300'
                             }`}
                     >

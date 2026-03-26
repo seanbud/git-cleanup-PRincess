@@ -22,6 +22,7 @@ import { useCharacter } from './hooks/useCharacter';
 import { useResizableSidebar } from './hooks/useResizableSidebar';
 import { useContextMenu } from './hooks/useContextMenu';
 import { useFileFilter } from './hooks/useFileFilter';
+import { Icons } from './constants';
 
 const App: React.FC = () => {
   // ─── Theme ─────────────────────────────────────────────────────
@@ -216,6 +217,9 @@ const App: React.FC = () => {
             {/* Changes Header with Search & Select All */}
             <div className={`p-3 border-b border-gray-200/60 ${sidebarHeaderBg} backdrop-blur-sm flex flex-col gap-3 transition-colors duration-300 shadow-sm z-10`}>
               <div className="relative group">
+                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                  <Icons.Search />
+                </div>
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -223,7 +227,7 @@ const App: React.FC = () => {
                   aria-label="Filter files"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-2 pr-7 py-1.5 text-xs bg-white border border-gray-200 rounded text-gray-700 placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
+                  className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-gray-200 rounded text-gray-700 placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
                 />
                 {searchQuery && (
                   <button
