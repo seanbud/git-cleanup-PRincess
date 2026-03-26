@@ -57,19 +57,26 @@ export class GitService {
         return res.success ? res.stdout.trim() : '';
     }
 
-    static async getBestComparisonBranch(): Promise<string> {
+    /**
+     * Optimized: Accepts pre-fetched branch state to eliminate redundant CLI lookups.
+     */
+    static async getBestComparisonBranch(preFetched?: {
+        upstream?: string;
+        branches?: string[];
+        current?: string
+    }): Promise<string> {
         // 1. Try upstream
-        const upstream = await this.getUpstreamBranch();
+        const upstream = preFetched?.upstream || await this.getUpstreamBranch();
         if (upstream) return upstream;
 
         // 2. Try common branches
         const common = ['develop', 'development', 'main', 'master'];
-        const branches = await this.getBranches();
+        const branches = preFetched?.branches || await this.getBranches();
 
         for (const target of common) {
             if (branches.includes(target)) {
                 // Verify it's not the same branch
-                const current = await this.getCurrentBranch();
+                const current = preFetched?.current || await this.getCurrentBranch();
                 if (current !== target) return target;
             }
         }
@@ -81,14 +88,14 @@ export class GitService {
             for (const target of common) {
                 const rTarget = `origin/${target}`;
                 if (remoteBranches.some((rb: string) => rb.includes(rTarget))) {
-                    const current = await this.getCurrentBranch();
+                    const current = preFetched?.current || await this.getCurrentBranch();
                     if (current !== rTarget) return rTarget;
                 }
             }
         }
 
         // 4. Fallback to self
-        return await this.getCurrentBranch();
+        return preFetched?.current || await this.getCurrentBranch();
     }
 
     static async getBranches(): Promise<string[]> {
@@ -100,7 +107,10 @@ export class GitService {
             .map((b: string) => b.replace('*', '').trim());
     }
 
-    static async getStatusFiles(comparisonBranch?: string): Promise<GitFile[]> {
+    /**
+     * Optimized: Parallelizes independent Git calls and accepts pre-fetched current branch.
+     */
+    static async getStatusFiles(comparisonBranch?: string, preFetchedCurrentBranch?: string): Promise<GitFile[]> {
         const files: GitFile[] = [];
         const seenPaths = new Set<string>();
 
@@ -133,7 +143,7 @@ export class GitService {
         }
 
         // 2. Get committed differences if comparing to another branch
-        const currentBranch = await this.getCurrentBranch();
+        const currentBranch = preFetchedCurrentBranch || await this.getCurrentBranch();
         if (comparisonBranch && comparisonBranch !== currentBranch) {
             const diffRes = await git('diff', '--name-status', `${comparisonBranch}...HEAD`);
             if (diffRes.success && diffRes.stdout.trim()) {
@@ -182,18 +192,20 @@ export class GitService {
             }
         };
 
-        // 1. Get uncommitted stats (staged + unstaged)
-        // Use separate commands for staged and unstaged to avoid issues with empty repos (no HEAD)
-        const localStats = await git('diff', '--numstat', '--text');
-        if (localStats.success) addStats(localStats.stdout);
-        const stagedStats = await git('diff', '--numstat', '--text', '--cached');
-        if (stagedStats.success) addStats(stagedStats.stdout);
+        // Optimized: Parallelize diff --numstat calls
+        const diffPromises = [
+            git('diff', '--numstat', '--text'), // unstaged
+            git('diff', '--numstat', '--text', '--cached'), // staged
+        ];
 
-        // 2. Get committed stats for the branch comparison
         if (comparisonBranch && comparisonBranch !== currentBranch) {
-            const branchStats = await git('diff', '--numstat', '--text', `${comparisonBranch}...HEAD`);
-            if (branchStats.success) addStats(branchStats.stdout);
+            diffPromises.push(git('diff', '--numstat', '--text', `${comparisonBranch}...HEAD`));
         }
+
+        const statsResults = await Promise.all(diffPromises);
+        statsResults.forEach(res => {
+            if (res.success) addStats(res.stdout);
+        });
 
         // Apply stats to files
         for (const file of files) {
@@ -237,15 +249,21 @@ export class GitService {
         return 'No diff available';
     }
 
+    /**
+     * Optimized: Parallelizes three independent IPC calls to Git config.
+     */
     static async getGitConfig(): Promise<GitConfig> {
-        // @ts-ignore
-        const name = await window.electronAPI.gitConfigGet('user.name');
-        // @ts-ignore
-        const email = await window.electronAPI.gitConfigGet('user.email');
-        // @ts-ignore
-        const defaultBranch = await window.electronAPI.gitConfigGet('init.defaultBranch') || 'main';
+        const [name, email, defaultBranch] = await Promise.all([
+            (window.electronAPI as any).gitConfigGet('user.name'),
+            (window.electronAPI as any).gitConfigGet('user.email'),
+            (window.electronAPI as any).gitConfigGet('init.defaultBranch')
+        ]);
 
-        return { name, email, defaultBranch };
+        return {
+            name: name || '',
+            email: email || '',
+            defaultBranch: defaultBranch || 'main'
+        };
     }
 
     static async setGitConfig(key: string, value: string): Promise<boolean> {
@@ -254,17 +272,26 @@ export class GitService {
     }
 
     static async restoreFile(filePath: string, comparisonBranch?: string): Promise<boolean> {
+        return this.restoreFiles([filePath], comparisonBranch);
+    }
+
+    /**
+     * Optimized: Batch multiple file restorations into single Git commands.
+     * Reduces process overhead from O(N) to O(1) for multi-file actions.
+     */
+    static async restoreFiles(filePaths: string[], comparisonBranch?: string): Promise<boolean> {
+        if (filePaths.length === 0) return true;
         const currentBranch = await this.getCurrentBranch();
 
         // If restoring FROM a base branch (making it match the base)
         if (comparisonBranch && comparisonBranch !== currentBranch) {
-            const res = await git('checkout', comparisonBranch, '--', filePath);
+            const res = await git('checkout', comparisonBranch, '--', ...filePaths);
             return res.success;
         }
 
-        // Normal unstage + restore
-        await git('reset', 'HEAD', '--', filePath);
-        const res = await git('checkout', '--', filePath);
+        // Normal unstage + restore (Batched)
+        await git('reset', 'HEAD', '--', ...filePaths);
+        const res = await git('checkout', '--', ...filePaths);
         return res.success;
     }
 
@@ -286,14 +313,25 @@ export class GitService {
     }
 
     static async removeFile(filePath: string): Promise<boolean> {
-        // 1. Remove from git index first (keep on disk)
-        // Use --ignore-unmatch so it doesn't fail if the file is untracked
-        await git('rm', '--cached', '-f', '--ignore-unmatch', filePath);
+        return this.removeFiles([filePath]);
+    }
 
-        // 2. Move the local file to trash/recycle bin
-        // @ts-ignore
-        const res = await window.electronAPI.trashFile(filePath);
-        return res.success;
+    /**
+     * Optimized: Batches 'git rm' and parallelizes Electron 'trashFile' IPC calls.
+     * Dramatically reduces sequential Git process overhead for bulk removals.
+     */
+    static async removeFiles(filePaths: string[]): Promise<boolean> {
+        if (filePaths.length === 0) return true;
+
+        // 1. Remove from git index first (keep on disk, batched)
+        await git('rm', '--cached', '-f', '--ignore-unmatch', ...filePaths);
+
+        // 2. Move the local files to trash/recycle bin (parallelized IPC calls)
+        const results = await Promise.all(
+            filePaths.map(path => (window.electronAPI as any).trashFile(path))
+        );
+
+        return results.every(res => res.success);
     }
 
     static async getCommitGraph(): Promise<CommitNode[]> {
