@@ -4,6 +4,7 @@ import path from 'node:path';
 import { execSync, execFileSync, execFile } from 'child_process';
 import fs from 'fs';
 import { autoUpdater } from 'electron-updater';
+import { isValidShell, isSafePath } from '../utils/security';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -389,6 +390,13 @@ app.whenReady().then(() => {
     ipcMain.handle('shell:open-editor', async (_, filePath: string) => {
         const settings = getSettings();
         const editor = settings.externalEditor || 'code';
+
+        // Security: Defense-in-depth check of editor binary
+        if (!isValidShell(editor)) {
+            console.error('Blocked execution of non-allowlisted editor:', editor);
+            return { success: false, error: 'Forbidden editor binary' };
+        }
+
         try {
             // Security: Use execFile with argument array
             execFile(editor, [filePath], { cwd: currentCwd });
@@ -401,6 +409,13 @@ app.whenReady().then(() => {
     ipcMain.handle('shell:open-terminal', async () => {
         const settings = getSettings();
         const shellCmd = settings.shell || (process.platform === 'win32' ? 'powershell' : 'bash');
+
+        // Security: Defense-in-depth check of shell binary
+        if (!isValidShell(shellCmd)) {
+            console.error('Blocked execution of non-allowlisted shell:', shellCmd);
+            return { success: false, error: 'Forbidden shell binary' };
+        }
+
         try {
             if (process.platform === 'win32') {
                 execFile('cmd.exe', ['/c', 'start', shellCmd], { cwd: currentCwd });
@@ -434,12 +449,12 @@ app.whenReady().then(() => {
     // File Preview: read file from disk as base64 data URI
     ipcMain.handle('file:read-base64', (_, relativePath: string) => {
         try {
-            const fullPath = path.resolve(currentCwd, relativePath);
             // Security: Prevent path traversal by ensuring the file is within the repository
-            const relative = path.relative(currentCwd, fullPath);
-            if (relative.startsWith('..') || path.isAbsolute(relative)) {
+            if (!isSafePath(currentCwd, relativePath)) {
+                console.warn('Access denied for file path:', relativePath);
                 return { success: false, error: 'Access denied: Path outside of repository' };
             }
+            const fullPath = path.resolve(currentCwd, relativePath);
             if (!fs.existsSync(fullPath)) return { success: false, error: 'File not found' };
             const buffer = fs.readFileSync(fullPath);
             const ext = path.extname(fullPath).toLowerCase();
@@ -513,6 +528,16 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('app:save-settings', (_, settings) => {
+        // Security: Validate shell and editor paths before saving
+        if (settings.shell && !isValidShell(settings.shell)) {
+            console.error('Invalid shell configuration attempted:', settings.shell);
+            return { success: false, error: 'Invalid shell binary' };
+        }
+        if (settings.externalEditor && !isValidShell(settings.externalEditor)) {
+            console.error('Invalid editor configuration attempted:', settings.externalEditor);
+            return { success: false, error: 'Invalid editor binary' };
+        }
         saveSettings(settings);
+        return { success: true };
     });
 });
