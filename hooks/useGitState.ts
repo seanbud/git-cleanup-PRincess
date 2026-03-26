@@ -63,7 +63,8 @@ export function useGitState(): UseGitStateReturn {
 
     const refreshGitState = useCallback(async () => {
         try {
-            const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp] = await Promise.all([
+            // Optimized: Fetch independent Git state in parallel.
+            const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings] = await Promise.all([
                 GitService.getRepoName(),
                 GitService.getCurrentBranch(),
                 GitService.getUpstreamBranch(),
@@ -71,8 +72,14 @@ export function useGitState(): UseGitStateReturn {
                 GitService.getBranches(),
                 GitService.getCommitGraph(),
                 GitService.getAppSettings(),
-                GitService.getBestComparisonBranch()
             ]);
+
+            // Optimized: Pass pre-fetched results to reduce redundant CLI lookups.
+            const bestComp = await GitService.getBestComparisonBranch({
+                upstream: upstreamBranch,
+                branches: branchList,
+                current: currentBranch
+            });
 
             // If we don't have a comparison branch set yet, use the best guess
             let activeComp = comparisonBranch;
@@ -81,7 +88,8 @@ export function useGitState(): UseGitStateReturn {
                 setComparisonBranch(bestComp);
             }
 
-            const files = await GitService.getStatusFiles(activeComp);
+            // Optimized: Pass pre-fetched current branch to reduce redundant CLI lookups.
+            const files = await GitService.getStatusFiles(activeComp, currentBranch);
 
             setGitState(prev => ({
                 ...prev,
@@ -205,14 +213,14 @@ export function useGitState(): UseGitStateReturn {
         setCharacterState(actionType === 'RESTORE' ? CharacterState.ACTION_GOOD : CharacterState.ACTION_BAD);
 
         const selectedFiles = gitState.files.filter(f => gitState.selectedFileIds.has(f.id));
+        const paths = selectedFiles.map(f => f.path);
 
         try {
-            for (const file of selectedFiles) {
-                if (actionType === 'RESTORE') {
-                    await GitService.restoreFile(file.path);
-                } else {
-                    await GitService.removeFile(file.path);
-                }
+            // Optimized: Use bulk Git operations to avoid sequential process-spawning bottlenecks.
+            if (actionType === 'RESTORE') {
+                await GitService.restoreFiles(paths, comparisonBranch);
+            } else {
+                await GitService.removeFiles(paths);
             }
 
             await refreshGitState();
@@ -234,7 +242,7 @@ export function useGitState(): UseGitStateReturn {
             setTimeout(() => setCharacterState(CharacterState.IDLE), 3000);
             setIsProcessing(false);
         }
-    }, [gitState.files, gitState.selectedFileIds, refreshGitState]);
+    }, [gitState.files, gitState.selectedFileIds, refreshGitState, comparisonBranch]);
 
     const handleFileSelect = useCallback((file: GitFile) => {
         setGitState(prev => {
