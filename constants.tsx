@@ -104,6 +104,12 @@ export const Icons = {
       <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
     </svg>
   ),
+  Copy: ({ className }: { className?: string }) => (
+    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+    </svg>
+  ),
   Check: (props: { className?: string }) => (
     <svg className={props.className} width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="2 6 4.5 9 10 3"></polyline>
