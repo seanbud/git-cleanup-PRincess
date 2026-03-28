@@ -205,14 +205,13 @@ export function useGitState(): UseGitStateReturn {
         setCharacterState(actionType === 'RESTORE' ? CharacterState.ACTION_GOOD : CharacterState.ACTION_BAD);
 
         const selectedFiles = gitState.files.filter(f => gitState.selectedFileIds.has(f.id));
+        const filePaths = selectedFiles.map(f => f.path);
 
         try {
-            for (const file of selectedFiles) {
-                if (actionType === 'RESTORE') {
-                    await GitService.restoreFile(file.path);
-                } else {
-                    await GitService.removeFile(file.path);
-                }
+            if (actionType === 'RESTORE') {
+                await GitService.restoreFiles(filePaths, comparisonBranch);
+            } else {
+                await GitService.removeFiles(filePaths);
             }
 
             await refreshGitState();
@@ -234,7 +233,7 @@ export function useGitState(): UseGitStateReturn {
             setTimeout(() => setCharacterState(CharacterState.IDLE), 3000);
             setIsProcessing(false);
         }
-    }, [gitState.files, gitState.selectedFileIds, refreshGitState]);
+    }, [gitState.files, gitState.selectedFileIds, comparisonBranch, refreshGitState]);
 
     const handleFileSelect = useCallback((file: GitFile) => {
         setGitState(prev => {
