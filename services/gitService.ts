@@ -254,17 +254,23 @@ export class GitService {
     }
 
     static async restoreFile(filePath: string, comparisonBranch?: string): Promise<boolean> {
+        return this.restoreFiles([filePath], comparisonBranch);
+    }
+
+    static async restoreFiles(filePaths: string[], comparisonBranch?: string): Promise<boolean> {
+        if (filePaths.length === 0) return true;
+
         const currentBranch = await this.getCurrentBranch();
 
         // If restoring FROM a base branch (making it match the base)
         if (comparisonBranch && comparisonBranch !== currentBranch) {
-            const res = await git('checkout', comparisonBranch, '--', filePath);
+            const res = await git('checkout', comparisonBranch, '--', ...filePaths);
             return res.success;
         }
 
-        // Normal unstage + restore
-        await git('reset', 'HEAD', '--', filePath);
-        const res = await git('checkout', '--', filePath);
+        // Normal unstage + restore in batches to avoid O(N) sequential calls
+        await git('reset', 'HEAD', '--', ...filePaths);
+        const res = await git('checkout', '--', ...filePaths);
         return res.success;
     }
 
@@ -286,14 +292,23 @@ export class GitService {
     }
 
     static async removeFile(filePath: string): Promise<boolean> {
-        // 1. Remove from git index first (keep on disk)
-        // Use --ignore-unmatch so it doesn't fail if the file is untracked
-        await git('rm', '--cached', '-f', '--ignore-unmatch', filePath);
+        return this.removeFiles([filePath]);
+    }
 
-        // 2. Move the local file to trash/recycle bin
-        // @ts-ignore
-        const res = await window.electronAPI.trashFile(filePath);
-        return res.success;
+    static async removeFiles(filePaths: string[]): Promise<boolean> {
+        if (filePaths.length === 0) return true;
+
+        // 1. Remove from git index first (keep on disk)
+        // Batching the git command is significantly faster than one-by-one
+        await git('rm', '--cached', '-f', '--ignore-unmatch', '--', ...filePaths);
+
+        // 2. Move the local files to trash/recycle bin
+        // We parallelize the Electron IPC calls as they are independent
+        const results = await Promise.all(
+            filePaths.map(path => (window.electronAPI as any).trashFile(path))
+        );
+
+        return results.every(res => res.success);
     }
 
     static async getCommitGraph(): Promise<CommitNode[]> {
