@@ -34,6 +34,8 @@ export interface UseGitStateReturn {
     handleAction: (actionType: 'RESTORE' | 'REMOVE', setCharacterState: (state: CharacterState) => void) => Promise<void>;
     handleFileSelect: (file: GitFile) => Promise<void>;
     handleSelectionChange: (updater: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+    isGraphHovered: boolean;
+    setIsGraphHovered: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export function useGitState(): UseGitStateReturn {
@@ -57,6 +59,7 @@ export function useGitState(): UseGitStateReturn {
         externalEditor: 'code',
         shell: 'powershell'
     });
+    const [isGraphHovered, setIsGraphHovered] = useState(false);
 
     // Ref to always have access to latest files (avoids stale closures)
     const filesRef = useRef<GitFile[]>([]);
@@ -315,5 +318,7 @@ export function useGitState(): UseGitStateReturn {
         handleAction,
         handleFileSelect,
         handleSelectionChange,
+        isGraphHovered,
+        setIsGraphHovered,
     };
 }
