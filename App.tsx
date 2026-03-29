@@ -284,11 +284,7 @@ const App: React.FC = () => {
             />
           </div>
 
-          <div 
-            className={`flex-1 flex flex-col min-w-0 ${isPrincess ? 'bg-[#fffbfc]' : 'bg-[#f8fbff]'} ${isResizing ? 'pointer-events-none select-none' : ''}`}
-            onMouseEnter={() => git.setIsGraphHovered(true)}
-            onMouseLeave={() => git.setIsGraphHovered(false)}
-          >
+          <div className={`flex-1 flex flex-col min-w-0 ${isPrincess ? 'bg-[#fffbfc]' : 'bg-[#f8fbff]'} ${isResizing ? 'pointer-events-none select-none' : ''}`}>
 
             {/* Diff Viewer Area */}
             <div className="flex-1 relative overflow-hidden flex flex-col">
@@ -341,8 +337,12 @@ const App: React.FC = () => {
             </div>
 
             {/* Floating Character — positioned over all right panel content, sitting above the bottom edge */}
-            <div className={`absolute bottom-6 right-4 w-64 h-80 pointer-events-none z-40 transition-opacity duration-500 ${git.isGraphHovered ? 'opacity-20' : 'opacity-100'}`}>
-              <div className="relative w-full h-full">
+            <div 
+              onMouseEnter={() => git.setIsGraphHovered(true)}
+              onMouseLeave={() => git.setIsGraphHovered(false)}
+              className={`absolute bottom-6 right-4 w-64 h-80 pointer-events-auto z-40 transition-opacity duration-150 ${git.isGraphHovered ? 'opacity-20' : 'opacity-100'}`}
+            >
+              <div className="relative w-full h-full pointer-events-none">
                 <Character mode={themeMode} state={characterState} showBackdrop={isMultipleSelected} />
                 {git.isProcessing && (
                   <div className="absolute -top-4 left-0 w-full text-center bg-black/80 text-white text-[10px] py-1 px-2 rounded-lg animate-bounce">
