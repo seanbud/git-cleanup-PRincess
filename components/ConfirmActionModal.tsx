@@ -165,7 +165,7 @@ const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
                         <div className={`mt-2 rounded-lg border overflow-hidden ${isPrincess ? 'border-slate-200 bg-slate-50' : 'border-slate-700 bg-slate-800'
                             }`}>
                             <div className="p-3 overflow-x-auto max-h-60 overflow-y-auto">
-                                <pre className={`text-[11px] font-mono whitespace-pre ${isPrincess ? 'text-slate-600' : 'text-slate-300'
+                                <pre className={`text-[11px] font-mono whitespace-pre select-text ${isPrincess ? 'text-slate-600' : 'text-slate-300'
                                     }`}>
                                     {getGitCommands().map(c => c.display).join('\n')}
                                 </pre>

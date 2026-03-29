@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ThemeMode } from '../types';
 
 interface ModalProps {
@@ -41,8 +42,8 @@ const Modal: React.FC<ModalProps> = ({
     const textClass = isPrincess ? 'text-slate-800' : 'text-slate-100';
     const titleBarClass = isPrincess ? 'bg-pink-50 border-pink-100' : 'bg-slate-800 border-slate-700';
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    const modalContent = (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 select-none">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
@@ -50,10 +51,10 @@ const Modal: React.FC<ModalProps> = ({
             />
 
             {/* Modal Container */}
-            <div className={`relative w-full ${maxWidth} ${bgClass} rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-200 border ${isPrincess ? 'border-pink-100' : 'border-slate-700'}`}>
+            <div className={`relative w-full ${maxWidth} max-h-[90vh] flex flex-col ${bgClass} rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-200 border ${isPrincess ? 'border-pink-100' : 'border-slate-700'}`}>
 
                 {/* Title Bar */}
-                <div className={`flex items-center justify-between px-6 py-4 border-b ${titleBarClass}`}>
+                <div className={`flex flex-none items-center justify-between px-6 py-4 border-b ${titleBarClass}`}>
                     <h2 className={`text-lg font-bold ${textClass}`}>{title}</h2>
                     {!preventClose && (
                         <button
@@ -68,12 +69,14 @@ const Modal: React.FC<ModalProps> = ({
                 </div>
 
                 {/* Content */}
-                <div className="p-6">
+                <div className="p-6 overflow-y-auto flex-1">
                     {children}
                 </div>
             </div>
         </div>
     );
+
+    return createPortal(modalContent, document.body);
 };
 
 export default Modal;
