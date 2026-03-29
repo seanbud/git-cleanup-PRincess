@@ -284,7 +284,11 @@ const App: React.FC = () => {
             />
           </div>
 
-          <div className={`flex-1 flex flex-col min-w-0 ${isPrincess ? 'bg-[#fffbfc]' : 'bg-[#f8fbff]'} ${isResizing ? 'pointer-events-none select-none' : ''}`}>
+          <div 
+            className={`flex-1 flex flex-col min-w-0 ${isPrincess ? 'bg-[#fffbfc]' : 'bg-[#f8fbff]'} ${isResizing ? 'pointer-events-none select-none' : ''}`}
+            onMouseEnter={() => git.setIsGraphHovered(true)}
+            onMouseLeave={() => git.setIsGraphHovered(false)}
+          >
 
             {/* Diff Viewer Area */}
             <div className="flex-1 relative overflow-hidden flex flex-col">
@@ -337,7 +341,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Floating Character — positioned over all right panel content, sitting above the bottom edge */}
-            <div className="absolute bottom-6 right-4 w-64 h-80 pointer-events-none z-40">
+            <div className={`absolute bottom-6 right-4 w-64 h-80 pointer-events-none z-40 transition-opacity duration-500 ${git.isGraphHovered ? 'opacity-20' : 'opacity-100'}`}>
               <div className="relative w-full h-full">
                 <Character mode={themeMode} state={characterState} showBackdrop={isMultipleSelected} />
                 {git.isProcessing && (
