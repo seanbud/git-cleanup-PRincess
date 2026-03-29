@@ -1,0 +1,3 @@
+## 2026-03-05 - [Visual Feedback for Copy-to-Clipboard]
+**Learning:** Adding a "Copy" button to long, mono-spaced strings (like activation codes) significantly reduces user friction and manual error. Providing immediate visual feedback by switching the icon to a checkmark for a short duration (e.g., 2000ms) confirms the action and makes the interface feel more responsive.
+**Action:** Use a transient `copied` state variable and a `setTimeout` to handle icon switching for clipboard operations. Ensure the button remains accessible by updating the `aria-label` to "Copied!" during the active feedback state.
