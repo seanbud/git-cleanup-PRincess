@@ -61,6 +61,13 @@ export function useContextMenu({ currentBranch, onOpenGithub, onDiscardChanges, 
                 }
             });
             items.push({
+                label: 'Copy File Name',
+                action: () => {
+                    const fileName = payload.path.split(/[/\\]/).pop() || payload.path;
+                    navigator.clipboard.writeText(fileName);
+                }
+            });
+            items.push({
                 label: 'Copy Relative Path',
                 action: () => {
                     navigator.clipboard.writeText(payload.path);
