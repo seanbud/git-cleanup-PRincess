@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { ThemeMode } from '../types';
+import { ThemeMode, GitFile } from '../types';
 import ConfirmActionModal from './ConfirmActionModal';
 
 interface ActionPanelProps {
   selectedCount: number;
-  selectedPaths: string[];
+  selectedFiles: GitFile[];
   mode: ThemeMode;
   onRemove: () => void;
   onRestore: () => void;
@@ -15,7 +15,7 @@ interface ActionPanelProps {
 
 const ActionPanel: React.FC<ActionPanelProps> = ({
   selectedCount,
-  selectedPaths,
+  selectedFiles,
   mode,
   onRemove,
   onRestore,
@@ -75,7 +75,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
               disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none
             `}
           >
-            <span>🗑️ Remove from PR</span>
+            <span>🗑️ Move to Trash</span>
           </button>
         </div>
 
@@ -96,7 +96,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
         }}
         actionType={confirmAction || 'REMOVE'}
         fileCount={selectedCount}
-        filePaths={selectedPaths}
+        files={selectedFiles}
         mode={mode}
         comparisonBranch={comparisonBranch}
       />

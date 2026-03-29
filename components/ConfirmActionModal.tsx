@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Modal from './Modal';
-import { ThemeMode } from '../types';
+import { ThemeMode, GitFile, FileStatus } from '../types';
 
 interface ConfirmActionModalProps {
     isOpen: boolean;
@@ -8,7 +8,7 @@ interface ConfirmActionModalProps {
     onConfirm: () => void;
     actionType: 'REMOVE' | 'RESTORE';
     fileCount: number;
-    filePaths: string[];
+    files: GitFile[];
     mode: ThemeMode;
     comparisonBranch?: string;
 }
@@ -19,7 +19,7 @@ const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
     onConfirm,
     actionType,
     fileCount,
-    filePaths,
+    files,
     mode,
     comparisonBranch
 }) => {
@@ -27,31 +27,51 @@ const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
     const isPrincess = mode === ThemeMode.PRINCESS;
     const isRemove = actionType === 'REMOVE';
 
-    const title = isRemove ? '🗑️ Remove from PR' : '✨ Restore to Upstream';
+    const title = isRemove ? '🗑️ Move to Trash' : '✨ Restore to Upstream';
 
     const description = isRemove
-        ? 'This will remove the selected files from your branch so they won\'t appear in the PR. A backup copy of each file is sent to your Recycle Bin, just in case.'
-        : 'This will discard your local changes and restore the selected files to match the upstream branch. Your local modifications will be lost.';
+        ? 'This will delete the selected files from your disk (a backup copy is sent to the Recycle Bin where you can restore it if needed). If a file was already tracked in the upstream branch, this simply deletes it so you can commit and push the deletion.'
+        : 'This will revert the selected files to exactly match the upstream branch. Any local modifications or changes committed on this branch will be overwritten by checking out the upstream version. A backup copy of your current local file will be sent to the Recycle Bin so you can restore it if needed.';
 
     const getGitCommands = () => {
-        const quotedPaths = filePaths.map(p => `"${p}"`).join(' ');
         if (isRemove) {
+            const quotedPaths = files.map(f => `"${f.path}"`).join(' ');
             return [
-                `git rm --cached -f --ignore-unmatch ${quotedPaths}`,
-                `# → move ${fileCount} file(s) to Recycle Bin`
+                `# 1. Backup to OS Recycle Bin`,
+                `trash-item ${quotedPaths}`,
+                ``,
+                `# 2. Untrack from Git (--ignore-unmatch)`,
+                `git rm --cached -f ${quotedPaths}`
             ];
         } else {
-            // Note: We use the comparisonBranch if it differs from current
-            const branch = comparisonBranch || 'upstream'; 
+            const added = files.filter(f => f.status === FileStatus.ADDED).map(f => `"${f.path}"`).join(' ');
+            const modified = files.filter(f => f.status === FileStatus.MODIFIED || f.status === FileStatus.RENAMED).map(f => `"${f.path}"`).join(' ');
+            const deleted = files.filter(f => f.status === FileStatus.DELETED).map(f => `"${f.path}"`).join(' ');
             
-            if (branch && branch !== 'HEAD') {
-                return [`git checkout ${branch} -- ${quotedPaths}`];
+            const branch = comparisonBranch || 'HEAD'; 
+            const cmds: string[] = [];
+
+            if (added) {
+                cmds.push(`# Untrack Newly Added Files`);
+                cmds.push(`trash-item ${added} && git rm --cached -f ${added}`);
+                cmds.push('');
             }
 
-            return [
-                `git reset HEAD -- ${quotedPaths}`,
-                `git checkout -- ${quotedPaths}`
-            ];
+            if (modified) {
+                cmds.push(`# Backup & Restore Modified Files`);
+                cmds.push(`trash-item ${modified}`);
+                cmds.push(`git reset HEAD -- ${modified}`);
+                cmds.push(`git checkout ${branch} -- ${modified}`);
+                cmds.push('');
+            }
+
+            if (deleted) {
+                cmds.push(`# Restore Deleted Files`);
+                cmds.push(`git reset HEAD -- ${deleted}`);
+                cmds.push(`git checkout ${branch} -- ${deleted}`);
+            }
+
+            return cmds;
         }
     };
 
@@ -118,7 +138,7 @@ const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
                         }}
                         className={`px-5 py-2 rounded-lg text-sm font-bold text-white shadow-lg transition-all active:scale-[0.97] ${confirmButtonClass}`}
                     >
-                        {isRemove ? '🗑️ Remove' : '✨ Restore'}
+                        {isRemove ? '🗑️ Trash' : '✨ Restore'}
                     </button>
                 </div>
             </div>

@@ -204,11 +204,10 @@ export function useGitState(): UseGitStateReturn {
         setIsProcessing(true);
         setCharacterState(actionType === 'RESTORE' ? CharacterState.ACTION_GOOD : CharacterState.ACTION_BAD);
 
-        const selectedPaths = gitState.files
-            .filter(f => gitState.selectedFileIds.has(f.id))
-            .map(f => f.path);
+        const selectedFiles = gitState.files
+            .filter(f => gitState.selectedFileIds.has(f.id));
 
-        if (selectedPaths.length === 0) {
+        if (selectedFiles.length === 0) {
             setIsProcessing(false);
             return;
         }
@@ -216,9 +215,9 @@ export function useGitState(): UseGitStateReturn {
         try {
             let success = false;
             if (actionType === 'RESTORE') {
-                success = await GitService.restoreFiles(selectedPaths, comparisonBranch);
+                success = await GitService.restoreFiles(selectedFiles, comparisonBranch);
             } else {
-                success = await GitService.removeFiles(selectedPaths);
+                success = await GitService.removeFiles(selectedFiles);
             }
 
             if (!success) {

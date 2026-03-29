@@ -253,20 +253,58 @@ export class GitService {
         return res.success;
     }
 
-    static async restoreFiles(filePaths: string[], comparisonBranch?: string): Promise<boolean> {
-        if (filePaths.length === 0) return true;
+    static async restoreFiles(files: GitFile[], comparisonBranch?: string): Promise<boolean> {
+        if (files.length === 0) return true;
         const currentBranch = await this.getCurrentBranch();
+        let success = true;
 
-        // If restoring FROM a base branch (making it match the base)
-        if (comparisonBranch && comparisonBranch !== currentBranch) {
-            const res = await git('checkout', comparisonBranch, '--', ...filePaths);
-            return res.success;
+        const branch = comparisonBranch && comparisonBranch !== currentBranch 
+            ? comparisonBranch 
+            : 'HEAD';
+
+        // Filter files by their git status
+        const addedFiles = files.filter(f => f.status === FileStatus.ADDED);
+        const modifiedFiles = files.filter(f => f.status === FileStatus.MODIFIED || f.status === FileStatus.RENAMED);
+        const deletedFiles = files.filter(f => f.status === FileStatus.DELETED);
+
+        // 1. Handle ADDED files (Matching upstream means deleting them)
+        if (addedFiles.length > 0) {
+            const rmRes = await this.removeFiles(addedFiles);
+            if (!rmRes) success = false;
         }
 
-        // Normal unstage + restore from HEAD
-        await git('reset', 'HEAD', '--', ...filePaths);
-        const res = await git('checkout', '--', ...filePaths);
-        return res.success;
+        // 2. Handle MODIFIED files (Backup to trash, then checkout from upstream)
+        if (modifiedFiles.length > 0) {
+            const modifiedPaths = modifiedFiles.map(f => f.path);
+            
+            // Failsafe: Move current local modifications to the Recycle Bin before checking out
+            const trashPromises = modifiedPaths.map(async (p) => {
+                // @ts-ignore
+                return window.electronAPI.trashFile(p);
+            });
+            await Promise.all(trashPromises);
+            
+            // Unstage just in case it was staged
+            await git('reset', 'HEAD', '--', ...modifiedPaths);
+            
+            // Restore from branch
+            const checkoutRes = await git('checkout', branch, '--', ...modifiedPaths);
+            if (!checkoutRes.success) success = false;
+        }
+
+        // 3. Handle DELETED files (No backup needed, just restore)
+        if (deletedFiles.length > 0) {
+            const deletedPaths = deletedFiles.map(f => f.path);
+            
+            // Unstage deletion
+            await git('reset', 'HEAD', '--', ...deletedPaths);
+            
+            // Restore
+            const checkoutRes = await git('checkout', branch, '--', ...deletedPaths);
+            if (!checkoutRes.success) success = false;
+        }
+
+        return success;
     }
 
     static async discardChanges(filePaths: string[]): Promise<boolean> {
@@ -278,22 +316,14 @@ export class GitService {
         // 2. Restore working tree for tracked files (Modified/Deleted)
         const restoreRes = await git('checkout', '--', ...filePaths);
 
-        // 3. Optional: Remove untracked files (Added/Untracked)
-        // Only if they are actually untracked (not just staged).
-        // For simplicity and safety in a "Princess" tool, we might just stick to tracked files 
-        // or specifically handle untracked if they exist.
-
         return restoreRes.success;
     }
 
-    static async removeFiles(filePaths: string[]): Promise<boolean> {
-        if (filePaths.length === 0) return true;
+    static async removeFiles(files: GitFile[]): Promise<boolean> {
+        if (files.length === 0) return true;
+        const filePaths = files.map(f => f.path);
 
-        // 1. Remove from git index first (keep on disk)
-        // Use --ignore-unmatch so it doesn't fail if the file is untracked
-        const rmRes = await git('rm', '--cached', '-f', '--ignore-unmatch', ...filePaths);
-
-        // 2. Move the local files to trash/recycle bin in parallel
+        // 1. Move the local files to trash/recycle bin in parallel as a failsafe
         const trashPromises = filePaths.map(async (p) => {
             // @ts-ignore
             return window.electronAPI.trashFile(p);
@@ -301,6 +331,9 @@ export class GitService {
 
         const results = await Promise.all(trashPromises);
         const allTrashed = results.every(r => r.success);
+
+        // 2. Remove from git tracking unconditionally
+        const rmRes = await git('rm', '--cached', '-f', '--ignore-unmatch', ...filePaths);
 
         return rmRes.success && allTrashed;
     }
