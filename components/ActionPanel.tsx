@@ -10,6 +10,7 @@ interface ActionPanelProps {
   onRestore: () => void;
   isProcessing: boolean;
   onHoverAction?: (action: 'REMOVE' | 'RESTORE' | null) => void;
+  comparisonBranch?: string;
 }
 
 const ActionPanel: React.FC<ActionPanelProps> = ({
@@ -19,7 +20,8 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
   onRemove,
   onRestore,
   isProcessing,
-  onHoverAction
+  onHoverAction,
+  comparisonBranch
 }) => {
   const [confirmAction, setConfirmAction] = useState<'REMOVE' | 'RESTORE' | null>(null);
 
@@ -96,6 +98,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
         fileCount={selectedCount}
         filePaths={selectedPaths}
         mode={mode}
+        comparisonBranch={comparisonBranch}
       />
     </>
   );

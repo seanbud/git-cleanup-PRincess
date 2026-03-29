@@ -253,18 +253,19 @@ export class GitService {
         return res.success;
     }
 
-    static async restoreFile(filePath: string, comparisonBranch?: string): Promise<boolean> {
+    static async restoreFiles(filePaths: string[], comparisonBranch?: string): Promise<boolean> {
+        if (filePaths.length === 0) return true;
         const currentBranch = await this.getCurrentBranch();
 
         // If restoring FROM a base branch (making it match the base)
         if (comparisonBranch && comparisonBranch !== currentBranch) {
-            const res = await git('checkout', comparisonBranch, '--', filePath);
+            const res = await git('checkout', comparisonBranch, '--', ...filePaths);
             return res.success;
         }
 
-        // Normal unstage + restore
-        await git('reset', 'HEAD', '--', filePath);
-        const res = await git('checkout', '--', filePath);
+        // Normal unstage + restore from HEAD
+        await git('reset', 'HEAD', '--', ...filePaths);
+        const res = await git('checkout', '--', ...filePaths);
         return res.success;
     }
 
@@ -285,15 +286,23 @@ export class GitService {
         return restoreRes.success;
     }
 
-    static async removeFile(filePath: string): Promise<boolean> {
+    static async removeFiles(filePaths: string[]): Promise<boolean> {
+        if (filePaths.length === 0) return true;
+
         // 1. Remove from git index first (keep on disk)
         // Use --ignore-unmatch so it doesn't fail if the file is untracked
-        await git('rm', '--cached', '-f', '--ignore-unmatch', filePath);
+        const rmRes = await git('rm', '--cached', '-f', '--ignore-unmatch', ...filePaths);
 
-        // 2. Move the local file to trash/recycle bin
-        // @ts-ignore
-        const res = await window.electronAPI.trashFile(filePath);
-        return res.success;
+        // 2. Move the local files to trash/recycle bin in parallel
+        const trashPromises = filePaths.map(async (p) => {
+            // @ts-ignore
+            return window.electronAPI.trashFile(p);
+        });
+
+        const results = await Promise.all(trashPromises);
+        const allTrashed = results.every(r => r.success);
+
+        return rmRes.success && allTrashed;
     }
 
     static async getCommitGraph(): Promise<CommitNode[]> {

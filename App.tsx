@@ -280,6 +280,7 @@ const App: React.FC = () => {
               onRestore={() => handleAction('RESTORE')}
               isProcessing={git.isProcessing}
               onHoverAction={setActionHover}
+              comparisonBranch={git.comparisonBranch}
             />
           </div>
 

@@ -204,15 +204,25 @@ export function useGitState(): UseGitStateReturn {
         setIsProcessing(true);
         setCharacterState(actionType === 'RESTORE' ? CharacterState.ACTION_GOOD : CharacterState.ACTION_BAD);
 
-        const selectedFiles = gitState.files.filter(f => gitState.selectedFileIds.has(f.id));
+        const selectedPaths = gitState.files
+            .filter(f => gitState.selectedFileIds.has(f.id))
+            .map(f => f.path);
+
+        if (selectedPaths.length === 0) {
+            setIsProcessing(false);
+            return;
+        }
 
         try {
-            for (const file of selectedFiles) {
-                if (actionType === 'RESTORE') {
-                    await GitService.restoreFile(file.path);
-                } else {
-                    await GitService.removeFile(file.path);
-                }
+            let success = false;
+            if (actionType === 'RESTORE') {
+                success = await GitService.restoreFiles(selectedPaths, comparisonBranch);
+            } else {
+                success = await GitService.removeFiles(selectedPaths);
+            }
+
+            if (!success) {
+                throw new Error(`Failed to ${actionType.toLowerCase()} files.`);
             }
 
             await refreshGitState();
@@ -227,14 +237,15 @@ export function useGitState(): UseGitStateReturn {
             }, 2000);
 
             setSelectedDiff('');
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
+            alert(`Error: ${err.message || 'Git operation failed'}`);
             setCharacterState(CharacterState.WORRIED);
             audioService.play('error');
             setTimeout(() => setCharacterState(CharacterState.IDLE), 3000);
             setIsProcessing(false);
         }
-    }, [gitState.files, gitState.selectedFileIds, refreshGitState]);
+    }, [gitState.files, gitState.selectedFileIds, refreshGitState, comparisonBranch]);
 
     const handleFileSelect = useCallback((file: GitFile) => {
         setGitState(prev => {

@@ -10,6 +10,7 @@ interface ConfirmActionModalProps {
     fileCount: number;
     filePaths: string[];
     mode: ThemeMode;
+    comparisonBranch?: string;
 }
 
 const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
@@ -19,7 +20,8 @@ const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
     actionType,
     fileCount,
     filePaths,
-    mode
+    mode,
+    comparisonBranch
 }) => {
     const [showDetails, setShowDetails] = useState(false);
     const isPrincess = mode === ThemeMode.PRINCESS;
@@ -32,16 +34,24 @@ const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
         : 'This will discard your local changes and restore the selected files to match the upstream branch. Your local modifications will be lost.';
 
     const getGitCommands = () => {
+        const quotedPaths = filePaths.map(p => `"${p}"`).join(' ');
         if (isRemove) {
-            return filePaths.map(p => [
-                `git rm --cached -f --ignore-unmatch "${p}"`,
-                `# → move "${p}" to Recycle Bin`
-            ]).flat();
+            return [
+                `git rm --cached -f --ignore-unmatch ${quotedPaths}`,
+                `# → move ${fileCount} file(s) to Recycle Bin`
+            ];
         } else {
-            return filePaths.map(p => [
-                `git reset HEAD -- "${p}"`,
-                `git checkout -- "${p}"`
-            ]).flat();
+            // Note: We use the comparisonBranch if it differs from current
+            const branch = comparisonBranch || 'upstream'; 
+            
+            if (branch && branch !== 'HEAD') {
+                return [`git checkout ${branch} -- ${quotedPaths}`];
+            }
+
+            return [
+                `git reset HEAD -- ${quotedPaths}`,
+                `git checkout -- ${quotedPaths}`
+            ];
         }
     };
 
