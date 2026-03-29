@@ -63,16 +63,17 @@ export function useGitState(): UseGitStateReturn {
 
     const refreshGitState = useCallback(async () => {
         try {
-            const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings, bestComp] = await Promise.all([
+            const [repoName, currentBranch, upstreamBranch, config, branchList, commits, settings] = await Promise.all([
                 GitService.getRepoName(),
                 GitService.getCurrentBranch(),
                 GitService.getUpstreamBranch(),
                 GitService.getGitConfig(),
                 GitService.getBranches(),
                 GitService.getCommitGraph(),
-                GitService.getAppSettings(),
-                GitService.getBestComparisonBranch()
+                GitService.getAppSettings()
             ]);
+
+            const bestComp = await GitService.getBestComparisonBranch(upstreamBranch, branchList, currentBranch);
 
             // If we don't have a comparison branch set yet, use the best guess
             let activeComp = comparisonBranch;
@@ -81,7 +82,7 @@ export function useGitState(): UseGitStateReturn {
                 setComparisonBranch(bestComp);
             }
 
-            const files = await GitService.getStatusFiles(activeComp);
+            const files = await GitService.getStatusFiles(activeComp, currentBranch);
 
             setGitState(prev => ({
                 ...prev,
@@ -154,7 +155,7 @@ export function useGitState(): UseGitStateReturn {
         // Explicitly refresh with the new comparison
         setIsProcessing(true);
         try {
-            const files = await GitService.getStatusFiles(branch);
+            const files = await GitService.getStatusFiles(branch, gitState.currentBranch);
             setGitState(prev => ({ ...prev, files }));
             filesRef.current = files;
         } finally {
@@ -216,7 +217,7 @@ export function useGitState(): UseGitStateReturn {
         try {
             let success = false;
             if (actionType === 'RESTORE') {
-                success = await GitService.restoreFiles(selectedPaths, comparisonBranch);
+                success = await GitService.restoreFiles(selectedPaths, comparisonBranch, gitState.currentBranch);
             } else {
                 success = await GitService.removeFiles(selectedPaths);
             }
@@ -267,7 +268,7 @@ export function useGitState(): UseGitStateReturn {
     // if the state is refreshed (e.g. via auto-refresh).
     const selectedFile = React.useMemo(() => {
         if (gitState.selectedFileIds.size !== 1) return null;
-        const id = Array.from(gitState.selectedFileIds)[0];
+        const id = gitState.selectedFileIds.values().next().value;
         return gitState.files.find(f => f.id === id) || null;
     }, [gitState.selectedFileIds, gitState.files]);
 
@@ -276,7 +277,7 @@ export function useGitState(): UseGitStateReturn {
         let isMounted = true;
         const fetchDiff = async () => {
             if (selectedFile) {
-                const diff = await GitService.getDiff(selectedFile.path, comparisonBranch);
+                const diff = await GitService.getDiff(selectedFile.path, comparisonBranch, gitState.currentBranch);
                 if (isMounted) setSelectedDiff(diff);
             } else {
                 setSelectedDiff('');

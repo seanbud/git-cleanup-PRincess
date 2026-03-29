@@ -57,19 +57,19 @@ export class GitService {
         return res.success ? res.stdout.trim() : '';
     }
 
-    static async getBestComparisonBranch(): Promise<string> {
+    static async getBestComparisonBranch(upstreamArg?: string, branchesArg?: string[], currentBranchArg?: string): Promise<string> {
         // 1. Try upstream
-        const upstream = await this.getUpstreamBranch();
+        const upstream = upstreamArg !== undefined ? upstreamArg : await this.getUpstreamBranch();
         if (upstream) return upstream;
 
         // 2. Try common branches
         const common = ['develop', 'development', 'main', 'master'];
-        const branches = await this.getBranches();
+        const branches = branchesArg !== undefined ? branchesArg : await this.getBranches();
 
         for (const target of common) {
             if (branches.includes(target)) {
                 // Verify it's not the same branch
-                const current = await this.getCurrentBranch();
+                const current = currentBranchArg !== undefined ? currentBranchArg : await this.getCurrentBranch();
                 if (current !== target) return target;
             }
         }
@@ -81,14 +81,14 @@ export class GitService {
             for (const target of common) {
                 const rTarget = `origin/${target}`;
                 if (remoteBranches.some((rb: string) => rb.includes(rTarget))) {
-                    const current = await this.getCurrentBranch();
+                    const current = currentBranchArg !== undefined ? currentBranchArg : await this.getCurrentBranch();
                     if (current !== rTarget) return rTarget;
                 }
             }
         }
 
         // 4. Fallback to self
-        return await this.getCurrentBranch();
+        return currentBranchArg !== undefined ? currentBranchArg : await this.getCurrentBranch();
     }
 
     static async getBranches(): Promise<string[]> {
@@ -100,15 +100,26 @@ export class GitService {
             .map((b: string) => b.replace('*', '').trim());
     }
 
-    static async getStatusFiles(comparisonBranch?: string): Promise<GitFile[]> {
+    static async getStatusFiles(comparisonBranch?: string, currentBranchArg?: string): Promise<GitFile[]> {
+        const currentBranch = currentBranchArg !== undefined ? currentBranchArg : await this.getCurrentBranch();
+        const isComparing = comparisonBranch && comparisonBranch !== currentBranch;
+
+        // Parallelize all data fetching
+        const [statusRes, diffRes, localStats, stagedStats, branchStats] = await Promise.all([
+            git('status', '--porcelain'),
+            isComparing ? git('diff', '--name-status', `${comparisonBranch}...HEAD`) : Promise.resolve({ success: false, stdout: '' }),
+            git('diff', '--numstat', '--text'),
+            git('diff', '--numstat', '--text', '--cached'),
+            isComparing ? git('diff', '--numstat', '--text', `${comparisonBranch}...HEAD`) : Promise.resolve({ success: false, stdout: '' })
+        ]);
+
         const files: GitFile[] = [];
         const seenPaths = new Set<string>();
 
-        // 1. Get uncommitted files (Status)
-        const res = await git('status', '--porcelain');
-        if (res.success && res.stdout.trim()) {
-            const lines = res.stdout.split('\n').filter(Boolean);
-            lines.forEach((line: string, index: number) => {
+        // 1. Process Status
+        if (statusRes.success && statusRes.stdout.trim()) {
+            const lines = statusRes.stdout.split('\n').filter(Boolean);
+            lines.forEach((line: string) => {
                 const code = line.substring(0, 2);
                 let filePath = line.substring(3).trim();
                 if (filePath.startsWith('"') && filePath.endsWith('"')) {
@@ -132,38 +143,33 @@ export class GitService {
             });
         }
 
-        // 2. Get committed differences if comparing to another branch
-        const currentBranch = await this.getCurrentBranch();
-        if (comparisonBranch && comparisonBranch !== currentBranch) {
-            const diffRes = await git('diff', '--name-status', `${comparisonBranch}...HEAD`);
-            if (diffRes.success && diffRes.stdout.trim()) {
-                const lines = diffRes.stdout.split('\n').filter(Boolean);
-                lines.forEach((line: string, index: number) => {
-                    const parts = line.split(/\s+/);
-                    const code = parts[0];
-                    const filePath = parts[parts.length - 1];
+        // 2. Process Committed differences
+        if (diffRes.success && diffRes.stdout.trim()) {
+            const lines = diffRes.stdout.split('\n').filter(Boolean);
+            lines.forEach((line: string) => {
+                const parts = line.split(/\s+/);
+                const code = parts[0];
+                const filePath = parts[parts.length - 1];
 
-                    // Skip if already seen in status (local changes take priority)
-                    if (seenPaths.has(filePath)) return;
+                if (seenPaths.has(filePath)) return;
 
-                    let status = FileStatus.MODIFIED;
-                    if (code.startsWith('A')) status = FileStatus.ADDED;
-                    if (code.startsWith('D')) status = FileStatus.DELETED;
-                    if (code.startsWith('R')) status = FileStatus.RENAMED;
+                let status = FileStatus.MODIFIED;
+                if (code.startsWith('A')) status = FileStatus.ADDED;
+                if (code.startsWith('D')) status = FileStatus.DELETED;
+                if (code.startsWith('R')) status = FileStatus.RENAMED;
 
-                    files.push({
-                        id: `diff:${filePath}`,
-                        path: filePath,
-                        status,
-                        changeType: ChangeType.COMMITTED,
-                        linesAdded: 0,
-                        linesRemoved: 0
-                    });
+                files.push({
+                    id: `diff:${filePath}`,
+                    path: filePath,
+                    status,
+                    changeType: ChangeType.COMMITTED,
+                    linesAdded: 0,
+                    linesRemoved: 0
                 });
-            }
+            });
         }
 
-        // Fetch line stats
+        // Process line stats
         const statMap = new Map<string, { added: number; removed: number }>();
         const addStats = (stdout: string) => {
             const lines = stdout.split('\n').filter(Boolean);
@@ -182,18 +188,9 @@ export class GitService {
             }
         };
 
-        // 1. Get uncommitted stats (staged + unstaged)
-        // Use separate commands for staged and unstaged to avoid issues with empty repos (no HEAD)
-        const localStats = await git('diff', '--numstat', '--text');
         if (localStats.success) addStats(localStats.stdout);
-        const stagedStats = await git('diff', '--numstat', '--text', '--cached');
         if (stagedStats.success) addStats(stagedStats.stdout);
-
-        // 2. Get committed stats for the branch comparison
-        if (comparisonBranch && comparisonBranch !== currentBranch) {
-            const branchStats = await git('diff', '--numstat', '--text', `${comparisonBranch}...HEAD`);
-            if (branchStats.success) addStats(branchStats.stdout);
-        }
+        if (branchStats.success) addStats(branchStats.stdout);
 
         // Apply stats to files
         for (const file of files) {
@@ -207,8 +204,8 @@ export class GitService {
         return files;
     }
 
-    static async getDiff(filePath: string, comparisonBranch?: string): Promise<string> {
-        const currentBranch = await this.getCurrentBranch();
+    static async getDiff(filePath: string, comparisonBranch?: string, currentBranchArg?: string): Promise<string> {
+        const currentBranch = currentBranchArg !== undefined ? currentBranchArg : await this.getCurrentBranch();
         const args = isTextFile(filePath) ? ['--text'] : [];
 
         // If comparing to another branch, we want the total diff (committed + uncommitted)
@@ -253,9 +250,9 @@ export class GitService {
         return res.success;
     }
 
-    static async restoreFiles(filePaths: string[], comparisonBranch?: string): Promise<boolean> {
+    static async restoreFiles(filePaths: string[], comparisonBranch?: string, currentBranchArg?: string): Promise<boolean> {
         if (filePaths.length === 0) return true;
-        const currentBranch = await this.getCurrentBranch();
+        const currentBranch = currentBranchArg !== undefined ? currentBranchArg : await this.getCurrentBranch();
 
         // If restoring FROM a base branch (making it match the base)
         if (comparisonBranch && comparisonBranch !== currentBranch) {
